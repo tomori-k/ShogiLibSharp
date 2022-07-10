@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+using System.Text;
 
 namespace ShogiLibSharp
 {
@@ -19,17 +21,21 @@ namespace ShogiLibSharp
     /// </summary>
     public struct Bitboard
     {
-        private readonly ulong lo, hi;
+        Vector128<ulong> x;
 
         public Bitboard(ulong lo, ulong hi)
         {
-            this.lo = lo;
-            this.hi = hi;
+            this.x = Vector128.Create(lo, hi);
+        }
+
+        public Bitboard(Vector128<UInt64> x)
+        {
+            this.x = x;
         }
 
         public Bitboard(string bitPattern)
         {
-            (this.lo, this.hi) = (0UL, 0UL);
+            this.x = Vector128<ulong>.Zero;
             foreach (var (c, i)
                 in bitPattern.Select((x, i) => (x, i)))
             {
@@ -42,32 +48,47 @@ namespace ShogiLibSharp
 
         public static Bitboard operator&(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo & rhs.lo, lhs.hi & rhs.hi);
+            return new(Avx2.And(lhs.x, rhs.x));
         }
 
         public static Bitboard operator|(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo | rhs.lo, lhs.hi | rhs.hi);
+            return new(Avx2.Or(lhs.x, rhs.x));
         }
 
         public static Bitboard operator^(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo ^ rhs.lo, lhs.hi ^ rhs.hi);
+            return new(Avx2.Xor(lhs.x, rhs.x));
         }
 
         public static Bitboard operator-(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo - rhs.lo, lhs.hi - rhs.hi);
+            return new(Avx2.Subtract(lhs.x, rhs.x));
         }
 
         public static Bitboard operator~(Bitboard x)
         {
-            return new Bitboard(x.lo ^ 0x7fffffffffffffffUL, x.hi ^ 0x000000000003ffffUL);
+            return x ^ new Bitboard(0x7fffffffffffffffUL, 0x000000000003ffffUL);
         }
 
         public static Bitboard operator>>(Bitboard lhs, int shift)
         {
-            return new Bitboard(lhs.lo >> shift, lhs.hi >> shift);
+            return new(Avx2.ShiftRightLogical(lhs.x, (byte)shift));
+        }
+
+        public Bitboard AndNot(Bitboard rhs)
+        {
+            return new(Avx2.AndNot(rhs.x, this.x));
+        }
+
+        public ulong Lower()
+        {
+            return this.x.ToScalar();
+        }
+
+        public ulong Upper()
+        {
+            return this.x.GetUpper().ToScalar();
         }
 
         /// <summary>
@@ -76,7 +97,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool None()
         {
-            return lo == 0UL && hi == 0UL;
+            return Avx2.TestZ(this.x, this.x);
         }
 
         /// <summary>
@@ -94,7 +115,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int Popcount()
         {
-            return Popcount64(lo) + Popcount64(hi);
+            return Popcount64(Lower()) + Popcount64(Upper());
         }
 
         /// <summary>
@@ -104,7 +125,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int LsbSquare()
         {
-            return lo != 0UL ? Tzcnt64(lo) : Tzcnt64(hi) + 63;
+            return Lower() != 0UL ? Tzcnt64(Lower()) : Tzcnt64(Upper()) + 63;
         }
 
         /// <summary>
@@ -113,7 +134,9 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public Bitboard Bswap()
         {
-            return new Bitboard(Bswap64(hi), Bswap64(lo));
+            throw new NotImplementedException();
+            //var shuffle = Vector256.Create(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            //return Avx2.Shuffle(this.x.AsSByte(), shuffle);
         }
 
         /// <summary>
@@ -123,7 +146,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool TestZ(Bitboard x)
         {
-            return (this & x).None();
+            return Avx2.TestZ(this.x, x.x);
         }
 
         /// <summary>
@@ -142,14 +165,14 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public IEnumerable<int> Serialize()
         {
-            var x = lo;
+            var x = Lower();
             while (x != 0UL)
             {
                 yield return Tzcnt64(x);
                 x &= x - 1UL;
             }
 
-            x = hi;
+            x = Upper();
             while (x != 0UL)
             {
                 yield return Tzcnt64(x) + 63;
@@ -164,7 +187,11 @@ namespace ShogiLibSharp
         private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81,2];
         private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81,2];
         private static readonly Bitboard[]  KING_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[,] RAY_BB = new Bitboard[81,8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN 
+        private static readonly Bitboard[,] RAY_BB = new Bitboard[81,8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+
+        private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
+        private static readonly Vector128<ulong>[,] RookMask = new Vector128<ulong>[81, 2];
+
 
         private static Bitboard SquareBit(int rank, int file)
         {
@@ -312,67 +339,78 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static Bitboard PawnDropMask(Bitboard pawns)
         {
-            Bitboard left = new(0x4020100804020100UL, 0x0000000000020100UL);
-            Bitboard t = left - pawns;
+            var left = new Bitboard(0x4020100804020100UL, 0x0000000000020100UL);
+            var t = left - pawns;
             t = (t & left) >> 8;
             return left ^ (left - t);
         }
 
-        private static Bitboard SliderAttacks(Direction d, int sq, Bitboard occupancy)
+        public static Bitboard LanceAttacksBlack(int sq, Bitboard occupancy)
         {
-            if (d != Direction.Right)
-            {
-                Bitboard m = Ray(sq, d);
-                Bitboard t = occupancy & m;
+            var mask = Ray(sq, Direction.Right);
+            var masked = occupancy & mask;
+            masked |= masked >> 1;
+            masked |= masked >> 2;
+            masked |= masked >> 4;
+            masked >>= 1;
+            return mask.AndNot(masked);
+        }
 
-                if (d.HasFlag(Direction.ReverseBit))
-                {
-                    t = t.Bswap();
-                }
-
-                t ^= new Bitboard(t.lo - 1UL, t.hi - Convert.ToUInt64(t.lo == 0UL));
-
-                if (d.HasFlag(Direction.ReverseBit))
-                {
-                    t = t.Bswap();
-                }
-
-                return t & m;
-            }
-            // RIGHT
-            else
-            {
-                Bitboard m = RAY_BB[sq, (int)Direction.Right];
-                Bitboard t = occupancy & m;
-                t |= t >> 1;
-                t |= t >> 2;
-                t |= t >> 4;
-                t >>= 1;
-                return m & ~t;
-            }
+        public static Bitboard LanceAttacksWhite(int sq, Bitboard occupancy)
+        {
+            var mask = new Bitboard(0x3fdfeff7fbfdfeffUL, 0x000000000001feffUL);
+            var masked = mask.AndNot(occupancy);
+            var t = new Bitboard(Avx2.Add(masked.x, PAWN_ATTACKS[sq, 1].x));
+            return t ^ masked;
         }
 
         public static Bitboard LanceAttacks(Color c, int sq, Bitboard occupancy)
         {
             return c == Color.Black
-                ? SliderAttacks(Direction.Right, sq, occupancy)
-                : SliderAttacks(Direction.Left, sq, occupancy);
+                ? LanceAttacksBlack(sq, occupancy)
+                : LanceAttacksWhite(sq, occupancy);
         }
 
         public static Bitboard BishopAttacks(int sq, Bitboard occupancy)
         {
-            return SliderAttacks(Direction.LeftUp   , sq, occupancy)
-                 | SliderAttacks(Direction.RightUp  , sq, occupancy)
-                 | SliderAttacks(Direction.RightDown, sq, occupancy)
-                 | SliderAttacks(Direction.LeftDown , sq, occupancy);
+            var shuffle = Vector256.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+            var mask_lo = BishopMask[sq, 0];
+            var mask_hi = BishopMask[sq, 1];
+            var occ256 = occupancy.x.ToVector256Unsafe();
+            var occ2 = Avx2.Permute2x128(occ256, occ256, 0x20);
+            var rocc2 = Avx2.Shuffle(occ2.AsSByte(), shuffle).AsUInt64();
+            var lo = Avx2.UnpackLow(occ2, rocc2);
+            var hi = Avx2.UnpackHigh(occ2, rocc2);
+            lo = Avx2.And(lo, mask_lo);
+            hi = Avx2.And(hi, mask_hi);
+            var t0 = Avx2.Add(lo, Vector256.Create(0xffffffffffffffffUL));
+            var t1 = Avx2.Add(hi, Avx2.CompareEqual(lo, Vector256<ulong>.Zero));
+            t0 = Avx2.And(Avx2.Xor(t0, lo), mask_lo);
+            t1 = Avx2.And(Avx2.Xor(t1, hi), mask_hi);
+            var a2 = Avx2.Shuffle(Avx2.UnpackHigh(t0, t1).AsSByte(), shuffle);
+            a2 = Avx2.Or(a2, Avx2.UnpackLow(t0, t1).AsSByte());
+            return new(Avx2.Or(a2.GetLower(), a2.GetUpper()).AsUInt64());
         }
 
         public static Bitboard RookAttacks(int sq, Bitboard occupancy)
         {
-            return SliderAttacks(Direction.Left , sq, occupancy)
-                 | SliderAttacks(Direction.Up   , sq, occupancy)
-                 | SliderAttacks(Direction.Right, sq, occupancy)
-                 | SliderAttacks(Direction.Down , sq, occupancy);
+            var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+            var mask_lo = RookMask[sq, 0];
+            var mask_hi = RookMask[sq, 1];
+            var rocc = Avx2.Shuffle(occupancy.x.AsSByte(), shuffle);
+            var lo = Avx2.UnpackLow(occupancy.x, rocc.AsUInt64());
+            var hi = Avx2.UnpackHigh(occupancy.x, rocc.AsUInt64());
+            lo = Avx2.And(lo, mask_lo);
+            hi = Avx2.And(hi, mask_hi);
+            var t0 = Avx2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
+            var t1 = Avx2.Add(hi, Avx2.CompareEqual(lo, Vector128<ulong>.Zero));
+            t0 = Avx2.Xor(t0, lo);
+            t1 = Avx2.Xor(t1, hi);
+            t0 = Avx2.And(t0, mask_lo);
+            t1 = Avx2.And(t1, mask_hi);
+            var updown = Avx2.Shuffle(Avx2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64();
+            updown = Avx2.Or(updown, Avx2.UnpackLow(t0, t1));
+            return LanceAttacksBlack(sq, occupancy) | LanceAttacksWhite(sq, occupancy) | new Bitboard(updown);
         }
 
         /// <summary>
@@ -491,6 +529,28 @@ namespace ShogiLibSharp
                       : p == Piece.Knight                  ? Rank(c, 2, 8)
                       :                                     Rank(c, 0, 8);
                 }
+            }
+
+            for (int i = 0; i < 81; ++i)
+            {
+                var up = Ray(i, Direction.Up).x;
+                var down = Ray(i, Direction.Down).x;
+                var rightup = Ray(i, Direction.RightUp).x;
+                var leftup = Ray(i, Direction.LeftUp).x;
+                var rightdown = Ray(i, Direction.RightDown).x;
+                var leftdown = Ray(i, Direction.LeftDown).x;
+
+                var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+
+                // 予めバイト反転しておく
+                rightdown = Avx2.Shuffle(rightdown.AsSByte(), shuffle).AsUInt64();
+                leftdown = Avx2.Shuffle(leftdown.AsSByte(), shuffle).AsUInt64();
+                down = Avx2.Shuffle(down.AsSByte(), shuffle).AsUInt64();
+
+                BishopMask[i, 0] = Vector256.Create(rightup.GetLower().ToScalar(), leftdown.GetLower().ToScalar(), leftup.GetLower().ToScalar(), rightdown.GetLower().ToScalar());
+                BishopMask[i, 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
+                RookMask[i, 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
+                RookMask[i, 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
             }
         }
 
