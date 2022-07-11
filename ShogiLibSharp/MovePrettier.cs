@@ -69,9 +69,9 @@ namespace ShogiLibSharp
             return PrettyMoveDirection[(int)md];
         }
 
-        private static Relative ToRelative(this Direction dir, Color c)
+        private static Relative ToRelative(this Direction d, Color c)
         {
-            return Relatives[(int)c, Bitboard.Tzcnt64((ulong)dir)];
+            return Relatives[(int)c, (int)d];
         }
 
         private static string Pretty(this Relative r)

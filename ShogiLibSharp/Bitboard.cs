@@ -1,4 +1,5 @@
-﻿using System.Runtime.Intrinsics;
+﻿using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
 
@@ -48,7 +49,6 @@ namespace ShogiLibSharp
 
         public static Bitboard operator&(Bitboard lhs, Bitboard rhs)
         {
-            // 新しいstruct作るの良くない説？
             return new(Sse2.And(lhs.x, rhs.x));
         }
 
@@ -62,9 +62,19 @@ namespace ShogiLibSharp
             return new(Sse2.Xor(lhs.x, rhs.x));
         }
 
-        public static Bitboard operator-(Bitboard lhs, Bitboard rhs)
+        public static Bitboard operator &(Bitboard lhs, int sq)
         {
-            return new(Sse2.Subtract(lhs.x, rhs.x));
+            return lhs & SQUARE_BIT[sq];
+        }
+
+        public static Bitboard operator |(Bitboard lhs, int sq)
+        {
+            return lhs | SQUARE_BIT[sq];
+        }
+
+        public static Bitboard operator ^(Bitboard lhs, int sq)
+        {
+            return lhs ^ SQUARE_BIT[sq];
         }
 
         public static Bitboard operator~(Bitboard x)
@@ -72,21 +82,29 @@ namespace ShogiLibSharp
             return x ^ new Bitboard(0x7fffffffffffffffUL, 0x000000000003ffffUL);
         }
 
-        public static Bitboard operator>>(Bitboard lhs, int shift)
-        {
-            return new(Sse2.ShiftRightLogical(lhs.x, (byte)shift));
-        }
-
+        /// <summary>
+        /// ~this &amp; rhs
+        /// </summary>
+        /// <param name="rhs"></param>
+        /// <returns></returns>
         public Bitboard AndNot(Bitboard rhs)
         {
             return new(Sse2.AndNot(rhs.x, this.x));
         }
 
+        /// <summary>
+        /// 1 筋 から 7 筋までのビットボード
+        /// </summary>
+        /// <returns></returns>
         public ulong Lower()
         {
             return this.x.ToScalar();
         }
 
+        /// <summary>
+        /// 8, 9 筋のビットボード
+        /// </summary>
+        /// <returns></returns>
         public ulong Upper()
         {
             return this.x.GetUpper().ToScalar();
@@ -116,7 +134,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int Popcount()
         {
-            return Popcount64(Lower()) + Popcount64(Upper());
+            return BitOperations.PopCount(Lower()) + BitOperations.PopCount(Upper());
         }
 
         /// <summary>
@@ -126,11 +144,11 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int LsbSquare()
         {
-            return Lower() != 0UL ? Tzcnt64(Lower()) : Tzcnt64(Upper()) + 63;
+            return Lower() != 0UL ? BitOperations.TrailingZeroCount(Lower()) : BitOperations.TrailingZeroCount(Upper()) + 63;
         }
 
         /// <summary>
-        /// (this & x).None() か
+        /// (this &amp; x).None() か
         /// </summary>
         /// <param name="x"></param>
         /// <returns></returns>
@@ -158,14 +176,14 @@ namespace ShogiLibSharp
             var x = Lower();
             while (x != 0UL)
             {
-                yield return Tzcnt64(x);
+                yield return BitOperations.TrailingZeroCount(x);
                 x &= x - 1UL;
             }
 
             x = Upper();
             while (x != 0UL)
             {
-                yield return Tzcnt64(x) + 63;
+                yield return BitOperations.TrailingZeroCount(x) + 63;
                 x &= x - 1UL;
             }
         }
@@ -254,21 +272,6 @@ namespace ShogiLibSharp
             return REACHABLE_MASK[(int)p, (int)c];
         }
 
-        public static Bitboard operator&(Bitboard lhs, int sq)
-        {
-            return lhs & SQUARE_BIT[sq];
-        }
-
-        public static Bitboard operator|(Bitboard lhs, int sq)
-        {
-            return lhs | SQUARE_BIT[sq];
-        }
-
-        public static Bitboard operator^(Bitboard lhs, int sq)
-        {
-            return lhs ^ SQUARE_BIT[sq];
-        }
-
         /// <summary>
         /// 利き計算
         /// </summary>
@@ -340,6 +343,12 @@ namespace ShogiLibSharp
                 throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// 先手の香車の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
         public static Bitboard LanceAttacksBlack(int sq, Bitboard occupancy)
         {
             if (Sse2.IsSupported)
@@ -356,6 +365,12 @@ namespace ShogiLibSharp
                 throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// 後手の香車の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
         public static Bitboard LanceAttacksWhite(int sq, Bitboard occupancy)
         {
             if (Sse2.IsSupported)
@@ -369,6 +384,13 @@ namespace ShogiLibSharp
                 throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// 香車の利きを計算
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
         public static Bitboard LanceAttacks(Color c, int sq, Bitboard occupancy)
         {
             return c == Color.Black
@@ -376,11 +398,19 @@ namespace ShogiLibSharp
                 : LanceAttacksWhite(sq, occupancy);
         }
 
+        /// <summary>
+        /// 角の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
         public static Bitboard BishopAttacks(int sq, Bitboard occupancy)
         {
             if (Avx2.IsSupported)
             {
-                var shuffle = Vector256.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+                var shuffle = Vector256.Create(
+                    15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+                    15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
                 var mask_lo = BishopMask[sq, 0];
                 var mask_hi = BishopMask[sq, 1];
                 var occ256 = occupancy.x.ToVector256Unsafe();
@@ -402,6 +432,12 @@ namespace ShogiLibSharp
                 throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// 飛車の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
         public static Bitboard RookAttacks(int sq, Bitboard occupancy)
         {
             if (Sse41.IsSupported)
@@ -429,39 +465,23 @@ namespace ShogiLibSharp
         }
 
         /// <summary>
-        /// 立っているビットの数
+        /// 人が読みやすい文字列に変換
         /// </summary>
-        /// <param name="x"></param>
         /// <returns></returns>
-        public static int Popcount64(ulong x)
+        public string Pretty()
         {
-            ulong t = x - (x >> 1 & 0x5555555555555555UL);
-            t = (t & 0x3333333333333333UL) + (t >> 2 & 0x3333333333333333UL);
-            t = (t & 0x0f0f0f0f0f0f0f0fUL) + (t >> 4 & 0x0f0f0f0f0f0f0f0fUL);
-            return (int)(t * 0x0101010101010101UL >> 56);
-        }
-
-        /// <summary>
-        /// trailing zero count
-        /// </summary>
-        /// <param name="x"></param>
-        /// <returns></returns>
-        public static int Tzcnt64(ulong x)
-        {
-            return Popcount64(~x & (x - 1));
-        }
-
-        /// <summary>
-        /// バイトスワップ
-        /// </summary>
-        /// <param name="x"></param>
-        /// <returns></returns>
-        public static ulong Bswap64(ulong x)
-        {
-            ulong t = (x >> 32) | (x << 32);
-            t = (t >> 16 & 0x0000ffff0000ffffUL) | ((t & 0x0000ffff0000ffffUL) << 16);
-            t = (t >> 8  & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) <<  8);
-            return t;
+            var sb = new StringBuilder();
+            sb.AppendLine("  ９ ８ ７ ６ ５ ４ ３ ２ １");
+            for (int rank = 0; rank < 9; ++rank)
+            {
+                for (int file = 8; file >= 0; --file)
+                {
+                    sb.Append(
+                        this.Test(Square.Index(rank, file)) ? " ◯" : "   ");
+                }
+                sb.AppendLine(Square.PrettyRank(rank));
+            }
+            return sb.ToString();
         }
 
         static Bitboard()
@@ -567,22 +587,6 @@ namespace ShogiLibSharp
                 RookMask[i, 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
                 RookMask[i, 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
             }
-        }
-
-        public string Pretty()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("  ９ ８ ７ ６ ５ ４ ３ ２ １");
-            for (int rank = 0; rank < 9; ++rank)
-            {
-                for (int file = 8; file >= 0; --file)
-                {
-                    sb.Append(
-                        this.Test(Square.Index(rank, file)) ? " ◯" : "   ");
-                }
-                sb.AppendLine(Square.PrettyRank(rank));
-            }
-            return sb.ToString();
         }
     }
 }
