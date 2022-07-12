@@ -17,7 +17,7 @@ namespace ShogiLibSharp
     /// 17 08       62 53 44 35 26 17 08 九               <br/>
     ///    hi                         lo                  <br/>
     /// </summary>
-    public struct Bitboard
+    public struct Bitboard : IEnumerable<int>
     {
         private readonly ulong lo, hi;
 
@@ -140,7 +140,7 @@ namespace ShogiLibSharp
         /// ビットが立っているマスを列挙
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<int> Serialize()
+        public IEnumerator<int> GetEnumerator()
         {
             var x = lo;
             while (x != 0UL)
@@ -155,6 +155,11 @@ namespace ShogiLibSharp
                 yield return Tzcnt64(x) + 63;
                 x &= x - 1UL;
             }
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return this.GetEnumerator();
         }
 
         private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];

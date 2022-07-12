@@ -38,11 +38,11 @@ namespace ShogiLibSharp
             var us = pos.ColorBB(pos.Player);
 
             // 駒移動
-            foreach (var from in us.Serialize())
+            foreach (var from in us)
             {
                 Piece p = pos.PieceAt(from);
                 Bitboard to_bb = Bitboard.Attacks(p, from, occupancy) & ~us;
-                foreach (int to in to_bb.Serialize())
+                foreach (int to in to_bb)
                 {
                     AddMovesToList(p, from, to, moves);
                 }
@@ -60,7 +60,7 @@ namespace ShogiLibSharp
                         var pawns = pos.PieceBB(Piece.Pawn.Colored(pos.Player));
                         to_bb &= Bitboard.PawnDropMask(pawns);
                     }
-                    foreach (int to in to_bb.Serialize())
+                    foreach (int to in to_bb)
                     {
                         moves.Add(Move.MakeDrop(p, to));
                     }
