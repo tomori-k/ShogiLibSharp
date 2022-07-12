@@ -49,17 +49,38 @@ namespace ShogiLibSharp
 
         public static Bitboard operator&(Bitboard lhs, Bitboard rhs)
         {
-            return new(Sse2.And(lhs.x, rhs.x));
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.And(lhs.x, rhs.x));
+            }
+            else
+            {
+                return new(lhs.Lower() & rhs.Lower(), lhs.Upper() & rhs.Upper());
+            }
         }
 
         public static Bitboard operator|(Bitboard lhs, Bitboard rhs)
         {
-            return new(Sse2.Or(lhs.x, rhs.x));
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.Or(lhs.x, rhs.x));
+            }
+            else
+            {
+                return new(lhs.Lower() | rhs.Lower(), lhs.Upper() | rhs.Upper());
+            }
         }
 
         public static Bitboard operator^(Bitboard lhs, Bitboard rhs)
         {
-            return new(Sse2.Xor(lhs.x, rhs.x));
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.Xor(lhs.x, rhs.x));
+            }
+            else
+            {
+                return new(lhs.Lower() ^ rhs.Lower(), lhs.Upper() ^ rhs.Upper());
+            }
         }
 
         public static Bitboard operator &(Bitboard lhs, int sq)
@@ -89,7 +110,14 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public Bitboard AndNot(Bitboard rhs)
         {
-            return new(Sse2.AndNot(rhs.x, this.x));
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.AndNot(rhs.x, this.x));
+            }
+            else
+            {
+                return ~this & rhs;
+            }
         }
 
         /// <summary>
@@ -116,7 +144,14 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool None()
         {
-            return Sse41.TestZ(this.x, this.x);
+            if (Sse41.IsSupported)
+            {
+                return Sse41.TestZ(this.x, this.x);
+            }
+            else
+            {
+                return (Lower() | Upper()) == 0UL;
+            }
         }
 
         /// <summary>
@@ -144,7 +179,9 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int LsbSquare()
         {
-            return Lower() != 0UL ? BitOperations.TrailingZeroCount(Lower()) : BitOperations.TrailingZeroCount(Upper()) + 63;
+            return Lower() != 0UL
+                ? BitOperations.TrailingZeroCount(Lower())
+                : BitOperations.TrailingZeroCount(Upper()) + 63;
         }
 
         /// <summary>
@@ -154,7 +191,14 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool TestZ(Bitboard x)
         {
-            return Sse41.TestZ(this.x, x.x);
+            if (Sse41.IsSupported)
+            {
+                return Sse41.TestZ(this.x, x.x);
+            }
+            else
+            {
+                return (this & x).None();
+            }
         }
 
         /// <summary>
@@ -340,7 +384,15 @@ namespace ShogiLibSharp
                 return new(Sse2.Xor(left, Sse2.Subtract(left, t)));
             }
             else
-                throw new NotImplementedException();
+            {
+                const ulong left0 = 0x4020100804020100UL;
+                const ulong left1 = 0x0000000000020100UL;
+                var t0 = left0 - pawns.Lower();
+                var t1 = left1 - pawns.Upper();
+                t0 = left0 - ((t0 & left0) >> 8);
+                t1 = left1 - ((t1 & left1) >> 8);
+                return new(left0 ^ t0, left1 ^ t1);
+            }
         }
 
         /// <summary>
@@ -362,7 +414,21 @@ namespace ShogiLibSharp
                 return new(Sse2.AndNot(masked, mask));
             }
             else
-                throw new NotImplementedException();
+            {
+                var mask = sq < 63
+                    ? Ray(sq, Direction.Right).Lower()
+                    : Ray(sq, Direction.Right).Upper();
+                var occ = sq < 63
+                    ? occupancy.Lower() : occupancy.Upper();
+                var masked = occ & mask;
+                masked |= masked >> 1;
+                masked |= masked >> 2;
+                masked |= masked >> 4;
+                masked >>= 1;
+                return sq < 63
+                    ? new(~masked & mask, 0UL)
+                    : new(0UL, ~masked & mask);
+            }
         }
 
         /// <summary>
@@ -381,7 +447,16 @@ namespace ShogiLibSharp
                 return new(Sse2.Xor(t, masked));
             }
             else
-                throw new NotImplementedException();
+            {
+                var mask = sq < 63 ? 0x3fdfeff7fbfdfeffUL : 0x000000000001feffUL;
+                var occ = sq < 63 ? occupancy.Lower() : occupancy.Upper();
+                var pawnAttacks = sq < 63
+                    ? PAWN_ATTACKS[sq, 1].Lower()
+                    : PAWN_ATTACKS[sq, 1].Upper();
+                var masked = ~occ & mask;
+                var t = masked + pawnAttacks;
+                return sq < 63 ? new(t ^ masked, 0UL) : new(0UL, t ^ masked);
+            }
         }
 
         /// <summary>
@@ -428,8 +503,58 @@ namespace ShogiLibSharp
                 a2 = Avx2.Or(a2, Avx2.UnpackLow(t0, t1).AsSByte());
                 return new(Sse2.Or(a2.GetLower(), a2.GetUpper()).AsUInt64());
             }
+            else if (Sse2.IsSupported)
+            {
+                var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+                var rocc = Ssse3.IsSupported
+                    ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
+                    : Bswap128_Sse2(occupancy.x);
+                var occ0 = Sse2.UnpackLow(occupancy.x, rocc);
+                var occ1 = Sse2.UnpackHigh(occupancy.x, rocc);
+                Vector128<ulong> res0, res1;
+                // 前半
+                {
+                    var mask_lo = BishopMask[sq, 0].GetLower();
+                    var mask_hi = BishopMask[sq, 1].GetLower();
+                    var lo = Sse2.And(occ0, mask_lo);
+                    var hi = Sse2.And(occ1, mask_hi);
+                    var carry = Sse41.IsSupported
+                        ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
+                        : AllBitsOneIfZero64x2_Sse2(lo);
+                    var t1 = Sse2.Add(hi, carry);
+                    var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
+                    t0 = Sse2.And(Sse2.Xor(t0, lo), mask_lo);
+                    t1 = Sse2.And(Sse2.Xor(t1, hi), mask_hi);
+                    var a = Ssse3.IsSupported
+                        ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
+                        : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
+                    res0 = Sse2.Or(a, Sse2.UnpackLow(t0, t1));
+                }
+                // 後半
+                {
+                    var mask_lo = BishopMask[sq, 0].GetUpper();
+                    var mask_hi = BishopMask[sq, 1].GetUpper();
+                    var lo = Sse2.And(occ0, mask_lo);
+                    var hi = Sse2.And(occ1, mask_hi);
+                    var carry = Sse41.IsSupported
+                        ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
+                        : AllBitsOneIfZero64x2_Sse2(lo);
+                    var t1 = Sse2.Add(hi, carry);
+                    var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
+                    t0 = Sse2.And(Sse2.Xor(t0, lo), mask_lo);
+                    t1 = Sse2.And(Sse2.Xor(t1, hi), mask_hi);
+                    var a = Ssse3.IsSupported
+                        ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
+                        : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
+                    res1 = Sse2.Or(a, Sse2.UnpackLow(t0, t1));
+                }
+                return new(Sse2.Or(res0, res1));
+            }
             else
+            {
                 throw new NotImplementedException();
+
+            }
         }
 
         /// <summary>
@@ -440,28 +565,51 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static Bitboard RookAttacks(int sq, Bitboard occupancy)
         {
-            if (Sse41.IsSupported)
+            if (Sse2.IsSupported)
             {
                 var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
                 var mask_lo = RookMask[sq, 0];
                 var mask_hi = RookMask[sq, 1];
-                var rocc = Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle);
-                var lo = Sse2.UnpackLow(occupancy.x, rocc.AsUInt64());
-                var hi = Sse2.UnpackHigh(occupancy.x, rocc.AsUInt64());
+                var rocc = Ssse3.IsSupported
+                    ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
+                    : Bswap128_Sse2(occupancy.x);
+                var lo = Sse2.UnpackLow(occupancy.x, rocc);
+                var hi = Sse2.UnpackHigh(occupancy.x, rocc);
                 lo = Sse2.And(lo, mask_lo);
                 hi = Sse2.And(hi, mask_hi);
+                var carry = Sse41.IsSupported
+                    ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
+                    : AllBitsOneIfZero64x2_Sse2(lo);
+                var t1 = Sse2.Add(hi, carry);
                 var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
-                var t1 = Sse2.Add(hi, Sse41.CompareEqual(lo, Vector128<ulong>.Zero));
                 t0 = Sse2.Xor(t0, lo);
                 t1 = Sse2.Xor(t1, hi);
                 t0 = Sse2.And(t0, mask_lo);
                 t1 = Sse2.And(t1, mask_hi);
-                var updown = Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64();
+                var updown = Ssse3.IsSupported
+                    ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
+                    : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
                 updown = Sse2.Or(updown, Sse2.UnpackLow(t0, t1));
                 return LanceAttacksBlack(sq, occupancy) | LanceAttacksWhite(sq, occupancy) | new Bitboard(updown);
             }
             else
+            {
                 throw new NotImplementedException();
+            }
+        }
+
+        private static Vector128<ulong> Bswap128_Sse2(Vector128<ulong> x)
+        {
+            var y = Sse2.ShuffleLow(x.AsUInt16(), 0b00011011);
+            y = Sse2.ShuffleHigh(y, 0b00011011);
+            y = Sse2.Or(Sse2.ShiftRightLogical(y, 8), Sse2.ShiftLeftLogical(y, 8));
+            return Sse2.Shuffle(y.AsUInt32(), 0b01001110).AsUInt64();
+        }
+
+        private static Vector128<ulong> AllBitsOneIfZero64x2_Sse2(Vector128<ulong> left)
+        {
+            var x = Sse2.CompareEqual(left.AsUInt32(), Vector128<uint>.Zero).AsUInt64();
+            return Sse2.And(x, Sse2.Or(Sse2.ShiftRightLogical(x, 32), Sse2.ShiftLeftLogical(x, 32)));
         }
 
         /// <summary>
