@@ -43,20 +43,20 @@ namespace ShogiLibSharp.Tests
         }
 
         [TestMethod()]
-        [DeploymentItem(@"kifu\sennichite\1.csa")]
-        [DeploymentItem(@"kifu\sennichite\2.csa")]
-        [DeploymentItem(@"kifu\not_sennichite\1.csa")]
-        [DeploymentItem(@"kifu\not_sennichite\2.csa")]
+        [DeploymentItem(@"kifu/sennichite/1.csa")]
+        [DeploymentItem(@"kifu/sennichite/2.csa")]
+        [DeploymentItem(@"kifu/not_sennichite/1.csa")]
+        [DeploymentItem(@"kifu/not_sennichite/2.csa")]
         public void CheckRepetitionTest()
         {
             CheckRepetitionTest1();
             CheckRepetitionTest2(new[] {
-                @"kifu\sennichite\1.csa",
-                @"kifu\sennichite\2.csa",
+                @"kifu/sennichite/1.csa",
+                @"kifu/sennichite/2.csa",
             }, true);
             CheckRepetitionTest2(new[] {
-                @"kifu\not_sennichite\1.csa",
-                @"kifu\not_sennichite\2.csa",
+                @"kifu/not_sennichite/1.csa",
+                @"kifu/not_sennichite/2.csa",
             }, false);
         }
 
