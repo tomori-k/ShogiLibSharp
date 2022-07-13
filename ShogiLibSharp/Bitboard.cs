@@ -441,21 +441,19 @@ namespace ShogiLibSharp
         {
             if (Sse2.IsSupported)
             {
-                var mask = Vector128.Create(0x3fdfeff7fbfdfeffUL, 0x000000000001feffUL);
-                var masked = Sse2.AndNot(occupancy.x, mask);
-                var t = Sse2.Add(masked, PAWN_ATTACKS[sq, 1].x);
-                return new(Sse2.Xor(t, masked));
+                var mask = Ray(sq, Direction.Left);
+                var minusOne = Vector128.Create(0xffffffffffffffffUL);
+                var masked = Sse2.And(occupancy.x, mask.x);
+                var t = Sse2.Add(masked, minusOne);
+                return new(Sse2.And(Sse2.Xor(t, masked), mask.x));
             }
             else
             {
-                var mask = sq < 63 ? 0x3fdfeff7fbfdfeffUL : 0x000000000001feffUL;
+                var mask = sq < 63 ? Ray(sq, Direction.Left).Lower() : Ray(sq, Direction.Left).Upper();
                 var occ = sq < 63 ? occupancy.Lower() : occupancy.Upper();
-                var pawnAttacks = sq < 63
-                    ? PAWN_ATTACKS[sq, 1].Lower()
-                    : PAWN_ATTACKS[sq, 1].Upper();
-                var masked = ~occ & mask;
-                var t = masked + pawnAttacks;
-                return sq < 63 ? new(t ^ masked, 0UL) : new(0UL, t ^ masked);
+                var masked = occ & mask;
+                var a = (masked ^ (masked - 1)) & mask;
+                return sq < 63 ? new(a, 0UL) : new(0UL, a);
             }
         }
 
