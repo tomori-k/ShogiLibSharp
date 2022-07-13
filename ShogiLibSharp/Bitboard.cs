@@ -471,6 +471,47 @@ namespace ShogiLibSharp
                 : LanceAttacksWhite(sq, occupancy);
         }
 
+        public static Bitboard SliderAttacks_NoSse_LsbToMsb(int sq, Direction d, Bitboard occupancy)
+        {
+            var mask0 = Ray(sq, d).Lower();
+            var mask1 = Ray(sq, d).Upper();
+            var occ0 = occupancy.Lower();
+            var occ1 = occupancy.Upper();
+            var masked0 = occ0 & mask0;
+            var masked1 = occ1 & mask1;
+            var t0 = masked0 - 1UL;
+            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
+            t0 ^= masked0;
+            t1 ^= masked1;
+            t0 &= mask0;
+            t1 &= mask1;
+            return new Bitboard(t0, t1);
+        }
+
+        public static ulong Bswap64(ulong x)
+        {
+            ulong t = (x >> 32) | (x << 32);
+            t = (t >> 16 & 0x0000ffff0000ffffUL) | ((t & 0x0000ffff0000ffffUL) << 16);
+            t = (t >> 8 & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) << 8);
+            return t;
+        }
+
+        public static Bitboard SliderAttacks_NoSse_MsbToLsb(int sq, Direction d, Bitboard occupancy)
+        {
+            var mask0 = Ray(sq, d).Lower();
+            var mask1 = Ray(sq, d).Upper();
+            var occ0 = occupancy.Lower();
+            var occ1 = occupancy.Upper();
+            var masked0 = Bswap64(occ1 & mask1);
+            var masked1 = Bswap64(occ0 & mask0);
+            var t0 = masked0 - 1UL;
+            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
+            (t0, t1) = (Bswap64(t1 ^ masked1), Bswap64(t0 ^ masked0));
+            t0 &= mask0;
+            t1 &= mask1;
+            return new Bitboard(t0, t1);
+        }
+
         /// <summary>
         /// 角の利きを計算
         /// </summary>
@@ -550,8 +591,10 @@ namespace ShogiLibSharp
             }
             else
             {
-                throw new NotImplementedException();
-
+                return SliderAttacks_NoSse_LsbToMsb(sq, Direction.LeftUp, occupancy)
+                    | SliderAttacks_NoSse_LsbToMsb(sq, Direction.RightUp, occupancy)
+                    | SliderAttacks_NoSse_MsbToLsb(sq, Direction.LeftDown, occupancy)
+                    | SliderAttacks_NoSse_MsbToLsb(sq, Direction.RightDown, occupancy);
             }
         }
 
@@ -592,7 +635,10 @@ namespace ShogiLibSharp
             }
             else
             {
-                throw new NotImplementedException();
+                return SliderAttacks_NoSse_LsbToMsb(sq, Direction.Up, occupancy)
+                    | SliderAttacks_NoSse_MsbToLsb(sq, Direction.Down, occupancy)
+                    | LanceAttacksBlack(sq, occupancy)
+                    | LanceAttacksWhite(sq, occupancy);
             }
         }
 
