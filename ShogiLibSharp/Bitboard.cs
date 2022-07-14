@@ -20,7 +20,7 @@ namespace ShogiLibSharp
     /// 17 08       62 53 44 35 26 17 08 九               <br/>
     ///    hi                         lo                  <br/>
     /// </summary>
-    public struct Bitboard
+    public struct Bitboard : IEnumerable<int>
     {
         #region テーブル
 
@@ -231,7 +231,7 @@ namespace ShogiLibSharp
         /// ビットが立っているマスを列挙
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<int> Serialize()
+        public IEnumerator<int> GetEnumerator()
         {
             var x = Lower();
             while (x != 0UL)
@@ -248,6 +248,11 @@ namespace ShogiLibSharp
             }
         }
 
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return this.GetEnumerator();
+        }
+        
         /// <summary>
         /// sq から d の方向へ伸ばしたビットボード（sq は含まない）
         /// </summary>

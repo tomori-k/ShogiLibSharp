@@ -135,7 +135,6 @@ namespace ShogiLibSharp
                     Debug.Assert(candidates.Popcount() == 2);
 
                     var knightFiles = candidates
-                        .Serialize()
                         .Select(sq => Square.FileOf(sq));
                     var left = pos.Player == Color.Black
                         ? knightFiles.First()
@@ -158,7 +157,6 @@ namespace ShogiLibSharp
                         .FromTo(from, to)
                         .ToMoveDirection(pos.Player);
                     var moveDirections = candidates
-                        .Serialize()
                         .Select(from => DirectionExtensions
                             .FromTo(from, to)
                             .ToMoveDirection(pos.Player));
@@ -172,7 +170,7 @@ namespace ShogiLibSharp
                     var r = DirectionExtensions
                         .FromTo(m.From(), to)
                         .ToRelative(pos.Player);
-                    var relatives = candidates.Serialize()
+                    var relatives = candidates
                         .Select(from => DirectionExtensions
                             .FromTo(from, to)
                             .ToRelative(pos.Player));
