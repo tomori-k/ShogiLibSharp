@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System.Numerics;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+using System.Text;
 
 namespace ShogiLibSharp
 {
@@ -19,17 +22,37 @@ namespace ShogiLibSharp
     /// </summary>
     public struct Bitboard : IEnumerable<int>
     {
-        private readonly ulong lo, hi;
+        #region テーブル
+
+        private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
+        private static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
+        private static readonly Bitboard[,] PAWN_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[,] KNIGHT_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
+        private static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+
+        private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
+        private static readonly Vector128<ulong>[,] RookMask = new Vector128<ulong>[81, 2];
+
+        #endregion
+
+        private readonly Vector128<ulong> x;
 
         public Bitboard(ulong lo, ulong hi)
         {
-            this.lo = lo;
-            this.hi = hi;
+            this.x = Vector128.Create(lo, hi);
+        }
+
+        public Bitboard(Vector128<UInt64> x)
+        {
+            this.x = x;
         }
 
         public Bitboard(string bitPattern)
         {
-            (this.lo, this.hi) = (0UL, 0UL);
+            this.x = Vector128<ulong>.Zero;
             foreach (var (c, i)
                 in bitPattern.Select((x, i) => (x, i)))
             {
@@ -42,32 +65,93 @@ namespace ShogiLibSharp
 
         public static Bitboard operator&(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo & rhs.lo, lhs.hi & rhs.hi);
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.And(lhs.x, rhs.x));
+            }
+            else
+            {
+                return new(lhs.Lower() & rhs.Lower(), lhs.Upper() & rhs.Upper());
+            }
         }
 
         public static Bitboard operator|(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo | rhs.lo, lhs.hi | rhs.hi);
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.Or(lhs.x, rhs.x));
+            }
+            else
+            {
+                return new(lhs.Lower() | rhs.Lower(), lhs.Upper() | rhs.Upper());
+            }
         }
 
         public static Bitboard operator^(Bitboard lhs, Bitboard rhs)
         {
-            return new Bitboard(lhs.lo ^ rhs.lo, lhs.hi ^ rhs.hi);
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.Xor(lhs.x, rhs.x));
+            }
+            else
+            {
+                return new(lhs.Lower() ^ rhs.Lower(), lhs.Upper() ^ rhs.Upper());
+            }
         }
 
-        public static Bitboard operator-(Bitboard lhs, Bitboard rhs)
+        public static Bitboard operator &(Bitboard lhs, int sq)
         {
-            return new Bitboard(lhs.lo - rhs.lo, lhs.hi - rhs.hi);
+            return lhs & SQUARE_BIT[sq];
+        }
+
+        public static Bitboard operator |(Bitboard lhs, int sq)
+        {
+            return lhs | SQUARE_BIT[sq];
+        }
+
+        public static Bitboard operator ^(Bitboard lhs, int sq)
+        {
+            return lhs ^ SQUARE_BIT[sq];
         }
 
         public static Bitboard operator~(Bitboard x)
         {
-            return new Bitboard(x.lo ^ 0x7fffffffffffffffUL, x.hi ^ 0x000000000003ffffUL);
+            return x ^ new Bitboard(0x7fffffffffffffffUL, 0x000000000003ffffUL);
         }
 
-        public static Bitboard operator>>(Bitboard lhs, int shift)
+        /// <summary>
+        /// ~this &amp; rhs
+        /// </summary>
+        /// <param name="rhs"></param>
+        /// <returns></returns>
+        public Bitboard AndNot(Bitboard rhs)
         {
-            return new Bitboard(lhs.lo >> shift, lhs.hi >> shift);
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.AndNot(rhs.x, this.x));
+            }
+            else
+            {
+                return ~this & rhs;
+            }
+        }
+
+        /// <summary>
+        /// 1 筋 から 7 筋までのビットボード
+        /// </summary>
+        /// <returns></returns>
+        public ulong Lower()
+        {
+            return this.x.ToScalar();
+        }
+
+        /// <summary>
+        /// 8, 9 筋のビットボード
+        /// </summary>
+        /// <returns></returns>
+        public ulong Upper()
+        {
+            return this.x.GetUpper().ToScalar();
         }
 
         /// <summary>
@@ -76,7 +160,14 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool None()
         {
-            return lo == 0UL && hi == 0UL;
+            if (Sse41.IsSupported)
+            {
+                return Sse41.TestZ(this.x, this.x);
+            }
+            else
+            {
+                return (Lower() | Upper()) == 0UL;
+            }
         }
 
         /// <summary>
@@ -94,7 +185,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int Popcount()
         {
-            return Popcount64(lo) + Popcount64(hi);
+            return BitOperations.PopCount(Lower()) + BitOperations.PopCount(Upper());
         }
 
         /// <summary>
@@ -104,26 +195,26 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public int LsbSquare()
         {
-            return lo != 0UL ? Tzcnt64(lo) : Tzcnt64(hi) + 63;
+            return Lower() != 0UL
+                ? BitOperations.TrailingZeroCount(Lower())
+                : BitOperations.TrailingZeroCount(Upper()) + 63;
         }
 
         /// <summary>
-        /// 128 ビットのビット列とみてバイト反転したビットボードを作成
-        /// </summary>
-        /// <returns></returns>
-        public Bitboard Bswap()
-        {
-            return new Bitboard(Bswap64(hi), Bswap64(lo));
-        }
-
-        /// <summary>
-        /// (this & x).None() か
+        /// (this &amp; x).None() か
         /// </summary>
         /// <param name="x"></param>
         /// <returns></returns>
         public bool TestZ(Bitboard x)
         {
-            return (this & x).None();
+            if (Sse41.IsSupported)
+            {
+                return Sse41.TestZ(this.x, x.x);
+            }
+            else
+            {
+                return (this & x).None();
+            }
         }
 
         /// <summary>
@@ -142,17 +233,17 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public IEnumerator<int> GetEnumerator()
         {
-            var x = lo;
+            var x = Lower();
             while (x != 0UL)
             {
-                yield return Tzcnt64(x);
+                yield return BitOperations.TrailingZeroCount(x);
                 x &= x - 1UL;
             }
 
-            x = hi;
+            x = Upper();
             while (x != 0UL)
             {
-                yield return Tzcnt64(x) + 63;
+                yield return BitOperations.TrailingZeroCount(x) + 63;
                 x &= x - 1UL;
             }
         }
@@ -161,22 +252,7 @@ namespace ShogiLibSharp
         {
             return this.GetEnumerator();
         }
-
-        private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
-        private static readonly Bitboard[]  SQUARE_BIT = new Bitboard[81];
-        private static readonly Bitboard[,] PAWN_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[,] KNIGHT_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[]  KING_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[,] RAY_BB = new Bitboard[81,8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN 
-
-        private static Bitboard SquareBit(int rank, int file)
-        {
-            return 0 <= rank && rank < 9 && 0 <= file && file < 9
-                ? SQUARE_BIT[Square.Index(rank, file)] : default;
-        }
-
+        
         /// <summary>
         /// sq から d の方向へ伸ばしたビットボード（sq は含まない）
         /// </summary>
@@ -242,19 +318,236 @@ namespace ShogiLibSharp
             return REACHABLE_MASK[(int)p, (int)c];
         }
 
-        public static Bitboard operator&(Bitboard lhs, int sq)
+        /// <summary>
+        /// 歩を打てる場所を表すビットボードを計算
+        /// </summary>
+        /// <param name="pawns"></param>
+        /// <returns></returns>
+        public static Bitboard PawnDropMask(Bitboard pawns)
         {
-            return lhs & SQUARE_BIT[sq];
+            if (Sse2.IsSupported)
+            {
+                var left = Vector128.Create(0x4020100804020100UL, 0x0000000000020100UL);
+                var t = Sse2.Subtract(left, pawns.x);
+                t = Sse2.ShiftRightLogical(Sse2.And(t, left), 8);
+                return new(Sse2.Xor(left, Sse2.Subtract(left, t)));
+            }
+            else
+            {
+                const ulong left0 = 0x4020100804020100UL;
+                const ulong left1 = 0x0000000000020100UL;
+                var t0 = left0 - pawns.Lower();
+                var t1 = left1 - pawns.Upper();
+                t0 = left0 - ((t0 & left0) >> 8);
+                t1 = left1 - ((t1 & left1) >> 8);
+                return new(left0 ^ t0, left1 ^ t1);
+            }
         }
 
-        public static Bitboard operator|(Bitboard lhs, int sq)
+        /// <summary>
+        /// 先手の香車の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard LanceAttacksBlack(int sq, Bitboard occupancy)
         {
-            return lhs | SQUARE_BIT[sq];
+            if (Sse2.IsSupported)
+            {
+                var mask = Ray(sq, Direction.Right).x;
+                var masked = Sse2.And(occupancy.x, mask);
+                masked = Sse2.Or(masked, Sse2.ShiftRightLogical(masked, 1));
+                masked = Sse2.Or(masked, Sse2.ShiftRightLogical(masked, 2));
+                masked = Sse2.Or(masked, Sse2.ShiftRightLogical(masked, 4));
+                masked = Sse2.ShiftRightLogical(masked, 1);
+                return new(Sse2.AndNot(masked, mask));
+            }
+            else
+            {
+                var mask = sq < 63
+                    ? Ray(sq, Direction.Right).Lower()
+                    : Ray(sq, Direction.Right).Upper();
+                var occ = sq < 63
+                    ? occupancy.Lower() : occupancy.Upper();
+                var masked = occ & mask;
+                masked |= masked >> 1;
+                masked |= masked >> 2;
+                masked |= masked >> 4;
+                masked >>= 1;
+                return sq < 63
+                    ? new(~masked & mask, 0UL)
+                    : new(0UL, ~masked & mask);
+            }
         }
 
-        public static Bitboard operator^(Bitboard lhs, int sq)
+        /// <summary>
+        /// 後手の香車の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard LanceAttacksWhite(int sq, Bitboard occupancy)
         {
-            return lhs ^ SQUARE_BIT[sq];
+            if (Sse2.IsSupported)
+            {
+                var mask = Ray(sq, Direction.Left);
+                var minusOne = Vector128.Create(0xffffffffffffffffUL);
+                var masked = Sse2.And(occupancy.x, mask.x);
+                var t = Sse2.Add(masked, minusOne);
+                return new(Sse2.And(Sse2.Xor(t, masked), mask.x));
+            }
+            else
+            {
+                var mask = sq < 63 ? Ray(sq, Direction.Left).Lower() : Ray(sq, Direction.Left).Upper();
+                var occ = sq < 63 ? occupancy.Lower() : occupancy.Upper();
+                var masked = occ & mask;
+                var a = (masked ^ (masked - 1)) & mask;
+                return sq < 63 ? new(a, 0UL) : new(0UL, a);
+            }
+        }
+
+        /// <summary>
+        /// 香車の利きを計算
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard LanceAttacks(Color c, int sq, Bitboard occupancy)
+        {
+            return c == Color.Black
+                ? LanceAttacksBlack(sq, occupancy)
+                : LanceAttacksWhite(sq, occupancy);
+        }
+
+        /// <summary>
+        /// 角の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard BishopAttacks(int sq, Bitboard occupancy)
+        {
+            if (Avx2.IsSupported)
+            {
+                var shuffle = Vector256.Create(
+                    15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+                    15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+                var mask_lo = BishopMask[sq, 0];
+                var mask_hi = BishopMask[sq, 1];
+                var occ256 = occupancy.x.ToVector256Unsafe();
+                var occ2 = Avx2.Permute2x128(occ256, occ256, 0x20);
+                var rocc2 = Avx2.Shuffle(occ2.AsSByte(), shuffle).AsUInt64();
+                var lo = Avx2.UnpackLow(occ2, rocc2);
+                var hi = Avx2.UnpackHigh(occ2, rocc2);
+                lo = Avx2.And(lo, mask_lo);
+                hi = Avx2.And(hi, mask_hi);
+                var t0 = Avx2.Add(lo, Vector256.Create(0xffffffffffffffffUL));
+                var t1 = Avx2.Add(hi, Avx2.CompareEqual(lo, Vector256<ulong>.Zero));
+                t0 = Avx2.And(Avx2.Xor(t0, lo), mask_lo);
+                t1 = Avx2.And(Avx2.Xor(t1, hi), mask_hi);
+                var a2 = Avx2.Shuffle(Avx2.UnpackHigh(t0, t1).AsSByte(), shuffle);
+                a2 = Avx2.Or(a2, Avx2.UnpackLow(t0, t1).AsSByte());
+                return new(Sse2.Or(a2.GetLower(), a2.GetUpper()).AsUInt64());
+            }
+            else if (Sse2.IsSupported)
+            {
+                var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+                var rocc = Ssse3.IsSupported
+                    ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
+                    : Bswap128_Sse2(occupancy.x);
+                var occ0 = Sse2.UnpackLow(occupancy.x, rocc);
+                var occ1 = Sse2.UnpackHigh(occupancy.x, rocc);
+                Vector128<ulong> res0, res1;
+                // 前半
+                {
+                    var mask_lo = BishopMask[sq, 0].GetLower();
+                    var mask_hi = BishopMask[sq, 1].GetLower();
+                    var lo = Sse2.And(occ0, mask_lo);
+                    var hi = Sse2.And(occ1, mask_hi);
+                    var carry = Sse41.IsSupported
+                        ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
+                        : AllBitsOneIfZero64x2_Sse2(lo);
+                    var t1 = Sse2.Add(hi, carry);
+                    var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
+                    t0 = Sse2.And(Sse2.Xor(t0, lo), mask_lo);
+                    t1 = Sse2.And(Sse2.Xor(t1, hi), mask_hi);
+                    var a = Ssse3.IsSupported
+                        ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
+                        : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
+                    res0 = Sse2.Or(a, Sse2.UnpackLow(t0, t1));
+                }
+                // 後半
+                {
+                    var mask_lo = BishopMask[sq, 0].GetUpper();
+                    var mask_hi = BishopMask[sq, 1].GetUpper();
+                    var lo = Sse2.And(occ0, mask_lo);
+                    var hi = Sse2.And(occ1, mask_hi);
+                    var carry = Sse41.IsSupported
+                        ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
+                        : AllBitsOneIfZero64x2_Sse2(lo);
+                    var t1 = Sse2.Add(hi, carry);
+                    var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
+                    t0 = Sse2.And(Sse2.Xor(t0, lo), mask_lo);
+                    t1 = Sse2.And(Sse2.Xor(t1, hi), mask_hi);
+                    var a = Ssse3.IsSupported
+                        ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
+                        : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
+                    res1 = Sse2.Or(a, Sse2.UnpackLow(t0, t1));
+                }
+                return new(Sse2.Or(res0, res1));
+            }
+            else
+            {
+                return SliderAttacks_NoSse_LsbToMsb(sq, Direction.LeftUp, occupancy)
+                    | SliderAttacks_NoSse_LsbToMsb(sq, Direction.RightUp, occupancy)
+                    | SliderAttacks_NoSse_MsbToLsb(sq, Direction.LeftDown, occupancy)
+                    | SliderAttacks_NoSse_MsbToLsb(sq, Direction.RightDown, occupancy);
+            }
+        }
+
+        /// <summary>
+        /// 飛車の利きを計算
+        /// </summary>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard RookAttacks(int sq, Bitboard occupancy)
+        {
+            if (Sse2.IsSupported)
+            {
+                var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+                var mask_lo = RookMask[sq, 0];
+                var mask_hi = RookMask[sq, 1];
+                var rocc = Ssse3.IsSupported
+                    ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
+                    : Bswap128_Sse2(occupancy.x);
+                var lo = Sse2.UnpackLow(occupancy.x, rocc);
+                var hi = Sse2.UnpackHigh(occupancy.x, rocc);
+                lo = Sse2.And(lo, mask_lo);
+                hi = Sse2.And(hi, mask_hi);
+                var carry = Sse41.IsSupported
+                    ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
+                    : AllBitsOneIfZero64x2_Sse2(lo);
+                var t1 = Sse2.Add(hi, carry);
+                var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
+                t0 = Sse2.Xor(t0, lo);
+                t1 = Sse2.Xor(t1, hi);
+                t0 = Sse2.And(t0, mask_lo);
+                t1 = Sse2.And(t1, mask_hi);
+                var updown = Ssse3.IsSupported
+                    ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
+                    : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
+                updown = Sse2.Or(updown, Sse2.UnpackLow(t0, t1));
+                return LanceAttacksBlack(sq, occupancy) | LanceAttacksWhite(sq, occupancy) | new Bitboard(updown);
+            }
+            else
+            {
+                return SliderAttacks_NoSse_LsbToMsb(sq, Direction.Up, occupancy)
+                    | SliderAttacks_NoSse_MsbToLsb(sq, Direction.Down, occupancy)
+                    | LanceAttacksBlack(sq, occupancy)
+                    | LanceAttacksWhite(sq, occupancy);
+            }
         }
 
         /// <summary>
@@ -310,110 +603,85 @@ namespace ShogiLibSharp
             return Attacks(p.Colored(c), sq, occupancy);
         }
 
-        /// <summary>
-        /// 歩を打てる場所を表すビットボードを計算
-        /// </summary>
-        /// <param name="pawns"></param>
-        /// <returns></returns>
-        public static Bitboard PawnDropMask(Bitboard pawns)
+        private static Bitboard SquareBit(int rank, int file)
         {
-            Bitboard left = new(0x4020100804020100UL, 0x0000000000020100UL);
-            Bitboard t = left - pawns;
-            t = (t & left) >> 8;
-            return left ^ (left - t);
+            return 0 <= rank && rank < 9 && 0 <= file && file < 9
+                ? SQUARE_BIT[Square.Index(rank, file)] : default;
         }
 
-        private static Bitboard SliderAttacks(Direction d, int sq, Bitboard occupancy)
-        {
-            if (d != Direction.Right)
-            {
-                Bitboard m = Ray(sq, d);
-                Bitboard t = occupancy & m;
-
-                if (d.HasFlag(Direction.ReverseBit))
-                {
-                    t = t.Bswap();
-                }
-
-                t ^= new Bitboard(t.lo - 1UL, t.hi - Convert.ToUInt64(t.lo == 0UL));
-
-                if (d.HasFlag(Direction.ReverseBit))
-                {
-                    t = t.Bswap();
-                }
-
-                return t & m;
-            }
-            // RIGHT
-            else
-            {
-                Bitboard m = RAY_BB[sq, (int)Direction.Right];
-                Bitboard t = occupancy & m;
-                t |= t >> 1;
-                t |= t >> 2;
-                t |= t >> 4;
-                t >>= 1;
-                return m & ~t;
-            }
-        }
-
-        public static Bitboard LanceAttacks(Color c, int sq, Bitboard occupancy)
-        {
-            return c == Color.Black
-                ? SliderAttacks(Direction.Right, sq, occupancy)
-                : SliderAttacks(Direction.Left, sq, occupancy);
-        }
-
-        public static Bitboard BishopAttacks(int sq, Bitboard occupancy)
-        {
-            return SliderAttacks(Direction.LeftUp   , sq, occupancy)
-                 | SliderAttacks(Direction.RightUp  , sq, occupancy)
-                 | SliderAttacks(Direction.RightDown, sq, occupancy)
-                 | SliderAttacks(Direction.LeftDown , sq, occupancy);
-        }
-
-        public static Bitboard RookAttacks(int sq, Bitboard occupancy)
-        {
-            return SliderAttacks(Direction.Left , sq, occupancy)
-                 | SliderAttacks(Direction.Up   , sq, occupancy)
-                 | SliderAttacks(Direction.Right, sq, occupancy)
-                 | SliderAttacks(Direction.Down , sq, occupancy);
-        }
-
-        /// <summary>
-        /// 立っているビットの数
-        /// </summary>
-        /// <param name="x"></param>
-        /// <returns></returns>
-        public static int Popcount64(ulong x)
-        {
-            ulong t = x - (x >> 1 & 0x5555555555555555UL);
-            t = (t & 0x3333333333333333UL) + (t >> 2 & 0x3333333333333333UL);
-            t = (t & 0x0f0f0f0f0f0f0f0fUL) + (t >> 4 & 0x0f0f0f0f0f0f0f0fUL);
-            return (int)(t * 0x0101010101010101UL >> 56);
-        }
-
-        /// <summary>
-        /// trailing zero count
-        /// </summary>
-        /// <param name="x"></param>
-        /// <returns></returns>
-        public static int Tzcnt64(ulong x)
-        {
-            return Popcount64(~x & (x - 1));
-        }
-
-        /// <summary>
-        /// バイトスワップ
-        /// </summary>
-        /// <param name="x"></param>
-        /// <returns></returns>
-        public static ulong Bswap64(ulong x)
+        private static ulong Bswap64(ulong x)
         {
             ulong t = (x >> 32) | (x << 32);
             t = (t >> 16 & 0x0000ffff0000ffffUL) | ((t & 0x0000ffff0000ffffUL) << 16);
-            t = (t >> 8  & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) <<  8);
+            t = (t >> 8 & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) << 8);
             return t;
+        }
+
+        private static Bitboard SliderAttacks_NoSse_LsbToMsb(int sq, Direction d, Bitboard occupancy)
+        {
+            var mask0 = Ray(sq, d).Lower();
+            var mask1 = Ray(sq, d).Upper();
+            var occ0 = occupancy.Lower();
+            var occ1 = occupancy.Upper();
+            var masked0 = occ0 & mask0;
+            var masked1 = occ1 & mask1;
+            var t0 = masked0 - 1UL;
+            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
+            t0 ^= masked0;
+            t1 ^= masked1;
+            t0 &= mask0;
+            t1 &= mask1;
+            return new Bitboard(t0, t1);
+        }
+
+        private static Bitboard SliderAttacks_NoSse_MsbToLsb(int sq, Direction d, Bitboard occupancy)
+        {
+            var mask0 = Ray(sq, d).Lower();
+            var mask1 = Ray(sq, d).Upper();
+            var occ0 = occupancy.Lower();
+            var occ1 = occupancy.Upper();
+            var masked0 = Bswap64(occ1 & mask1);
+            var masked1 = Bswap64(occ0 & mask0);
+            var t0 = masked0 - 1UL;
+            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
+            (t0, t1) = (Bswap64(t1 ^ masked1), Bswap64(t0 ^ masked0));
+            t0 &= mask0;
+            t1 &= mask1;
+            return new Bitboard(t0, t1);
+        }
+
+        private static Vector128<ulong> Bswap128_Sse2(Vector128<ulong> x)
+        {
+            var y = Sse2.ShuffleLow(x.AsUInt16(), 0b00011011);
+            y = Sse2.ShuffleHigh(y, 0b00011011);
+            y = Sse2.Or(Sse2.ShiftRightLogical(y, 8), Sse2.ShiftLeftLogical(y, 8));
+            return Sse2.Shuffle(y.AsUInt32(), 0b01001110).AsUInt64();
+        }
+
+        private static Vector128<ulong> AllBitsOneIfZero64x2_Sse2(Vector128<ulong> left)
+        {
+            var x = Sse2.CompareEqual(left.AsUInt32(), Vector128<uint>.Zero).AsUInt64();
+            return Sse2.And(x, Sse2.Or(Sse2.ShiftRightLogical(x, 32), Sse2.ShiftLeftLogical(x, 32)));
+        }
+
+        /// <summary>
+        /// 人が読みやすい文字列に変換
+        /// </summary>
+        /// <returns></returns>
+        public string Pretty()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("  ９ ８ ７ ６ ５ ４ ３ ２ １");
+            for (int rank = 0; rank < 9; ++rank)
+            {
+                for (int file = 8; file >= 0; --file)
+                {
+                    sb.Append(
+                        this.Test(Square.Index(rank, file)) ? " ◯" : "   ");
+                }
+                sb.AppendLine(Square.PrettyRank(rank));
+            }
+            return sb.ToString();
         }
 
         static Bitboard()
@@ -497,22 +765,28 @@ namespace ShogiLibSharp
                       :                                     Rank(c, 0, 8);
                 }
             }
-        }
 
-        public string Pretty()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("  ９ ８ ７ ６ ５ ４ ３ ２ １");
-            for (int rank = 0; rank < 9; ++rank)
+            for (int i = 0; i < 81; ++i)
             {
-                for (int file = 8; file >= 0; --file)
-                {
-                    sb.Append(
-                        this.Test(Square.Index(rank, file)) ? " ◯" : "   ");
-                }
-                sb.AppendLine(Square.PrettyRank(rank));
+                var up = Ray(i, Direction.Up).x;
+                var down = Ray(i, Direction.Down).x;
+                var rightup = Ray(i, Direction.RightUp).x;
+                var leftup = Ray(i, Direction.LeftUp).x;
+                var rightdown = Ray(i, Direction.RightDown).x;
+                var leftdown = Ray(i, Direction.LeftDown).x;
+
+                var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+
+                // 予めバイト反転しておく
+                rightdown = Ssse3.Shuffle(rightdown.AsSByte(), shuffle).AsUInt64();
+                leftdown = Ssse3.Shuffle(leftdown.AsSByte(), shuffle).AsUInt64();
+                down = Ssse3.Shuffle(down.AsSByte(), shuffle).AsUInt64();
+
+                BishopMask[i, 0] = Vector256.Create(rightup.GetLower().ToScalar(), leftdown.GetLower().ToScalar(), leftup.GetLower().ToScalar(), rightdown.GetLower().ToScalar());
+                BishopMask[i, 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
+                RookMask[i, 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
+                RookMask[i, 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
             }
-            return sb.ToString();
         }
     }
 }
