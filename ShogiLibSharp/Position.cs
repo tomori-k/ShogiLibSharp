@@ -248,8 +248,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool InCheck()
         {
-            return EnumerateAttackers(
-                Player.Opponent(), PieceBB(Piece.King.Colored(Player)).LsbSquare()).Any();
+            return Checkers().Any();
         }
 
         /// <summary>
@@ -289,6 +288,91 @@ namespace ShogiLibSharp
         public bool IsLegalMove(Move m)
         {
             return Movegen.GenerateMoves(this).Contains(m);
+        }
+
+        /// <summary>
+        /// c の玉の位置
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public int King(Color c)
+        {
+            return PieceBB(c, Piece.King).LsbSquare();
+        }
+
+        /// <summary>
+        /// sq に利きのある c の駒をすべて列挙
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="sq"></param>
+        /// <param name="occ"></param>
+        /// <returns></returns>
+        public Bitboard EnumerateAttackers(Color c, int sq, Bitboard occ)
+        {
+            var silver = PieceBB(c, Piece.Silver) | PieceBB(c, Piece.King)
+                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
+
+            var gold = PieceBB(c, Piece.Gold) | PieceBB(c, Piece.King)
+                | PieceBB(c, Piece.ProPawn) | PieceBB(c, Piece.ProLance)
+                | PieceBB(c, Piece.ProKnight) | PieceBB(c, Piece.ProSilver)
+                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
+
+            var bishop = PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
+            var rook = PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
+
+            return (PieceBB(c, Piece.Pawn) & Bitboard.PawnAttacks(c.Opponent(), sq))
+                 | (PieceBB(c, Piece.Lance) & Bitboard.LanceAttacks(c.Opponent(), sq, occ))
+                 | (PieceBB(c, Piece.Knight) & Bitboard.KnightAttacks(c.Opponent(), sq))
+                 | (silver & Bitboard.SilverAttacks(c.Opponent(), sq))
+                 | (gold & Bitboard.GoldAttacks(c.Opponent(), sq))
+                 | (bishop & Bitboard.BishopAttacks(sq, occ))
+                 | (rook & Bitboard.RookAttacks(sq, occ));
+        }
+
+        /// <summary>
+        /// sq に利きのある c の駒をすべて列挙
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="sq"></param>
+        /// <param name="occ"></param>
+        /// <returns></returns>
+        public Bitboard EnumerateAttackers(Color c, int sq)
+        {
+            return EnumerateAttackers(c, sq, GetOccupancy());
+        }
+
+        /// <summary>
+        /// Player の玉に王手をかけている駒
+        /// </summary>
+        /// <returns></returns>
+        public Bitboard Checkers()
+        {
+            return EnumerateAttackers(Player.Opponent(), King(Player));
+        }
+
+        /// <summary>
+        /// c 側の駒によってピンされている駒
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard PinnedBy(Color c)
+        {
+            var theirKsq = King(c.Opponent());
+            var pinned = default(Bitboard);
+            var pinnersCandidate =
+                (PieceBB(c, Piece.Lance)
+                    & Bitboard.LancePseudoAttacks(c.Opponent(), theirKsq))
+                | ((PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop))
+                    & Bitboard.BishopPseudoAttacks(theirKsq))
+                | ((PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook))
+                    & Bitboard.RookPseudoAttacks(theirKsq));
+            var occ = GetOccupancy();
+            foreach (var sq in pinnersCandidate)
+            {
+                var between = Bitboard.Between(theirKsq, sq) & occ;
+                if (between.Popcount() == 1) pinned |= between;
+            }
+            return pinned;
         }
 
         /// <summary>
@@ -606,30 +690,6 @@ namespace ShogiLibSharp
                         .Add(captured.Kind(), -1);
                 }
             }
-        }
-
-        private Bitboard EnumerateAttackers(Color c, int sq)
-        {
-            var occupancy = GetOccupancy();
-
-            var silver = PieceBB(c, Piece.Silver) | PieceBB(c, Piece.King)
-                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
-
-            var gold = PieceBB(c, Piece.Gold) | PieceBB(c, Piece.King)
-                | PieceBB(c, Piece.ProPawn) | PieceBB(c, Piece.ProLance)
-                | PieceBB(c, Piece.ProKnight) | PieceBB(c, Piece.ProSilver)
-                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
-
-            var bishop = PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
-            var rook = PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
-
-            return (PieceBB(c, Piece.Pawn) & Bitboard.PawnAttacks(c.Opponent(), sq))
-                 | (PieceBB(c, Piece.Lance) & Bitboard.LanceAttacks(c.Opponent(), sq, occupancy))
-                 | (PieceBB(c, Piece.Knight) & Bitboard.KnightAttacks(c.Opponent(), sq))
-                 | (silver & Bitboard.SilverAttacks(c.Opponent(), sq))
-                 | (gold & Bitboard.GoldAttacks(c.Opponent(), sq))
-                 | (bishop & Bitboard.BishopAttacks(sq, occupancy))
-                 | (rook & Bitboard.RookAttacks(sq, occupancy));
         }
         
         private void UpdateInternalStates()

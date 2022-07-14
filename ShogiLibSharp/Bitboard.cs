@@ -31,6 +31,10 @@ namespace ShogiLibSharp
         private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81, 2];
         private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81, 2];
         private static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
+        private static readonly Bitboard[,] LANCE_PSEUDO_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
+        private static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
+
         private static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
 
         private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
@@ -367,6 +371,21 @@ namespace ShogiLibSharp
         public static Bitboard KingAttacks(int sq)
         {
             return KING_ATTACKS[sq];
+        }
+
+        public static Bitboard LancePseudoAttacks(Color c, int sq)
+        {
+            return LANCE_PSEUDO_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard BishopPseudoAttacks(int sq)
+        {
+            return BISHOP_PSEUDO_ATTACKS[sq];
+        }
+
+        public static Bitboard RookPseudoAttacks(int sq)
+        {
+            return ROOK_PSEUDO_ATTACKS[sq];
         }
 
         /// <summary>
@@ -811,6 +830,14 @@ namespace ShogiLibSharp
                 BishopMask[i, 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
                 RookMask[i, 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
                 RookMask[i, 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
+            }
+
+            for (int i = 0; i < 81; ++i)
+            {
+                LANCE_PSEUDO_ATTACKS[i, 0] = LanceAttacksBlack(i, default);
+                LANCE_PSEUDO_ATTACKS[i, 1] = LanceAttacksWhite(i, default);
+                BISHOP_PSEUDO_ATTACKS[i] = BishopAttacks(i, default);
+                ROOK_PSEUDO_ATTACKS[i] = RookAttacks(i, default);
             }
         }
     }
