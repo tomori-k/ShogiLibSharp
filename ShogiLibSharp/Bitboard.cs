@@ -344,6 +344,31 @@ namespace ShogiLibSharp
             }
         }
 
+        public static Bitboard PawnAttacks(Color c, int sq)
+        {
+            return PAWN_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard KnightAttacks(Color c, int sq)
+        {
+            return KNIGHT_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard SilverAttacks(Color c, int sq)
+        {
+            return SILVER_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard GoldAttacks(Color c, int sq)
+        {
+            return GOLD_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard KingAttacks(int sq)
+        {
+            return KING_ATTACKS[sq];
+        }
+
         /// <summary>
         /// 先手の香車の利きを計算
         /// </summary>

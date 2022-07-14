@@ -623,13 +623,13 @@ namespace ShogiLibSharp
             var bishop = PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
             var rook = PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
 
-            return (PieceBB(c, Piece.Pawn) & Bitboard.Attacks(Piece.Pawn.Colored(c.Opponent()), sq, occupancy))
-                 | (PieceBB(c, Piece.Lance) & Bitboard.Attacks(Piece.Lance.Colored(c.Opponent()), sq, occupancy))
-                 | (PieceBB(c, Piece.Knight) & Bitboard.Attacks(Piece.Knight.Colored(c.Opponent()), sq, occupancy))
-                 | (silver & Bitboard.Attacks(Piece.Silver.Colored(c.Opponent()), sq, occupancy))
-                 | (gold & Bitboard.Attacks(Piece.Gold.Colored(c.Opponent()), sq, occupancy))
-                 | (bishop & Bitboard.Attacks(Piece.Bishop.Colored(c.Opponent()), sq, occupancy))
-                 | (rook & Bitboard.Attacks(Piece.Rook.Colored(c.Opponent()), sq, occupancy));
+            return (PieceBB(c, Piece.Pawn) & Bitboard.PawnAttacks(c.Opponent(), sq))
+                 | (PieceBB(c, Piece.Lance) & Bitboard.LanceAttacks(c.Opponent(), sq, occupancy))
+                 | (PieceBB(c, Piece.Knight) & Bitboard.KnightAttacks(c.Opponent(), sq))
+                 | (silver & Bitboard.SilverAttacks(c.Opponent(), sq))
+                 | (gold & Bitboard.GoldAttacks(c.Opponent(), sq))
+                 | (bishop & Bitboard.BishopAttacks(sq, occupancy))
+                 | (rook & Bitboard.RookAttacks(sq, occupancy));
         }
         
         private void UpdateInternalStates()
