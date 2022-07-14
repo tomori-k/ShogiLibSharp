@@ -22,7 +22,23 @@ namespace ShogiLibSharp
     /// </summary>
     public struct Bitboard
     {
-        Vector128<ulong> x;
+        #region テーブル
+
+        private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
+        private static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
+        private static readonly Bitboard[,] PAWN_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[,] KNIGHT_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
+        private static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+
+        private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
+        private static readonly Vector128<ulong>[,] RookMask = new Vector128<ulong>[81, 2];
+
+        #endregion
+
+        private readonly Vector128<ulong> x;
 
         public Bitboard(ulong lo, ulong hi)
         {
@@ -232,25 +248,6 @@ namespace ShogiLibSharp
             }
         }
 
-        private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
-        private static readonly Bitboard[]  SQUARE_BIT = new Bitboard[81];
-        private static readonly Bitboard[,] PAWN_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[,] KNIGHT_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81,2];
-        private static readonly Bitboard[]  KING_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[,] RAY_BB = new Bitboard[81,8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
-
-        private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
-        private static readonly Vector128<ulong>[,] RookMask = new Vector128<ulong>[81, 2];
-
-
-        private static Bitboard SquareBit(int rank, int file)
-        {
-            return 0 <= rank && rank < 9 && 0 <= file && file < 9
-                ? SQUARE_BIT[Square.Index(rank, file)] : default;
-        }
-
         /// <summary>
         /// sq から d の方向へ伸ばしたビットボード（sq は含まない）
         /// </summary>
@@ -314,59 +311,6 @@ namespace ShogiLibSharp
         public static Bitboard ReachableMask(Color c, Piece p)
         {
             return REACHABLE_MASK[(int)p, (int)c];
-        }
-
-        /// <summary>
-        /// 利き計算
-        /// </summary>
-        /// <param name="p"></param>
-        /// <param name="sq"></param>
-        /// <param name="occupancy"></param>
-        /// <returns></returns>
-        public static Bitboard Attacks(Piece p, int sq, Bitboard occupancy)
-        {
-            switch (p.Colorless())
-            {
-                case Piece.Pawn:
-                    return PAWN_ATTACKS[sq, (int)p.Color()];
-                case Piece.Lance:
-                    return LanceAttacks(p.Color(), sq, occupancy);
-                case Piece.Knight:
-                    return KNIGHT_ATTACKS[sq, (int)p.Color()];
-                case Piece.Silver:
-                    return SILVER_ATTACKS[sq, (int)p.Color()];
-                case Piece.Gold:
-                case Piece.ProPawn:
-                case Piece.ProLance:
-                case Piece.ProKnight:
-                case Piece.ProSilver:
-                    return GOLD_ATTACKS[sq, (int)p.Color()];
-                case Piece.Bishop:
-                    return BishopAttacks(sq, occupancy);
-                case Piece.Rook:
-                    return RookAttacks(sq, occupancy);
-                case Piece.King:
-                    return KING_ATTACKS[sq];
-                case Piece.ProBishop:
-                    return BishopAttacks(sq, occupancy) | KING_ATTACKS[sq];
-                case Piece.ProRook:
-                    return RookAttacks(sq, occupancy) | KING_ATTACKS[sq];
-                default:
-                    return new Bitboard();
-            }
-        }
-
-        /// <summary>
-        /// 利き計算
-        /// </summary>
-        /// <param name="c"></param>
-        /// <param name="p"></param>
-        /// <param name="sq"></param>
-        /// <param name="occupancy"></param>
-        /// <returns></returns>
-        public static Bitboard Attacks(Color c, Piece p, int sq, Bitboard occupancy)
-        {
-            return Attacks(p.Colored(c), sq, occupancy);
         }
 
         /// <summary>
@@ -469,47 +413,6 @@ namespace ShogiLibSharp
             return c == Color.Black
                 ? LanceAttacksBlack(sq, occupancy)
                 : LanceAttacksWhite(sq, occupancy);
-        }
-
-        public static Bitboard SliderAttacks_NoSse_LsbToMsb(int sq, Direction d, Bitboard occupancy)
-        {
-            var mask0 = Ray(sq, d).Lower();
-            var mask1 = Ray(sq, d).Upper();
-            var occ0 = occupancy.Lower();
-            var occ1 = occupancy.Upper();
-            var masked0 = occ0 & mask0;
-            var masked1 = occ1 & mask1;
-            var t0 = masked0 - 1UL;
-            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
-            t0 ^= masked0;
-            t1 ^= masked1;
-            t0 &= mask0;
-            t1 &= mask1;
-            return new Bitboard(t0, t1);
-        }
-
-        public static ulong Bswap64(ulong x)
-        {
-            ulong t = (x >> 32) | (x << 32);
-            t = (t >> 16 & 0x0000ffff0000ffffUL) | ((t & 0x0000ffff0000ffffUL) << 16);
-            t = (t >> 8 & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) << 8);
-            return t;
-        }
-
-        public static Bitboard SliderAttacks_NoSse_MsbToLsb(int sq, Direction d, Bitboard occupancy)
-        {
-            var mask0 = Ray(sq, d).Lower();
-            var mask1 = Ray(sq, d).Upper();
-            var occ0 = occupancy.Lower();
-            var occ1 = occupancy.Upper();
-            var masked0 = Bswap64(occ1 & mask1);
-            var masked1 = Bswap64(occ0 & mask0);
-            var t0 = masked0 - 1UL;
-            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
-            (t0, t1) = (Bswap64(t1 ^ masked1), Bswap64(t0 ^ masked0));
-            t0 &= mask0;
-            t1 &= mask1;
-            return new Bitboard(t0, t1);
         }
 
         /// <summary>
@@ -640,6 +543,106 @@ namespace ShogiLibSharp
                     | LanceAttacksBlack(sq, occupancy)
                     | LanceAttacksWhite(sq, occupancy);
             }
+        }
+
+        /// <summary>
+        /// 利き計算
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard Attacks(Piece p, int sq, Bitboard occupancy)
+        {
+            switch (p.Colorless())
+            {
+                case Piece.Pawn:
+                    return PAWN_ATTACKS[sq, (int)p.Color()];
+                case Piece.Lance:
+                    return LanceAttacks(p.Color(), sq, occupancy);
+                case Piece.Knight:
+                    return KNIGHT_ATTACKS[sq, (int)p.Color()];
+                case Piece.Silver:
+                    return SILVER_ATTACKS[sq, (int)p.Color()];
+                case Piece.Gold:
+                case Piece.ProPawn:
+                case Piece.ProLance:
+                case Piece.ProKnight:
+                case Piece.ProSilver:
+                    return GOLD_ATTACKS[sq, (int)p.Color()];
+                case Piece.Bishop:
+                    return BishopAttacks(sq, occupancy);
+                case Piece.Rook:
+                    return RookAttacks(sq, occupancy);
+                case Piece.King:
+                    return KING_ATTACKS[sq];
+                case Piece.ProBishop:
+                    return BishopAttacks(sq, occupancy) | KING_ATTACKS[sq];
+                case Piece.ProRook:
+                    return RookAttacks(sq, occupancy) | KING_ATTACKS[sq];
+                default:
+                    return new Bitboard();
+            }
+        }
+
+        /// <summary>
+        /// 利き計算
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="p"></param>
+        /// <param name="sq"></param>
+        /// <param name="occupancy"></param>
+        /// <returns></returns>
+        public static Bitboard Attacks(Color c, Piece p, int sq, Bitboard occupancy)
+        {
+            return Attacks(p.Colored(c), sq, occupancy);
+        }
+
+        private static Bitboard SquareBit(int rank, int file)
+        {
+            return 0 <= rank && rank < 9 && 0 <= file && file < 9
+                ? SQUARE_BIT[Square.Index(rank, file)] : default;
+        }
+
+        private static ulong Bswap64(ulong x)
+        {
+            ulong t = (x >> 32) | (x << 32);
+            t = (t >> 16 & 0x0000ffff0000ffffUL) | ((t & 0x0000ffff0000ffffUL) << 16);
+            t = (t >> 8 & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) << 8);
+            return t;
+        }
+
+        private static Bitboard SliderAttacks_NoSse_LsbToMsb(int sq, Direction d, Bitboard occupancy)
+        {
+            var mask0 = Ray(sq, d).Lower();
+            var mask1 = Ray(sq, d).Upper();
+            var occ0 = occupancy.Lower();
+            var occ1 = occupancy.Upper();
+            var masked0 = occ0 & mask0;
+            var masked1 = occ1 & mask1;
+            var t0 = masked0 - 1UL;
+            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
+            t0 ^= masked0;
+            t1 ^= masked1;
+            t0 &= mask0;
+            t1 &= mask1;
+            return new Bitboard(t0, t1);
+        }
+
+        private static Bitboard SliderAttacks_NoSse_MsbToLsb(int sq, Direction d, Bitboard occupancy)
+        {
+            var mask0 = Ray(sq, d).Lower();
+            var mask1 = Ray(sq, d).Upper();
+            var occ0 = occupancy.Lower();
+            var occ1 = occupancy.Upper();
+            var masked0 = Bswap64(occ1 & mask1);
+            var masked1 = Bswap64(occ0 & mask0);
+            var t0 = masked0 - 1UL;
+            var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
+            (t0, t1) = (Bswap64(t1 ^ masked1), Bswap64(t0 ^ masked0));
+            t0 &= mask0;
+            t1 &= mask1;
+            return new Bitboard(t0, t1);
         }
 
         private static Vector128<ulong> Bswap128_Sse2(Vector128<ulong> x)
