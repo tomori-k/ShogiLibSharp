@@ -257,26 +257,6 @@ namespace ShogiLibSharp
         }
 
         /// <summary>
-        /// 指し手が自殺手または打ち歩詰めか判定
-        /// </summary>
-        /// <param name="pseudoLegalMove">pseudo-legal な指し手。それ以外を渡したときの結果は不定。</param>
-        /// <returns></returns>
-        public bool IsSuicideOrUchifuzume(Move pseudoLegalMove)
-        {
-            DoMove_PseudoLegal(pseudoLegalMove);
-
-            var isSuicideMove = EnumerateAttackers(
-                Player, PieceBB(Piece.King.Colored(Player.Opponent())).LsbSquare()).Any();
-
-            var isUchifuzume = !isSuicideMove
-                && pseudoLegalMove.IsDrop() && pseudoLegalMove.Dropped() == Piece.Pawn && InCheck() && IsMated();
-
-            UndoMove();
-
-            return isSuicideMove || isUchifuzume;
-        }
-
-        /// <summary>
         /// 手番側の合法手の数が 0 か
         /// </summary>
         /// <returns></returns>
@@ -355,12 +335,6 @@ namespace ShogiLibSharp
             return checkers;
         }
 
-
-        private Bitboard ComputeCheckers()
-        {
-            return EnumerateAttackers(Player.Opponent(), King(Player));
-        }
-
         /// <summary>
         /// c 側の駒によってピンされている駒
         /// </summary>
@@ -369,26 +343,6 @@ namespace ShogiLibSharp
         public Bitboard PinnedBy(Color c)
         {
             return pinnedBy[(int)c];
-        }
-
-        private Bitboard ComputePinnedBy(Color c)
-        {
-            var theirKsq = King(c.Opponent());
-            var pinned = default(Bitboard);
-            var pinnersCandidate =
-                (PieceBB(c, Piece.Lance)
-                    & Bitboard.LancePseudoAttacks(c.Opponent(), theirKsq))
-                | ((PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop))
-                    & Bitboard.BishopPseudoAttacks(theirKsq))
-                | ((PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook))
-                    & Bitboard.RookPseudoAttacks(theirKsq));
-            var occ = GetOccupancy();
-            foreach (var sq in pinnersCandidate)
-            {
-                var between = Bitboard.Between(theirKsq, sq) & occ;
-                if (between.Popcount() == 1) pinned |= between;
-            }
-            return pinned;
         }
 
         /// <summary>
@@ -735,6 +689,31 @@ namespace ShogiLibSharp
             checkers = ComputeCheckers();
             pinnedBy[0] = ComputePinnedBy(Color.Black);
             pinnedBy[1] = ComputePinnedBy(Color.White);
+        }
+
+        private Bitboard ComputeCheckers()
+        {
+            return EnumerateAttackers(Player.Opponent(), King(Player));
+        }
+
+        private Bitboard ComputePinnedBy(Color c)
+        {
+            var theirKsq = King(c.Opponent());
+            var pinned = default(Bitboard);
+            var pinnersCandidate =
+                (PieceBB(c, Piece.Lance)
+                    & Bitboard.LancePseudoAttacks(c.Opponent(), theirKsq))
+                | ((PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop))
+                    & Bitboard.BishopPseudoAttacks(theirKsq))
+                | ((PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook))
+                    & Bitboard.RookPseudoAttacks(theirKsq));
+            var occ = GetOccupancy();
+            foreach (var sq in pinnersCandidate)
+            {
+                var between = Bitboard.Between(theirKsq, sq) & occ;
+                if (between.Popcount() == 1) pinned |= between;
+            }
+            return pinned;
         }
 
         #endregion
