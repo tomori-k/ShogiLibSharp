@@ -100,5 +100,72 @@ namespace ShogiLibSharp.Tests
                 Assert.AreEqual(repeated, pos.CheckRepetition() == Repetition.Draw);
             }
         }
+
+        [TestMethod()]
+        public void PinnedByTest()
+        {
+            var testcases = new[]
+            {
+                ("lnsgkgsnl/1p5b1/p1b1p3p/3p1p3/1rPPK2pr/9/PP2PPPPP/9/LNSG1GSNL b 2p 1",
+                    default(Bitboard),
+                    new Bitboard(
+                        "........." +
+                        "........." +
+                        "........." +
+                        "...o.o..." +
+                        ".......o." +
+                        "........." +
+                        "........." +
+                        "........." +
+                        ".........")),
+                ("lnsgkgsnb/1p5l1/p1b1pp1pp/3p5/2PP4r/9/4PPPPP/5GSNL/K7r b GSPnl3p 1",
+                    default(Bitboard),
+                    new Bitboard(
+                        "........." +
+                        ".......o." +
+                        "o........" +
+                        "........." +
+                        "........." +
+                        "........." +
+                        "........." +
+                        "........." +
+                        ".........")),
+                ("knsglgsnl/9/9/4G4/rL2K1N1R/9/9/1S2S2G1/BN2L3b b 9P9p 1",
+                    default(Bitboard),
+                    new Bitboard(
+                        "........." +
+                        "........." +
+                        "........." +
+                        "....o...." +
+                        ".o......." +
+                        "........." +
+                        "........." +
+                        ".......o." +
+                        ".........")),
+                ("knsglgsnl/9/9/9/r3K3R/9/9/9/BN2L3b b 2GN9P2sl9p 1",
+                    default(Bitboard),
+                    default(Bitboard)),
+                ("knlg1gsnl/9/9/9/rNKP5/2P6/b8/6b2/2r6 b 2GSNL7P2sl9p 1",
+                    default(Bitboard),
+                    new Bitboard(
+                        "........." +
+                        "........." +
+                        "........." +
+                        "........." +
+                        ".o......." +
+                        "..o......" +
+                        "........." +
+                        "........." +
+                        ".........")),
+            };
+            foreach (var (sfen, expectedBlack, expectedWhite) in testcases)
+            {
+                var pos = new Position(sfen);
+                var pinnedByBlack = pos.PinnedBy(Color.Black);
+                var pinnedByWhite = pos.PinnedBy(Color.White);
+                Assert.AreEqual(expectedBlack, pinnedByBlack, $"{pos.Pretty()}\nexpected:\n{expectedBlack.Pretty()}\nactual:{pinnedByBlack.Pretty()}\n");
+                Assert.AreEqual(expectedWhite, pinnedByWhite, $"{pos.Pretty()}\nexpected:\n{expectedBlack.Pretty()}\nactual:{pinnedByBlack.Pretty()}\n");
+            }
+        }
     }
 }

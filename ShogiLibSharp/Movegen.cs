@@ -74,7 +74,7 @@ namespace ShogiLibSharp
             return moves;
         }
 
-        private static bool IsSuicideMove(this Move m, Position pos)
+        public static bool IsSuicideMove(this Move m, Position pos)
         {
             if (pos.InCheck())
             {
@@ -94,7 +94,7 @@ namespace ShogiLibSharp
             }
             else
             {
-                var pinned = pos.PinnedBy(pos.Player);
+                var pinned = pos.PinnedBy(pos.Player.Opponent());
                 if (!pinned.Test(m.From()))
                 {
                     return false;
@@ -120,7 +120,7 @@ namespace ShogiLibSharp
                     var csq = checkers.LsbSquare();
                     return !Bitboard.Between(ksq, csq).Test(m.To());
                 }
-                else if (pos.PieceAt(m.From()) == Piece.King)
+                else if (pos.PieceAt(m.From()).Colorless() == Piece.King)
                 {
                     Debug.Assert(ksq == m.From());
                     return IsSuicideKingMove(ksq, m.To(), pos);
@@ -156,7 +156,7 @@ namespace ShogiLibSharp
             return attackers.Any();
         }
 
-        private static bool IsUchifuzume(this Move m, Position pos)
+        public static bool IsUchifuzume(this Move m, Position pos)
         {
             if (!(m.IsDrop() && m.Dropped() == Piece.Pawn))
             {

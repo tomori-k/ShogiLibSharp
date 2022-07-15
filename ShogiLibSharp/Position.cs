@@ -562,7 +562,7 @@ namespace ShogiLibSharp
         {
 
             var sb = new StringBuilder();
-            sb.AppendLine(board.ToString());
+            sb.AppendLine(board.Pretty());
             sb.AppendLine($"SFEN: {Sfen()}");
             switch (CheckRepetition())
             {
