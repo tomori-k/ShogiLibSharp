@@ -18,6 +18,8 @@ namespace ShogiLibSharp
         private Bitboard[,] pieceBB = new Bitboard[2, 16];
         // 指し手＋その指し手で確保した駒のペア
         private Stack<(Move Move, Piece Captured)> moves = new Stack<(Move, Piece)>();
+        private Bitboard checkers;
+        private Bitboard[] pinnedBy = new Bitboard[2];
         #endregion
 
         #region 状態・プロパティ
@@ -77,7 +79,7 @@ namespace ShogiLibSharp
         {
             this.board = board.Clone();
             this.GamePly = 1;
-            UpdateInternalStates();
+            SetInternalStates();
         }
 
         #endregion
@@ -201,6 +203,9 @@ namespace ShogiLibSharp
             Player = Player.Opponent();
             GamePly += 1;
             moves.Push((m, captured));
+            checkers = ComputeCheckers();
+            pinnedBy[0] = ComputePinnedBy(Color.Black);
+            pinnedBy[1] = ComputePinnedBy(Color.White);
         }
 
         /// <summary>
@@ -347,6 +352,12 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public Bitboard Checkers()
         {
+            return checkers;
+        }
+
+
+        private Bitboard ComputeCheckers()
+        {
             return EnumerateAttackers(Player.Opponent(), King(Player));
         }
 
@@ -356,6 +367,11 @@ namespace ShogiLibSharp
         /// <param name="c"></param>
         /// <returns></returns>
         public Bitboard PinnedBy(Color c)
+        {
+            return pinnedBy[(int)c];
+        }
+
+        private Bitboard ComputePinnedBy(Color c)
         {
             var theirKsq = King(c.Opponent());
             var pinned = default(Bitboard);
@@ -551,7 +567,7 @@ namespace ShogiLibSharp
             else
                 throw new ArgumentException($"手数を変換できません：{sfen}");
 
-            UpdateInternalStates();
+            SetInternalStates();
         }
 
         /// <summary>
@@ -690,9 +706,16 @@ namespace ShogiLibSharp
                         .Add(captured.Kind(), -1);
                 }
             }
+
+            checkers = ComputeCheckers();
+            pinnedBy[0] = ComputePinnedBy(Color.Black);
+            pinnedBy[1] = ComputePinnedBy(Color.White);
         }
         
-        private void UpdateInternalStates()
+        /// <summary>
+        /// board に合うように他の状態を設定
+        /// </summary>
+        private void SetInternalStates()
         {
             board.Validate();
 
@@ -709,6 +732,9 @@ namespace ShogiLibSharp
             }
 
             moves.Clear();
+            checkers = ComputeCheckers();
+            pinnedBy[0] = ComputePinnedBy(Color.Black);
+            pinnedBy[1] = ComputePinnedBy(Color.White);
         }
 
         #endregion
