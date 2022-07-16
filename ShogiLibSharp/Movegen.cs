@@ -69,9 +69,26 @@ namespace ShogiLibSharp
             }
 
             // 非合法手（自殺手、打ち歩詰め）を省く
-            moves.RemoveAll(m => m.IsSuicideMove(pos) || m.IsUchifuzume(pos));
+            moves.RemoveIllegal(pos);
 
             return moves;
+        }
+
+        // RemoveAll を使うより速くなる
+        public static void RemoveIllegal(this List<Move> moves, Position pos)
+        {
+            var i = 0;
+            while (i < moves.Count)
+            {
+                if (moves[i].IsSuicideMove(pos)
+                    || moves[i].IsUchifuzume(pos))
+                {
+                    moves[i] = moves[^1];
+                    moves.RemoveAt(moves.Count - 1);
+                }
+                else
+                    ++i;
+            }
         }
 
         public static bool IsSuicideMove(this Move m, Position pos)
