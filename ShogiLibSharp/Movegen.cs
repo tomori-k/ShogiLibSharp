@@ -5,7 +5,7 @@ using System.Text;
 
 namespace ShogiLibSharp
 {
-    public static class Movegen
+    public static partial class Movegen
     {
         private static void AddMovesToList(Piece p, int from, int to, List<Move> moves)
         {
@@ -32,7 +32,10 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public static List<Move> GenerateMoves(Position pos)
+        public static partial List<Move> GenerateMoves(Position pos);
+
+        [MovegenGenerator.InlineBitboardEnumerator]
+        public static List<Move> GenerateMovesImpl(Position pos)
         {
             var moves = new List<Move>();
             var occupancy = pos.GetOccupancy();
