@@ -2,31 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using MovegenGenerator;
 
 namespace ShogiLibSharp
 {
     public static partial class Movegen
     {
-        private static void AddMovesToList(Piece p, int from, int to, List<Move> moves)
-        {
-            var c = p.Color();
-            p = p.Colorless();
-
-            if ((Square.RankOf(c, to) <= 1 && p == Piece.Knight)
-                || (Square.RankOf(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
-            {
-                moves.Add(Move.MakeMove(from, to, true));
-            }
-            else
-            {
-                moves.Add(Move.MakeMove(from, to, false));
-
-                if (Square.CanPromote(c, from, to)
-                    && !(p.IsPromoted() || p == Piece.Gold || p == Piece.King))
-                    moves.Add(Move.MakeMove(from, to, true));
-            }
-        }
-
         /// <summary>
         /// pos における合法手を生成
         /// </summary>
@@ -34,8 +15,31 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static partial List<Move> GenerateMoves(Position pos);
 
-        [MovegenGenerator.InlineBitboardEnumerator]
-        public static List<Move> GenerateMovesImpl(Position pos)
+        /*
+         * 指し手生成を高速化するため、source generator によって
+         * 元になるコード（Implで終わるメソッド）から実際の
+         * 生成メソッドを自動生成する。
+         * 
+         * [InlineBitboardEnumerator]:
+         * この属性を付けたメソッド内のBitboard に対する foreach を すべて
+         * while で置き換えた別メソッド（Bitboard.GetEnumerator() を使わない）
+         * を生成する。
+         * 対象となるメソッドの名前は Impl で終わる必要があり、生成される
+         * メソッドの名前はその Impl を取り除いたものとなる。
+         * 
+         * [MakePublic]:
+         * [InlineBitboardEnumerator] によって foreach を置き換えるとき、
+         * そのメソッドが private なら public 変更する。
+         * 
+         * 注意：
+         * 属性名に、"Attribute" の suffix をつけたり
+         * 名前空間をつけたり（MovegenGenerator.MakePublic など）
+         * すると、ジェネレータが上手く動かないので注意する（手抜き）
+         */
+
+        [InlineBitboardEnumerator]
+        [MakePublic]
+        private static List<Move> GenerateMovesImpl(Position pos)
         {
             var moves = new List<Move>();
             var occupancy = pos.GetOccupancy();
@@ -77,8 +81,28 @@ namespace ShogiLibSharp
             return moves;
         }
 
+        private static void AddMovesToList(Piece p, int from, int to, List<Move> moves)
+        {
+            var c = p.Color();
+            p = p.Colorless();
+
+            if ((Square.RankOf(c, to) <= 1 && p == Piece.Knight)
+                || (Square.RankOf(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
+            {
+                moves.Add(Move.MakeMove(from, to, true));
+            }
+            else
+            {
+                moves.Add(Move.MakeMove(from, to, false));
+
+                if (Square.CanPromote(c, from, to)
+                    && !(p.IsPromoted() || p == Piece.Gold || p == Piece.King))
+                    moves.Add(Move.MakeMove(from, to, true));
+            }
+        }
+
         // RemoveAll を使うより速くなる
-        public static void RemoveIllegal(this List<Move> moves, Position pos)
+        private static void RemoveIllegal(this List<Move> moves, Position pos)
         {
             var i = 0;
             while (i < moves.Count)

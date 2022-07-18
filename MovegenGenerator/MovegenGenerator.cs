@@ -31,12 +31,17 @@ namespace ShogiLibSharp
     public static partial class Movegen
     {
 ");
-            foreach (var method in receiver.Targets)
+            foreach (var (method, makePublic) in receiver.Targets)
             {
                 var oldMethodName = method.Identifier.ToString();
                 var newMethodName = oldMethodName
                     .Substring(0, oldMethodName.Length - 4); // Impl で終わるメソッド名なはずなので、それを削除
-                sb.AppendLine($"        {method.Modifiers} partial {method.ReturnType} {newMethodName}{method.ParameterList}");
+                var modifiers = method.Modifiers.ToString();
+                if (makePublic && modifiers.Contains("private"))
+                {
+                    modifiers = modifiers.Replace("private", "public");
+                }
+                sb.AppendLine($"        {modifiers} partial {method.ReturnType} {newMethodName}{method.ParameterList}");
                 GenerateCode(context, sb, method.Body, "        ");
                 sb.AppendLine();
             }
@@ -64,8 +69,6 @@ namespace ShogiLibSharp
                 var type = context.Compilation
                     .GetSemanticModel(foreachNode.Expression.SyntaxTree)
                     .GetTypeInfo(foreachNode.Expression);
-
-                Trace.WriteLine($"type of {foreachNode.Expression} is {type.Type}");
 
                 if (type.Type.ToString() == "ShogiLibSharp.Bitboard")
                 {
@@ -143,44 +146,48 @@ namespace MovegenGenerator
     }
 }
 ");
+
+            context.AddSource("MakePublicAttribute.cs", @"
+using System;
+namespace MovegenGenerator
+{
+    [AttributeUsage(AttributeTargets.Method)]
+    internal sealed class MakePublicAttribute : Attribute
+    {
+        public MakePublicAttribute() { }
+    }
+}
+");
         }
 
         public void Initialize(GeneratorInitializationContext context)
         {
             //if (!Debugger.IsAttached)
             //{
-            //    // Debugger.Launch();
+            //    Debugger.Launch();
             //}
             context.RegisterForSyntaxNotifications(() => new MovegenFuncFinder());
         }
 
-        //private void TraceTypes(SyntaxNode syntaxNode, string indent = "")
-        //{
-        //    Trace.WriteLine(indent + syntaxNode.GetType());
-        //    foreach (var child in syntaxNode.ChildNodes())
-        //    {
-        //        TraceTypes(child, indent + "  ");
-        //    }
-        //}
-
         class MovegenFuncFinder : ISyntaxReceiver
         {
-            public List<MethodDeclarationSyntax> Targets { get; } = new();
+            public List<(MethodDeclarationSyntax, bool)> Targets { get; } = new();
 
             public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
             {
-                if (syntaxNode is MethodDeclarationSyntax methodDeclaration
-                    && methodDeclaration.AttributeLists.Count > 0
-                    )
+                // InlineBitboardEnumerator 属性があり
+                // メソッド名が Impl で終わるメソッドを展開の対象とする
+                if (syntaxNode is MethodDeclarationSyntax { AttributeLists.Count: > 0 } methodDeclaration)
                 {
-                    var attrFound = methodDeclaration.AttributeLists
+                    var attrs = methodDeclaration.AttributeLists
                         .SelectMany(x => x.Attributes)
-                        .Select(x => x.Name.ToString())
-                        .Any(x => x == "MovegenGenerator.InlineBitboardEnumerator"
-                            || x == "MovegenGenerator.InlineBitboardEnumeratorAttribute");
+                        .Select(x => x.Name.ToString());
+                    var attrFound = attrs
+                        .Any(x => x == "InlineBitboardEnumerator");
                     if (attrFound)
                     {
-                        Targets.Add(methodDeclaration);
+                        var makePublic = attrs.Any(x => x == "MakePublic");
+                        Targets.Add((methodDeclaration, makePublic));
                     }
                 }
             }
