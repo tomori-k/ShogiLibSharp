@@ -702,6 +702,13 @@ namespace ShogiLibSharp
             return Sse2.Shuffle(y.AsUInt32(), 0b01001110).AsUInt64();
         }
 
+        private static Vector128<ulong> Bswap128_NoSse(Vector128<ulong> x)
+        {
+            return Vector128.Create(
+                Bswap64(x.GetUpper().ToScalar()),
+                Bswap64(x.GetLower().ToScalar()));
+        }
+
         private static Vector128<ulong> AllBitsOneIfZero64x2_Sse2(Vector128<ulong> left)
         {
             var x = Sse2.CompareEqual(left.AsUInt32(), Vector128<uint>.Zero).AsUInt64();
@@ -822,9 +829,9 @@ namespace ShogiLibSharp
                 var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 
                 // 予めバイト反転しておく
-                rightdown = Ssse3.Shuffle(rightdown.AsSByte(), shuffle).AsUInt64();
-                leftdown = Ssse3.Shuffle(leftdown.AsSByte(), shuffle).AsUInt64();
-                down = Ssse3.Shuffle(down.AsSByte(), shuffle).AsUInt64();
+                rightdown = Bswap128_NoSse(rightdown);
+                leftdown = Bswap128_NoSse(leftdown);
+                down = Bswap128_NoSse(down);
 
                 BishopMask[i, 0] = Vector256.Create(rightup.GetLower().ToScalar(), leftdown.GetLower().ToScalar(), leftup.GetLower().ToScalar(), rightdown.GetLower().ToScalar());
                 BishopMask[i, 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
