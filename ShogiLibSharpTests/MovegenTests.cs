@@ -81,7 +81,8 @@ namespace ShogiLibSharp.Tests
             foreach (var (sfen, sq, expected) in testcases)
             {
                 var pos = new Position(sfen);
-                Assert.AreEqual(expected, Move.MakeDrop(Piece.Pawn, sq).IsUchifuzume(pos));
+                var move = Move.MakeDrop(Piece.Pawn, sq);
+                Assert.AreEqual(expected, !pos.IsLegalMove(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
             }
         }
 
@@ -119,8 +120,7 @@ namespace ShogiLibSharp.Tests
             foreach (var (sfen, move, expected) in testcases)
             {
                 var pos = new Position(sfen);
-                var isSuicide = move.IsSuicideMove(pos);
-                Assert.AreEqual(expected, isSuicide, $"{pos.Pretty()}\nmove:{move.Usi()}");
+                Assert.AreEqual(expected, !pos.IsLegalMove(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
             }
         }
     }

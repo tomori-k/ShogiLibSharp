@@ -37,10 +37,11 @@ namespace ShogiLibSharp
          * すると、ジェネレータが上手く動かないので注意する（手抜き）
          */
 
-        [InlineBitboardEnumerator]
-        [MakePublic]
+        [InlineBitboardEnumerator, MakePublic]
         private static List<Move> GenerateMovesImpl(Position pos)
         {
+            if (pos.InCheck()) return GenerateEvasionMoves(pos);
+
             var moves = new List<Move>();
             var occupancy = pos.GetOccupancy();
             var us = pos.ColorBB(pos.Player);
@@ -57,28 +58,91 @@ namespace ShogiLibSharp
             }
 
             // 駒打ち
-            foreach (Piece p in PieceExtensions.PawnToRook)
-            {
-                var captures = pos.CaptureListOf(pos.Player);
-                if (captures.Count(p) > 0)
-                {
-                    var to_bb = ~occupancy & Bitboard.ReachableMask(pos.Player, p);
-                    if (p == Piece.Pawn)
-                    {
-                        var pawns = pos.PieceBB(Piece.Pawn.Colored(pos.Player));
-                        to_bb &= Bitboard.PawnDropMask(pawns);
-                    }
-                    foreach (int to in to_bb)
-                    {
-                        moves.Add(Move.MakeDrop(p, to));
-                    }
-                }
-            }
+            GenerateDrops(pos, ~occupancy, moves);
 
             // 非合法手（自殺手、打ち歩詰め）を省く
             moves.RemoveIllegal(pos);
 
             return moves;
+        }
+
+        private static List<Move> GenerateEvasionMoves(Position pos)
+        {
+            var moves = new List<Move>();
+            var ksq = pos.King(pos.Player);
+            var checkerCount = pos.Checkers().Popcount();
+
+            var evasionTo = Bitboard.KingAttacks(ksq)
+                .AndNot(pos.ColorBB(pos.Player));
+            var occ = pos.GetOccupancy() ^ ksq;
+
+            foreach (var to in evasionTo)
+            {
+                var canMove = pos.EnumerateAttackers(
+                    pos.Player.Opponent(), to, occ)
+                    .None();
+                if (canMove)
+                {
+                    moves.Add(Move.MakeMove(ksq, to));
+                }
+            }
+
+            if (checkerCount > 1) return moves;
+
+            var csq = pos.Checkers().LsbSquare();
+            var between = Bitboard.Between(ksq, csq);
+
+            // 駒打ち
+            GenerateDrops(pos, between, moves);
+
+            // 駒移動
+            var excluded = pos.PieceBB(pos.Player, Piece.King) | pos.PinnedBy(pos.Player.Opponent());
+
+            foreach (var to in between | pos.Checkers())
+            {
+                var fromBB = pos
+                    .EnumerateAttackers(pos.Player, to)
+                    .AndNot(excluded);
+                foreach (var from in fromBB)
+                {
+                    AddMovesToList(pos.PieceAt(from), from, to, moves);
+                }
+            }
+
+            return moves;
+        }
+
+        private static partial void GenerateDrops(Position pos, Bitboard target, List<Move> moves);
+
+        [InlineBitboardEnumerator]
+        private static void GenerateDropsImpl(Position pos, Bitboard target, List<Move> moves)
+        {
+            foreach (var p in PieceExtensions.PawnToRook)
+            {
+                var captures = pos.CaptureListOf(pos.Player);
+                if (captures.Count(p) > 0)
+                {
+                    var toBB = target & Bitboard.ReachableMask(pos.Player, p);
+                    if (p == Piece.Pawn)
+                    {
+                        var pawns = pos.PieceBB(pos.Player, Piece.Pawn);
+                        toBB &= Bitboard.PawnDropMask(pawns);
+                        // 王手回避かつ打ち歩詰めパターン perft テストでカバーできてない...
+                        // ユニットテスト書きましょう
+                        var o = pos.Player.Opponent();
+                        var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
+                        if (!toBB.TestZ(uchifuzumeCand)
+                            && Move.MakeDrop(Piece.Pawn, uchifuzumeCand.LsbSquare()).IsUchifuzume(pos))
+                        {
+                            toBB ^= uchifuzumeCand;
+                        }
+                    }
+                    foreach (int to in toBB)
+                    {
+                        moves.Add(Move.MakeDrop(p, to));
+                    }
+                }
+            }
         }
 
         private static void AddMovesToList(Piece p, int from, int to, List<Move> moves)
@@ -107,8 +171,7 @@ namespace ShogiLibSharp
             var i = 0;
             while (i < moves.Count)
             {
-                if (moves[i].IsSuicideMove(pos)
-                    || moves[i].IsUchifuzume(pos))
+                if (moves[i].IsSuicideMove(pos))
                 {
                     moves[i] = moves[^1];
                     moves.RemoveAt(moves.Count - 1);
@@ -118,11 +181,11 @@ namespace ShogiLibSharp
             }
         }
 
-        public static bool IsSuicideMove(this Move m, Position pos)
+        private static bool IsSuicideMove(this Move m, Position pos)
         {
             if (pos.InCheck())
             {
-                return IsSuicideMoveInCheck(m, pos);
+                return false;
             }
 
             if (m.IsDrop())
@@ -149,73 +212,10 @@ namespace ShogiLibSharp
             }
         }
 
-        private static bool IsSuicideMoveInCheck(this Move m, Position pos)
+        private static bool IsUchifuzume(this Move m, Position pos)
         {
-            var checkers = pos.Checkers();
-            var checkerCount = checkers.Popcount();
-            var ksq = pos.King(pos.Player);
-
-            Debug.Assert(checkerCount > 0);
-
-            if (checkerCount == 1)
-            {
-                if (m.IsDrop())
-                {
-                    var csq = checkers.LsbSquare();
-                    return !Bitboard.Between(ksq, csq).Test(m.To());
-                }
-                else if (pos.PieceAt(m.From()).Colorless() == Piece.King)
-                {
-                    Debug.Assert(ksq == m.From());
-                    return IsSuicideKingMove(ksq, m.To(), pos);
-                }
-                else
-                {
-                    var csq = checkers.LsbSquare();
-                    var to = Bitboard.Between(ksq, csq) | checkers;
-                    if (!to.Test(m.To()))
-                    {
-                        return true;
-                    }
-                    return pos
-                        .PinnedBy(pos.Player.Opponent())
-                        .Test(m.From());
-                }
-            }
-            else
-            {
-                if (m.IsDrop() || pos.PieceAt(m.From()).Colorless() != Piece.King)
-                {
-                    return true;
-                }
-                Debug.Assert(ksq == m.From());
-                return IsSuicideKingMove(ksq, m.To(), pos);
-            }
-        }
-
-        private static bool IsSuicideKingMove(int from, int to, Position pos)
-        {
-            var attackers = pos
-                .EnumerateAttackers(pos.Player.Opponent(), to, pos.GetOccupancy() ^ from);
-            return attackers.Any();
-        }
-
-        public static bool IsUchifuzume(this Move m, Position pos)
-        {
-            if (!(m.IsDrop() && m.Dropped() == Piece.Pawn))
-            {
-                return false;
-            }
-
             var to = m.To();
             var theirKsq = pos.King(pos.Player.Opponent());
-
-            if (!Bitboard.PawnAttacks(pos.Player, to)
-                .Test(theirKsq))
-            {
-                return false;
-            }
-
             var defenders = pos.EnumerateAttackers(
                 pos.Player.Opponent(), to) ^ theirKsq;
 

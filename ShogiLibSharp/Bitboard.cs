@@ -124,7 +124,7 @@ namespace ShogiLibSharp
         }
 
         /// <summary>
-        /// ~this &amp; rhs
+        /// this &amp; ~rhs
         /// </summary>
         /// <param name="rhs"></param>
         /// <returns></returns>
@@ -136,7 +136,7 @@ namespace ShogiLibSharp
             }
             else
             {
-                return ~this & rhs;
+                return this & ~rhs;
             }
         }
 
