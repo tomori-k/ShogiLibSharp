@@ -8,6 +8,32 @@ namespace ShogiLibSharp
 {
     public static class Square
     {
+        private readonly static int[,] rankTable = new[,]
+        {
+            {
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+                0, 1, 2, 3, 4, 5, 6, 7, 8,
+            },
+            {
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+                8, 7, 6, 5, 4, 3, 2, 1, 0,
+            }
+        };
+
         /// <summary>
         /// c 視点での段（0 スタート） <br/>
         /// 例１：先手目線でマス 0 の段は 0  <br/>
@@ -17,7 +43,7 @@ namespace ShogiLibSharp
         /// <param name="sq"></param>
         /// <returns></returns>
         public static int RankOf(Color c, int sq)
-            => c == Color.Black ? sq % 9 : 8 - sq % 9;
+            => rankTable[(int)c, sq];
 
         /// <summary>
         /// 段（0 スタート）
@@ -25,7 +51,7 @@ namespace ShogiLibSharp
         /// <param name="sq"></param>
         /// <returns></returns>
         public static int RankOf(int sq)
-            => RankOf(Color.Black, sq);
+            => rankTable[0, sq];
 
         /// <summary>
         /// 筋（0 スタート）

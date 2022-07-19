@@ -13,6 +13,7 @@ namespace ShogiLibSharp
         public static readonly string Hirate = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
         #region 内部状態
+
         private Board board = new Board();
         private Bitboard[] colorBB = new Bitboard[2];
         private Bitboard[,] pieceBB = new Bitboard[2, 16];
@@ -20,6 +21,11 @@ namespace ShogiLibSharp
         private Stack<(Move Move, Piece Captured)> moves = new Stack<(Move, Piece)>();
         private Bitboard checkers;
         private Bitboard[] pinnedBy = new Bitboard[2];
+        private Bitboard[] silvers = new Bitboard[2]; // 銀の動きができる駒　：銀、玉、馬、龍
+        private Bitboard[] golds = new Bitboard[2];   // 金の動きができる駒　：金、玉、成駒
+        private Bitboard[] bishops = new Bitboard[2]; // 角の動きができる駒　：角、馬
+        private Bitboard[] rooks = new Bitboard[2];   // 飛車の動きができる駒：飛、龍
+
         #endregion
 
         #region 状態・プロパティ
@@ -158,6 +164,46 @@ namespace ShogiLibSharp
         }
 
         /// <summary>
+        /// 銀の動きができる駒（銀、玉、馬、龍）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Silvers(Color c)
+        {
+            return silvers[(int)c];
+        }
+
+        /// <summary>
+        /// 金の動きができる駒（金、玉、成駒すべて）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Golds(Color c)
+        {
+            return golds[(int)c];
+        }
+
+        /// <summary>
+        /// 角の動きができる駒（角、馬）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Bishops(Color c)
+        {
+            return bishops[(int)c];
+        }
+
+        /// <summary>
+        /// 飛車の動きができる駒（飛、龍）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Rooks(Color c)
+        {
+            return rooks[(int)c];
+        }
+
+        /// <summary>
         /// m で局面を進める。
         /// </summary>
         /// <param name="m">pseudo-legal な指し手。それ以外を渡したときの結果は不定。</param>
@@ -200,6 +246,15 @@ namespace ShogiLibSharp
                 PieceBB(after) ^= m.To();
             }
 
+            if (captured != Piece.Empty)
+            {
+                SumUpBitboards(Color.Black);
+                SumUpBitboards(Color.White);
+            }
+            else
+            {
+                SumUpBitboards(Player);
+            }
             Player = Player.Opponent();
             GamePly += 1;
             moves.Push((m, captured));
@@ -294,24 +349,13 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public Bitboard EnumerateAttackers(Color c, int sq, Bitboard occ)
         {
-            var silver = PieceBB(c, Piece.Silver) | PieceBB(c, Piece.King)
-                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
-
-            var gold = PieceBB(c, Piece.Gold) | PieceBB(c, Piece.King)
-                | PieceBB(c, Piece.ProPawn) | PieceBB(c, Piece.ProLance)
-                | PieceBB(c, Piece.ProKnight) | PieceBB(c, Piece.ProSilver)
-                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
-
-            var bishop = PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
-            var rook = PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
-
             return (PieceBB(c, Piece.Pawn) & Bitboard.PawnAttacks(c.Opponent(), sq))
                  | (PieceBB(c, Piece.Lance) & Bitboard.LanceAttacks(c.Opponent(), sq, occ))
                  | (PieceBB(c, Piece.Knight) & Bitboard.KnightAttacks(c.Opponent(), sq))
-                 | (silver & Bitboard.SilverAttacks(c.Opponent(), sq))
-                 | (gold & Bitboard.GoldAttacks(c.Opponent(), sq))
-                 | (bishop & Bitboard.BishopAttacks(sq, occ))
-                 | (rook & Bitboard.RookAttacks(sq, occ));
+                 | (Silvers(c) & Bitboard.SilverAttacks(c.Opponent(), sq))
+                 | (Golds(c) & Bitboard.GoldAttacks(c.Opponent(), sq))
+                 | (Bishops(c) & Bitboard.BishopAttacks(sq, occ))
+                 | (Rooks(c) & Bitboard.RookAttacks(sq, occ));
         }
 
         /// <summary>
@@ -421,11 +465,8 @@ namespace ShogiLibSharp
 
             // (e)
             // 敵陣内の飛角馬竜
-            var br =
-                 (PieceBB(Piece.Bishop.Colored(Player))
-                | PieceBB(Piece.Rook.Colored(Player))
-                | PieceBB(Piece.ProBishop.Colored(Player))
-                | PieceBB(Piece.ProRook.Colored(Player))) & Bitboard.Rank(Player, 0, 2);
+            var br = (Bishops(Player) | Rooks(Player))
+                & Bitboard.Rank(Player, 0, 2);
 
             var point = br.Popcount() * 4 + bb.Popcount() - 1 + (int)Player + CaptureListOf(Player).Point();
 
@@ -661,11 +702,20 @@ namespace ShogiLibSharp
                 }
             }
 
+            if (captured != Piece.Empty)
+            {
+                SumUpBitboards(Color.Black);
+                SumUpBitboards(Color.White);
+            }
+            else
+            {
+                SumUpBitboards(Player);
+            }
             checkers = ComputeCheckers();
             pinnedBy[0] = ComputePinnedBy(Color.Black);
             pinnedBy[1] = ComputePinnedBy(Color.White);
         }
-        
+
         /// <summary>
         /// board に合うように他の状態を設定
         /// </summary>
@@ -686,6 +736,8 @@ namespace ShogiLibSharp
             }
 
             moves.Clear();
+            SumUpBitboards(Color.Black);
+            SumUpBitboards(Color.White);
             checkers = ComputeCheckers();
             pinnedBy[0] = ComputePinnedBy(Color.Black);
             pinnedBy[1] = ComputePinnedBy(Color.White);
@@ -700,13 +752,10 @@ namespace ShogiLibSharp
         {
             var theirKsq = King(c.Opponent());
             var pinned = default(Bitboard);
-            var pinnersCandidate =
-                (PieceBB(c, Piece.Lance)
+            var pinnersCandidate = (PieceBB(c, Piece.Lance)
                     & Bitboard.LancePseudoAttacks(c.Opponent(), theirKsq))
-                | ((PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop))
-                    & Bitboard.BishopPseudoAttacks(theirKsq))
-                | ((PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook))
-                    & Bitboard.RookPseudoAttacks(theirKsq));
+                | (Bishops(c) & Bitboard.BishopPseudoAttacks(theirKsq))
+                | (Rooks(c) & Bitboard.RookPseudoAttacks(theirKsq));
             var occ = GetOccupancy();
             foreach (var sq in pinnersCandidate)
             {
@@ -714,6 +763,26 @@ namespace ShogiLibSharp
                 if (between.Popcount() == 1) pinned |= between;
             }
             return pinned;
+        }
+
+        private void SumUpBitboards(Color c)
+        {
+            silvers[(int)c] = PieceBB(c, Piece.Silver)
+                | PieceBB(c, Piece.King)
+                | PieceBB(c, Piece.ProBishop)
+                | PieceBB(c, Piece.ProRook);
+            golds[(int)c] = PieceBB(c, Piece.Gold)
+                | PieceBB(c, Piece.King)
+                | PieceBB(c, Piece.ProPawn)
+                | PieceBB(c, Piece.ProLance)
+                | PieceBB(c, Piece.ProKnight)
+                | PieceBB(c, Piece.ProSilver)
+                | PieceBB(c, Piece.ProBishop)
+                | PieceBB(c, Piece.ProRook);
+            bishops[(int)c] =
+                PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
+            rooks[(int)c] =
+                PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
         }
 
         #endregion

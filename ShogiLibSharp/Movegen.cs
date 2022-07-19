@@ -151,38 +151,9 @@ namespace ShogiLibSharp
                 }
             }
 
-            // 角、飛
-            //{
-            //    var fromBB = pos.PieceBB(pos.Player, Piece.Gold)
-            //        | pos.PieceBB(pos.Player, Piece.King)
-            //        | pos.PieceBB(pos.Player, Piece.ProPawn)
-            //        | pos.PieceBB(pos.Player, Piece.ProLance)
-            //        | pos.PieceBB(pos.Player, Piece.ProKnight)
-            //        | pos.PieceBB(pos.Player, Piece.ProSilver)
-            //        | pos.PieceBB(pos.Player, Piece.ProBishop)
-            //        | pos.PieceBB(pos.Player, Piece.ProRook);
-            //    foreach (var from in fromBB)
-            //    {
-            //        var toBB = Bitboard
-            //            .Attacks(pos.PieceAt(from), from, occupancy)
-            //            .AndNot(us);
-            //        foreach (var to in toBB)
-            //        {
-            //            moves.Add(Move.MakeMove(from, to));
-            //        }
-            //    }
-            //}
-
             // その他
             {
-                var fromBB = pos.PieceBB(pos.Player, Piece.Gold)
-                    | pos.PieceBB(pos.Player, Piece.King)
-                    | pos.PieceBB(pos.Player, Piece.ProPawn)
-                    | pos.PieceBB(pos.Player, Piece.ProLance)
-                    | pos.PieceBB(pos.Player, Piece.ProKnight)
-                    | pos.PieceBB(pos.Player, Piece.ProSilver)
-                    | pos.PieceBB(pos.Player, Piece.ProBishop)
-                    | pos.PieceBB(pos.Player, Piece.ProRook);
+                var fromBB = pos.Golds(pos.Player);
                 foreach (var from in fromBB)
                 {
                     var toBB = Bitboard
