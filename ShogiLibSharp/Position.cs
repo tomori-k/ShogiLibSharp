@@ -478,13 +478,13 @@ namespace ShogiLibSharp
         /// で盤面を設定
         /// </summary>
         /// <param name="sfen"></param>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="FormatException"></exception>
         public void Set(string sfen)
         {
             var splitted = sfen.Split(' ');
 
             if (splitted.Length < 4)
-                throw new ArgumentException($"何らかの局面情報が抜け落ちています：{sfen}");
+                throw new FormatException($"何らかの局面情報が抜け落ちています：{sfen}");
 
             var board = splitted[0];
             var player = splitted[1];
@@ -497,7 +497,7 @@ namespace ShogiLibSharp
             for (int i = 0, cnt = 0; i < board.Length; ++i)
             {
                 if (cnt >= 81)
-                    throw new ArgumentException($"余分な文字列が含まれています：{sfen}");
+                    throw new FormatException($"余分な文字列が含まれています：{sfen}");
 
                 if (board[i] == '/')
                     continue;
@@ -505,7 +505,7 @@ namespace ShogiLibSharp
                 var promoted = board[i] == '+';
 
                 if (promoted && ++i >= board.Length)
-                    throw new ArgumentException($"+の対象がありません：{sfen}");
+                    throw new FormatException($"+の対象がありません：{sfen}");
 
                 if (char.IsDigit(board[i]))
                 {
@@ -517,7 +517,7 @@ namespace ShogiLibSharp
                     var file = 8 - cnt % 9;
                     Piece p = Usi.FromUsi(board[i]);
                     if (promoted && p.Colorless() == Piece.King)
-                        throw new ArgumentException($"玉は成れません：{sfen}");
+                        throw new FormatException($"玉は成れません：{sfen}");
                     this.board.Squares[Square.Index(rank, file)]
                         = promoted ? p.Promoted() : p;
                     cnt += 1;
@@ -527,7 +527,7 @@ namespace ShogiLibSharp
             // 手番
             Player = player == "b" ? Color.Black
                    : player == "w" ? Color.White
-                   : throw new ArgumentException($"手番がおかしいです：{sfen}");
+                   : throw new FormatException($"手番がおかしいです：{sfen}");
 
             // 持ち駒
             if (mochigoma != "-")
@@ -549,7 +549,7 @@ namespace ShogiLibSharp
                             n = 0;
                         }
                         else
-                            throw new ArgumentException("駒台に玉があります：{sfen}");
+                            throw new FormatException("駒台に玉があります：{sfen}");
                     }
                 }
             }
@@ -560,7 +560,7 @@ namespace ShogiLibSharp
                 GamePly = ply;
             }
             else
-                throw new ArgumentException($"手数を変換できません：{sfen}");
+                throw new FormatException($"手数を変換できません：{sfen}");
 
             SetInternalStates();
         }

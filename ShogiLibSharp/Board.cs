@@ -71,14 +71,14 @@ namespace ShogiLibSharp
         private static readonly int[] defaultCount = { 0, 18, 4, 4, 4, 4, 2, 2 };
 
         /// <summary>
-        /// 以下をチェックし、満たさない場合 InvalidDataException を発生 <br/>
+        /// 以下をチェックし、満たさない場合 FormatException を発生 <br/>
         /// * 各種類の駒の数がデフォルト以下 <br/>
         /// * 先手、後手の玉が1枚ずつ存在  <br/>
         /// * 二歩でない                   <br/>
         /// * 歩、香が 1 段目にいない       <br/>
         /// * 桂が １,2 段目にいない        <br/>
         /// </summary>
-        /// <exception cref="InvalidDataException"></exception>
+        /// <exception cref="FormatException"></exception>
         public void Validate()
         {
             // 各種類の駒の数がデフォルト以下
@@ -88,7 +88,7 @@ namespace ShogiLibSharp
                 int cc = CaptureListOf(Color.Black).Count(p) + CaptureListOf(Color.White).Count(p);
                 if (bc + cc > defaultCount[(int)p])
                 {
-                    throw new InvalidDataException($"{p}が{defaultCount[(int)p]}より多いです。");
+                    throw new FormatException($"{p}が{defaultCount[(int)p]}より多いです。");
                 }
             }
             // 先手、後手の玉が1枚ずつ存在
@@ -98,7 +98,7 @@ namespace ShogiLibSharp
                     .Where(x => x == Piece.King.Colored(c))
                     .Count() != 1)
                 {
-                    throw new InvalidDataException($"{c}の玉が1枚でないです。");
+                    throw new FormatException($"{c}の玉が1枚でないです。");
                 }
             }
             // 二歩でない
@@ -110,7 +110,7 @@ namespace ShogiLibSharp
                         .Where((p, sq) => p == Piece.Pawn.Colored(c) && Square.FileOf(sq) == file)
                         .Count() >= 2)
                     {
-                        throw new InvalidDataException($"{file+1}筋に歩が2枚以上あります。");
+                        throw new FormatException($"{file+1}筋に歩が2枚以上あります。");
                     }
                 }
             }
@@ -121,7 +121,7 @@ namespace ShogiLibSharp
                     .Where((p, sq) => p == Piece.Pawn.Colored(c) && Square.RankOf(c, sq) == 0)
                     .Any())
                 {
-                    throw new InvalidDataException($"1段目に歩が存在します。");
+                    throw new FormatException($"1段目に歩が存在します。");
                 }
             }
             // 香が1段目にいない
@@ -131,7 +131,7 @@ namespace ShogiLibSharp
                     .Where((p, sq) => p == Piece.Lance.Colored(c) && Square.RankOf(c, sq) == 0)
                     .Any())
                 {
-                    throw new InvalidDataException($"1段目に香車が存在します。");
+                    throw new FormatException($"1段目に香車が存在します。");
                 }
             }
             // 桂が1,2段目にいない
@@ -141,7 +141,7 @@ namespace ShogiLibSharp
                     .Where((p, sq) => p == Piece.Knight.Colored(c) && Square.RankOf(c, sq) <= 1)
                     .Any())
                 {
-                    throw new InvalidDataException($"1,2段目に桂馬が存在します。");
+                    throw new FormatException($"1,2段目に桂馬が存在します。");
                 }
             }
         }

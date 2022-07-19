@@ -143,14 +143,14 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="p"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="FormatException"></exception>
         public static string Usi(this Piece p)
         {
             var t = p.Colorless() != Piece.King
                 ? p.Demoted() : p;
             if (!PieceToChar.ContainsKey(t))
             {
-                throw new ArgumentException($"{p}が不正です");
+                throw new FormatException($"Piece: {p} が有効な値ではありません");
             }
             char c = PieceToChar[t];
             return p.Colorless() != Piece.King && p.IsPromoted()

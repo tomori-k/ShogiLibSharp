@@ -65,12 +65,12 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="usiMove"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="FormatException"></exception>
         public static Move ParseMove(string usiMove)
         {
             if (usiMove.Length < 4)
             {
-                throw new ArgumentException($"USI 形式ではありません：{usiMove}");
+                throw new FormatException($"USI 形式ではありません：{usiMove}");
             }
             var to = ParseSquare(usiMove.Substring(2, 2));
             // 駒打ち
@@ -93,14 +93,14 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="usiSq"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="FormatException"></exception>
         private static int ParseSquare(string usiSq)
         {
             if (usiSq.Length < 2
                 || !('1' <= usiSq[0] && usiSq[0] <= '9')
                 || !('a' <= usiSq[1] && usiSq[1] <= 'i'))
             {
-                throw new ArgumentException($"USI 形式ではありません：{usiSq}");
+                throw new FormatException($"USI 形式ではありません：{usiSq}");
             }
             var file = usiSq[0] - '1';
             var rank = usiSq[1] - 'a';
