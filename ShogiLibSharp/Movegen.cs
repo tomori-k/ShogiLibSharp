@@ -288,6 +288,7 @@ namespace ShogiLibSharp
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsSuicideMove(this Move m, Position pos)
         {
             if (pos.InCheck())
