@@ -103,6 +103,30 @@ namespace ShogiLibSharp
             }
         }
 
+        public static Bitboard operator <<(Bitboard x, int shift)
+        {
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.ShiftLeftLogical(x.x, (byte)shift));
+            }
+            else
+            {
+                return new(x.Lower() << shift, x.Upper() << shift);
+            }
+        }
+
+        public static Bitboard operator >>(Bitboard x, int shift)
+        {
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.ShiftRightLogical(x.x, (byte)shift));
+            }
+            else
+            {
+                return new(x.Lower() >> shift, x.Upper() >> shift);
+            }
+        }
+
         public static Bitboard operator &(Bitboard lhs, int sq)
         {
             return lhs & SQUARE_BIT[sq];

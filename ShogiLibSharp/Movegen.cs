@@ -46,14 +46,152 @@ namespace ShogiLibSharp
             var occupancy = pos.GetOccupancy();
             var us = pos.ColorBB(pos.Player);
 
-            // 駒移動
-            foreach (var from in us)
+            // 歩
             {
-                Piece p = pos.PieceAt(from);
-                Bitboard to_bb = Bitboard.Attacks(p, from, occupancy) & ~us;
-                foreach (int to in to_bb)
+                var fromBB = pos.PieceBB(pos.Player, Piece.Pawn);
+                var toBB = (pos.Player == Color.Black
+                    ? fromBB >> 1 : fromBB << 1)
+                    .AndNot(us);
+                var delta = pos.Player == Color.Black ? 1 : -1;
+                foreach (var to in toBB)
                 {
-                    AddMovesToList(p, from, to, moves);
+                    var from = to + delta;
+                    var rank = Square.RankOf(pos.Player, to);
+                    if (rank == 0)
+                    {
+                        moves.Add(Move.MakeMove(from, to, true));
+                    }
+                    else if (rank <= 2)
+                    {
+                        moves.Add(Move.MakeMove(from, to, false));
+                        moves.Add(Move.MakeMove(from, to, true));
+                    }
+                    else
+                    {
+                        moves.Add(Move.MakeMove(from, to, false));
+                    }
+                }
+            }
+
+            // 香
+            {
+                var fromBB = pos.PieceBB(pos.Player, Piece.Lance);
+                foreach (var from in fromBB)
+                {
+                    var toBB = Bitboard
+                        .LanceAttacks(pos.Player, from, occupancy)
+                        .AndNot(us);
+                    foreach (var to in toBB)
+                    {
+                        var rank = Square.RankOf(pos.Player, to);
+                        if (rank == 0)
+                        {
+                            moves.Add(Move.MakeMove(from, to, true));
+                        }
+                        else if (rank <= 2)
+                        {
+                            moves.Add(Move.MakeMove(from, to, false));
+                            moves.Add(Move.MakeMove(from, to, true));
+                        }
+                        else
+                        {
+                            moves.Add(Move.MakeMove(from, to, false));
+                        }
+                    }
+                }
+            }
+
+            // 桂
+            {
+                var fromBB = pos.PieceBB(pos.Player, Piece.Knight);
+                foreach (var from in fromBB)
+                {
+                    var toBB = Bitboard
+                        .KnightAttacks(pos.Player, from)
+                        .AndNot(us);
+                    foreach (var to in toBB)
+                    {
+                        var rank = Square.RankOf(pos.Player, to);
+                        if (rank <= 1)
+                        {
+                            moves.Add(Move.MakeMove(from, to, true));
+                        }
+                        else if (rank == 2)
+                        {
+                            moves.Add(Move.MakeMove(from, to, false));
+                            moves.Add(Move.MakeMove(from, to, true));
+                        }
+                        else
+                        {
+                            moves.Add(Move.MakeMove(from, to, false));
+                        }
+                    }
+                }
+            }
+
+            // 銀、角、飛
+            {
+                var fromBB = pos.PieceBB(pos.Player, Piece.Silver)
+                    | pos.PieceBB(pos.Player, Piece.Bishop)
+                    | pos.PieceBB(pos.Player, Piece.Rook);
+
+                foreach (var from in fromBB)
+                {
+                    var toBB = Bitboard
+                        .Attacks(pos.PieceAt(from), from, occupancy)
+                        .AndNot(us);
+                    foreach (var to in toBB)
+                    {
+                        moves.Add(Move.MakeMove(from, to, false));
+                        if (Square.CanPromote(pos.Player, from, to))
+                        {
+                            moves.Add(Move.MakeMove(from, to, true));
+                        }
+                    }
+                }
+            }
+
+            // 角、飛
+            //{
+            //    var fromBB = pos.PieceBB(pos.Player, Piece.Gold)
+            //        | pos.PieceBB(pos.Player, Piece.King)
+            //        | pos.PieceBB(pos.Player, Piece.ProPawn)
+            //        | pos.PieceBB(pos.Player, Piece.ProLance)
+            //        | pos.PieceBB(pos.Player, Piece.ProKnight)
+            //        | pos.PieceBB(pos.Player, Piece.ProSilver)
+            //        | pos.PieceBB(pos.Player, Piece.ProBishop)
+            //        | pos.PieceBB(pos.Player, Piece.ProRook);
+            //    foreach (var from in fromBB)
+            //    {
+            //        var toBB = Bitboard
+            //            .Attacks(pos.PieceAt(from), from, occupancy)
+            //            .AndNot(us);
+            //        foreach (var to in toBB)
+            //        {
+            //            moves.Add(Move.MakeMove(from, to));
+            //        }
+            //    }
+            //}
+
+            // その他
+            {
+                var fromBB = pos.PieceBB(pos.Player, Piece.Gold)
+                    | pos.PieceBB(pos.Player, Piece.King)
+                    | pos.PieceBB(pos.Player, Piece.ProPawn)
+                    | pos.PieceBB(pos.Player, Piece.ProLance)
+                    | pos.PieceBB(pos.Player, Piece.ProKnight)
+                    | pos.PieceBB(pos.Player, Piece.ProSilver)
+                    | pos.PieceBB(pos.Player, Piece.ProBishop)
+                    | pos.PieceBB(pos.Player, Piece.ProRook);
+                foreach (var from in fromBB)
+                {
+                    var toBB = Bitboard
+                        .Attacks(pos.PieceAt(from), from, occupancy)
+                        .AndNot(us);
+                    foreach (var to in toBB)
+                    {
+                        moves.Add(Move.MakeMove(from, to));
+                    }
                 }
             }
 
