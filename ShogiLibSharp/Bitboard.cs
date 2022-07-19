@@ -627,35 +627,32 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static Bitboard Attacks(Piece p, int sq, Bitboard occupancy)
         {
-            switch (p.Colorless())
+            return p switch
             {
-                case Piece.Pawn:
-                    return PAWN_ATTACKS[sq, (int)p.Color()];
-                case Piece.Lance:
-                    return LanceAttacks(p.Color(), sq, occupancy);
-                case Piece.Knight:
-                    return KNIGHT_ATTACKS[sq, (int)p.Color()];
-                case Piece.Silver:
-                    return SILVER_ATTACKS[sq, (int)p.Color()];
-                case Piece.Gold:
-                case Piece.ProPawn:
-                case Piece.ProLance:
-                case Piece.ProKnight:
-                case Piece.ProSilver:
-                    return GOLD_ATTACKS[sq, (int)p.Color()];
-                case Piece.Bishop:
-                    return BishopAttacks(sq, occupancy);
-                case Piece.Rook:
-                    return RookAttacks(sq, occupancy);
-                case Piece.King:
-                    return KING_ATTACKS[sq];
-                case Piece.ProBishop:
-                    return BishopAttacks(sq, occupancy) | KING_ATTACKS[sq];
-                case Piece.ProRook:
-                    return RookAttacks(sq, occupancy) | KING_ATTACKS[sq];
-                default:
-                    return new Bitboard();
-            }
+                Piece.B_Pawn => PAWN_ATTACKS[sq, 0],
+                Piece.B_Lance => LanceAttacksBlack(sq, occupancy),
+                Piece.B_Knight => KNIGHT_ATTACKS[sq, 0],
+                Piece.B_Silver => SILVER_ATTACKS[sq, 0],
+                Piece.B_Gold => GOLD_ATTACKS[sq, 0],
+                Piece.B_Bishop => BishopAttacks(sq, occupancy),
+                Piece.B_Rook => RookAttacks(sq, occupancy),
+                Piece.B_King => KING_ATTACKS[sq],
+                Piece.B_ProPawn or Piece.B_ProLance or Piece.B_ProKnight or Piece.B_ProSilver => GOLD_ATTACKS[sq, 0],
+                Piece.B_ProBishop => BishopAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                Piece.B_ProRook => RookAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                Piece.W_Pawn => PAWN_ATTACKS[sq, 1],
+                Piece.W_Lance => LanceAttacksWhite(sq, occupancy),
+                Piece.W_Knight => KNIGHT_ATTACKS[sq, 1],
+                Piece.W_Silver => SILVER_ATTACKS[sq, 1],
+                Piece.W_Gold => GOLD_ATTACKS[sq, 1],
+                Piece.W_Bishop => BishopAttacks(sq, occupancy),
+                Piece.W_Rook => RookAttacks(sq, occupancy),
+                Piece.W_King => KING_ATTACKS[sq],
+                Piece.W_ProPawn or Piece.W_ProLance or Piece.W_ProKnight or Piece.W_ProSilver => GOLD_ATTACKS[sq, 1],
+                Piece.W_ProBishop => BishopAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                Piece.W_ProRook => RookAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                _ => new Bitboard(),
+            };
         }
 
         /// <summary>
