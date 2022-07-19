@@ -226,10 +226,6 @@ namespace ShogiLibSharp
         [InlineBitboardEnumerator]
         private static void GenerateDropsImpl(Position pos, Bitboard target, List<Move> moves)
         {
-
-
-
-
             var captureList = pos.CaptureListOf(pos.Player);
             if (captureList.None())
                 return;
@@ -324,7 +320,6 @@ namespace ShogiLibSharp
                     }
                     break;
             }
-
 
             switch (n - li)
             {

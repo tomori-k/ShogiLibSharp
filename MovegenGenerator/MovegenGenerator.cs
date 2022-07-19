@@ -130,14 +130,16 @@ namespace ShogiLibSharp
             else if (syntaxNode is SwitchStatementSyntax switchNode)
             {
                 sb.AppendLine(indent + $"switch ({switchNode.Expression})");
-                foreach (var switchSectionNode in switchNode.Sections)
+                sb.AppendLine(indent + "{");
+                foreach (var sectionNode in switchNode.Sections)
                 {
-                    //sb.AppendLine("ABC" + switchSectionNode.Statements.ToString());
-                    //foreach (var l in switchSectionNode.Labels)
-                    //    sb.AppendLine("ABC: " + l.ToString());
-                    //sb.AppendLine(switchSectionNode.Statements.ToString());
+                    sb.AppendLine(indent + "    " + sectionNode.Labels);
+                    foreach (var statementNode in sectionNode.Statements)
+                    {
+                        GenerateCode(context, sb, statementNode, indent + "    ");
+                    }
                 }
-                //GenerateCode(context, sb, switchNode.S);
+                sb.AppendLine(indent + "}");
             }
             else if (syntaxNode is StatementSyntax)
             {
@@ -174,10 +176,10 @@ namespace MovegenGenerator
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            if (!Debugger.IsAttached)
-            {
-                Debugger.Launch();
-            }
+            //if (!Debugger.IsAttached)
+            //{
+            //    Debugger.Launch();
+            //}
             context.RegisterForSyntaxNotifications(() => new MovegenFuncFinder());
         }
 
