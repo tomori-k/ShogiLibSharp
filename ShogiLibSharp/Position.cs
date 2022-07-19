@@ -13,11 +13,19 @@ namespace ShogiLibSharp
         public static readonly string Hirate = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
         #region 内部状態
+
         private Board board = new Board();
         private Bitboard[] colorBB = new Bitboard[2];
         private Bitboard[,] pieceBB = new Bitboard[2, 16];
         // 指し手＋その指し手で確保した駒のペア
         private Stack<(Move Move, Piece Captured)> moves = new Stack<(Move, Piece)>();
+        private Bitboard checkers;
+        private Bitboard[] pinnedBy = new Bitboard[2];
+        private Bitboard[] silvers = new Bitboard[2]; // 銀の動きができる駒　：銀、玉、馬、龍
+        private Bitboard[] golds = new Bitboard[2];   // 金の動きができる駒　：金、玉、成駒
+        private Bitboard[] bishops = new Bitboard[2]; // 角の動きができる駒　：角、馬
+        private Bitboard[] rooks = new Bitboard[2];   // 飛車の動きができる駒：飛、龍
+
         #endregion
 
         #region 状態・プロパティ
@@ -77,7 +85,7 @@ namespace ShogiLibSharp
         {
             this.board = board.Clone();
             this.GamePly = 1;
-            UpdateInternalStates();
+            SetInternalStates();
         }
 
         #endregion
@@ -156,6 +164,46 @@ namespace ShogiLibSharp
         }
 
         /// <summary>
+        /// 銀の動きができる駒（銀、玉、馬、龍）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Silvers(Color c)
+        {
+            return silvers[(int)c];
+        }
+
+        /// <summary>
+        /// 金の動きができる駒（金、玉、成駒すべて）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Golds(Color c)
+        {
+            return golds[(int)c];
+        }
+
+        /// <summary>
+        /// 角の動きができる駒（角、馬）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Bishops(Color c)
+        {
+            return bishops[(int)c];
+        }
+
+        /// <summary>
+        /// 飛車の動きができる駒（飛、龍）のビットボード
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard Rooks(Color c)
+        {
+            return rooks[(int)c];
+        }
+
+        /// <summary>
         /// m で局面を進める。
         /// </summary>
         /// <param name="m">pseudo-legal な指し手。それ以外を渡したときの結果は不定。</param>
@@ -198,9 +246,21 @@ namespace ShogiLibSharp
                 PieceBB(after) ^= m.To();
             }
 
+            if (captured != Piece.Empty)
+            {
+                SumUpBitboards(Color.Black);
+                SumUpBitboards(Color.White);
+            }
+            else
+            {
+                SumUpBitboards(Player);
+            }
             Player = Player.Opponent();
             GamePly += 1;
             moves.Push((m, captured));
+            checkers = ComputeCheckers();
+            pinnedBy[0] = ComputePinnedBy(Color.Black);
+            pinnedBy[1] = ComputePinnedBy(Color.White);
         }
 
         /// <summary>
@@ -248,28 +308,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public bool InCheck()
         {
-            return EnumerateAttackers(
-                Player.Opponent(), PieceBB(Piece.King.Colored(Player)).LsbSquare()).Any();
-        }
-
-        /// <summary>
-        /// 指し手が自殺手または打ち歩詰めか判定
-        /// </summary>
-        /// <param name="pseudoLegalMove">pseudo-legal な指し手。それ以外を渡したときの結果は不定。</param>
-        /// <returns></returns>
-        public bool IsSuicideOrUchifuzume(Move pseudoLegalMove)
-        {
-            DoMove_PseudoLegal(pseudoLegalMove);
-
-            var isSuicideMove = EnumerateAttackers(
-                Player, PieceBB(Piece.King.Colored(Player.Opponent())).LsbSquare()).Any();
-
-            var isUchifuzume = !isSuicideMove
-                && pseudoLegalMove.IsDrop() && pseudoLegalMove.Dropped() == Piece.Pawn && InCheck() && IsMated();
-
-            UndoMove();
-
-            return isSuicideMove || isUchifuzume;
+            return Checkers().Any();
         }
 
         /// <summary>
@@ -289,6 +328,65 @@ namespace ShogiLibSharp
         public bool IsLegalMove(Move m)
         {
             return Movegen.GenerateMoves(this).Contains(m);
+        }
+
+        /// <summary>
+        /// c の玉の位置
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public int King(Color c)
+        {
+            return PieceBB(c, Piece.King).LsbSquare();
+        }
+
+        /// <summary>
+        /// sq に利きのある c の駒をすべて列挙
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="sq"></param>
+        /// <param name="occ"></param>
+        /// <returns></returns>
+        public Bitboard EnumerateAttackers(Color c, int sq, Bitboard occ)
+        {
+            return (PieceBB(c, Piece.Pawn) & Bitboard.PawnAttacks(c.Opponent(), sq))
+                 | (PieceBB(c, Piece.Lance) & Bitboard.LanceAttacks(c.Opponent(), sq, occ))
+                 | (PieceBB(c, Piece.Knight) & Bitboard.KnightAttacks(c.Opponent(), sq))
+                 | (Silvers(c) & Bitboard.SilverAttacks(c.Opponent(), sq))
+                 | (Golds(c) & Bitboard.GoldAttacks(c.Opponent(), sq))
+                 | (Bishops(c) & Bitboard.BishopAttacks(sq, occ))
+                 | (Rooks(c) & Bitboard.RookAttacks(sq, occ));
+        }
+
+        /// <summary>
+        /// sq に利きのある c の駒をすべて列挙
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="sq"></param>
+        /// <param name="occ"></param>
+        /// <returns></returns>
+        public Bitboard EnumerateAttackers(Color c, int sq)
+        {
+            return EnumerateAttackers(c, sq, GetOccupancy());
+        }
+
+        /// <summary>
+        /// Player の玉に王手をかけている駒
+        /// </summary>
+        /// <returns></returns>
+        public Bitboard Checkers()
+        {
+            return checkers;
+        }
+
+        /// <summary>
+        /// c 側の駒によってピンされている駒
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public Bitboard PinnedBy(Color c)
+        {
+            return pinnedBy[(int)c];
         }
 
         /// <summary>
@@ -367,11 +465,8 @@ namespace ShogiLibSharp
 
             // (e)
             // 敵陣内の飛角馬竜
-            var br =
-                 (PieceBB(Piece.Bishop.Colored(Player))
-                | PieceBB(Piece.Rook.Colored(Player))
-                | PieceBB(Piece.ProBishop.Colored(Player))
-                | PieceBB(Piece.ProRook.Colored(Player))) & Bitboard.Rank(Player, 0, 2);
+            var br = (Bishops(Player) | Rooks(Player))
+                & Bitboard.Rank(Player, 0, 2);
 
             var point = br.Popcount() * 4 + bb.Popcount() - 1 + (int)Player + CaptureListOf(Player).Point();
 
@@ -467,7 +562,7 @@ namespace ShogiLibSharp
             else
                 throw new ArgumentException($"手数を変換できません：{sfen}");
 
-            UpdateInternalStates();
+            SetInternalStates();
         }
 
         /// <summary>
@@ -478,7 +573,7 @@ namespace ShogiLibSharp
         {
 
             var sb = new StringBuilder();
-            sb.AppendLine(board.ToString());
+            sb.AppendLine(board.Pretty());
             sb.AppendLine($"SFEN: {Sfen()}");
             switch (CheckRepetition())
             {
@@ -606,33 +701,25 @@ namespace ShogiLibSharp
                         .Add(captured.Kind(), -1);
                 }
             }
+
+            if (captured != Piece.Empty)
+            {
+                SumUpBitboards(Color.Black);
+                SumUpBitboards(Color.White);
+            }
+            else
+            {
+                SumUpBitboards(Player);
+            }
+            checkers = ComputeCheckers();
+            pinnedBy[0] = ComputePinnedBy(Color.Black);
+            pinnedBy[1] = ComputePinnedBy(Color.White);
         }
 
-        private Bitboard EnumerateAttackers(Color c, int sq)
-        {
-            var occupancy = GetOccupancy();
-
-            var silver = PieceBB(c, Piece.Silver) | PieceBB(c, Piece.King)
-                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
-
-            var gold = PieceBB(c, Piece.Gold) | PieceBB(c, Piece.King)
-                | PieceBB(c, Piece.ProPawn) | PieceBB(c, Piece.ProLance)
-                | PieceBB(c, Piece.ProKnight) | PieceBB(c, Piece.ProSilver)
-                | PieceBB(c, Piece.ProBishop) | PieceBB(c, Piece.ProRook);
-
-            var bishop = PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
-            var rook = PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
-
-            return (PieceBB(c, Piece.Pawn) & Bitboard.Attacks(Piece.Pawn.Colored(c.Opponent()), sq, occupancy))
-                 | (PieceBB(c, Piece.Lance) & Bitboard.Attacks(Piece.Lance.Colored(c.Opponent()), sq, occupancy))
-                 | (PieceBB(c, Piece.Knight) & Bitboard.Attacks(Piece.Knight.Colored(c.Opponent()), sq, occupancy))
-                 | (silver & Bitboard.Attacks(Piece.Silver.Colored(c.Opponent()), sq, occupancy))
-                 | (gold & Bitboard.Attacks(Piece.Gold.Colored(c.Opponent()), sq, occupancy))
-                 | (bishop & Bitboard.Attacks(Piece.Bishop.Colored(c.Opponent()), sq, occupancy))
-                 | (rook & Bitboard.Attacks(Piece.Rook.Colored(c.Opponent()), sq, occupancy));
-        }
-        
-        private void UpdateInternalStates()
+        /// <summary>
+        /// board に合うように他の状態を設定
+        /// </summary>
+        private void SetInternalStates()
         {
             board.Validate();
 
@@ -649,6 +736,53 @@ namespace ShogiLibSharp
             }
 
             moves.Clear();
+            SumUpBitboards(Color.Black);
+            SumUpBitboards(Color.White);
+            checkers = ComputeCheckers();
+            pinnedBy[0] = ComputePinnedBy(Color.Black);
+            pinnedBy[1] = ComputePinnedBy(Color.White);
+        }
+
+        private Bitboard ComputeCheckers()
+        {
+            return EnumerateAttackers(Player.Opponent(), King(Player));
+        }
+
+        private Bitboard ComputePinnedBy(Color c)
+        {
+            var theirKsq = King(c.Opponent());
+            var pinned = default(Bitboard);
+            var pinnersCandidate = (PieceBB(c, Piece.Lance)
+                    & Bitboard.LancePseudoAttacks(c.Opponent(), theirKsq))
+                | (Bishops(c) & Bitboard.BishopPseudoAttacks(theirKsq))
+                | (Rooks(c) & Bitboard.RookPseudoAttacks(theirKsq));
+            var occ = GetOccupancy();
+            foreach (var sq in pinnersCandidate)
+            {
+                var between = Bitboard.Between(theirKsq, sq) & occ;
+                if (between.Popcount() == 1) pinned |= between;
+            }
+            return pinned;
+        }
+
+        private void SumUpBitboards(Color c)
+        {
+            silvers[(int)c] = PieceBB(c, Piece.Silver)
+                | PieceBB(c, Piece.King)
+                | PieceBB(c, Piece.ProBishop)
+                | PieceBB(c, Piece.ProRook);
+            golds[(int)c] = PieceBB(c, Piece.Gold)
+                | PieceBB(c, Piece.King)
+                | PieceBB(c, Piece.ProPawn)
+                | PieceBB(c, Piece.ProLance)
+                | PieceBB(c, Piece.ProKnight)
+                | PieceBB(c, Piece.ProSilver)
+                | PieceBB(c, Piece.ProBishop)
+                | PieceBB(c, Piece.ProRook);
+            bishops[(int)c] =
+                PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
+            rooks[(int)c] =
+                PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
         }
 
         #endregion

@@ -31,6 +31,10 @@ namespace ShogiLibSharp
         private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81, 2];
         private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81, 2];
         private static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
+        private static readonly Bitboard[,] LANCE_PSEUDO_ATTACKS = new Bitboard[81, 2];
+        private static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
+        private static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
+
         private static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
 
         private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
@@ -99,6 +103,30 @@ namespace ShogiLibSharp
             }
         }
 
+        public static Bitboard operator <<(Bitboard x, int shift)
+        {
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.ShiftLeftLogical(x.x, (byte)shift));
+            }
+            else
+            {
+                return new(x.Lower() << shift, x.Upper() << shift);
+            }
+        }
+
+        public static Bitboard operator >>(Bitboard x, int shift)
+        {
+            if (Sse2.IsSupported)
+            {
+                return new(Sse2.ShiftRightLogical(x.x, (byte)shift));
+            }
+            else
+            {
+                return new(x.Lower() >> shift, x.Upper() >> shift);
+            }
+        }
+
         public static Bitboard operator &(Bitboard lhs, int sq)
         {
             return lhs & SQUARE_BIT[sq];
@@ -120,7 +148,7 @@ namespace ShogiLibSharp
         }
 
         /// <summary>
-        /// ~this &amp; rhs
+        /// this &amp; ~rhs
         /// </summary>
         /// <param name="rhs"></param>
         /// <returns></returns>
@@ -132,7 +160,7 @@ namespace ShogiLibSharp
             }
             else
             {
-                return ~this & rhs;
+                return this & ~rhs;
             }
         }
 
@@ -342,6 +370,46 @@ namespace ShogiLibSharp
                 t1 = left1 - ((t1 & left1) >> 8);
                 return new(left0 ^ t0, left1 ^ t1);
             }
+        }
+
+        public static Bitboard PawnAttacks(Color c, int sq)
+        {
+            return PAWN_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard KnightAttacks(Color c, int sq)
+        {
+            return KNIGHT_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard SilverAttacks(Color c, int sq)
+        {
+            return SILVER_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard GoldAttacks(Color c, int sq)
+        {
+            return GOLD_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard KingAttacks(int sq)
+        {
+            return KING_ATTACKS[sq];
+        }
+
+        public static Bitboard LancePseudoAttacks(Color c, int sq)
+        {
+            return LANCE_PSEUDO_ATTACKS[sq, (int)c];
+        }
+
+        public static Bitboard BishopPseudoAttacks(int sq)
+        {
+            return BISHOP_PSEUDO_ATTACKS[sq];
+        }
+
+        public static Bitboard RookPseudoAttacks(int sq)
+        {
+            return ROOK_PSEUDO_ATTACKS[sq];
         }
 
         /// <summary>
@@ -559,35 +627,32 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static Bitboard Attacks(Piece p, int sq, Bitboard occupancy)
         {
-            switch (p.Colorless())
+            return p switch
             {
-                case Piece.Pawn:
-                    return PAWN_ATTACKS[sq, (int)p.Color()];
-                case Piece.Lance:
-                    return LanceAttacks(p.Color(), sq, occupancy);
-                case Piece.Knight:
-                    return KNIGHT_ATTACKS[sq, (int)p.Color()];
-                case Piece.Silver:
-                    return SILVER_ATTACKS[sq, (int)p.Color()];
-                case Piece.Gold:
-                case Piece.ProPawn:
-                case Piece.ProLance:
-                case Piece.ProKnight:
-                case Piece.ProSilver:
-                    return GOLD_ATTACKS[sq, (int)p.Color()];
-                case Piece.Bishop:
-                    return BishopAttacks(sq, occupancy);
-                case Piece.Rook:
-                    return RookAttacks(sq, occupancy);
-                case Piece.King:
-                    return KING_ATTACKS[sq];
-                case Piece.ProBishop:
-                    return BishopAttacks(sq, occupancy) | KING_ATTACKS[sq];
-                case Piece.ProRook:
-                    return RookAttacks(sq, occupancy) | KING_ATTACKS[sq];
-                default:
-                    return new Bitboard();
-            }
+                Piece.B_Pawn => PAWN_ATTACKS[sq, 0],
+                Piece.B_Lance => LanceAttacksBlack(sq, occupancy),
+                Piece.B_Knight => KNIGHT_ATTACKS[sq, 0],
+                Piece.B_Silver => SILVER_ATTACKS[sq, 0],
+                Piece.B_Gold => GOLD_ATTACKS[sq, 0],
+                Piece.B_Bishop => BishopAttacks(sq, occupancy),
+                Piece.B_Rook => RookAttacks(sq, occupancy),
+                Piece.B_King => KING_ATTACKS[sq],
+                Piece.B_ProPawn or Piece.B_ProLance or Piece.B_ProKnight or Piece.B_ProSilver => GOLD_ATTACKS[sq, 0],
+                Piece.B_ProBishop => BishopAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                Piece.B_ProRook => RookAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                Piece.W_Pawn => PAWN_ATTACKS[sq, 1],
+                Piece.W_Lance => LanceAttacksWhite(sq, occupancy),
+                Piece.W_Knight => KNIGHT_ATTACKS[sq, 1],
+                Piece.W_Silver => SILVER_ATTACKS[sq, 1],
+                Piece.W_Gold => GOLD_ATTACKS[sq, 1],
+                Piece.W_Bishop => BishopAttacks(sq, occupancy),
+                Piece.W_Rook => RookAttacks(sq, occupancy),
+                Piece.W_King => KING_ATTACKS[sq],
+                Piece.W_ProPawn or Piece.W_ProLance or Piece.W_ProKnight or Piece.W_ProSilver => GOLD_ATTACKS[sq, 1],
+                Piece.W_ProBishop => BishopAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                Piece.W_ProRook => RookAttacks(sq, occupancy) | KING_ATTACKS[sq],
+                _ => new Bitboard(),
+            };
         }
 
         /// <summary>
@@ -656,6 +721,13 @@ namespace ShogiLibSharp
             y = Sse2.ShuffleHigh(y, 0b00011011);
             y = Sse2.Or(Sse2.ShiftRightLogical(y, 8), Sse2.ShiftLeftLogical(y, 8));
             return Sse2.Shuffle(y.AsUInt32(), 0b01001110).AsUInt64();
+        }
+
+        private static Vector128<ulong> Bswap128_NoSse(Vector128<ulong> x)
+        {
+            return Vector128.Create(
+                Bswap64(x.GetUpper().ToScalar()),
+                Bswap64(x.GetLower().ToScalar()));
         }
 
         private static Vector128<ulong> AllBitsOneIfZero64x2_Sse2(Vector128<ulong> left)
@@ -778,14 +850,22 @@ namespace ShogiLibSharp
                 var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 
                 // 予めバイト反転しておく
-                rightdown = Ssse3.Shuffle(rightdown.AsSByte(), shuffle).AsUInt64();
-                leftdown = Ssse3.Shuffle(leftdown.AsSByte(), shuffle).AsUInt64();
-                down = Ssse3.Shuffle(down.AsSByte(), shuffle).AsUInt64();
+                rightdown = Bswap128_NoSse(rightdown);
+                leftdown = Bswap128_NoSse(leftdown);
+                down = Bswap128_NoSse(down);
 
                 BishopMask[i, 0] = Vector256.Create(rightup.GetLower().ToScalar(), leftdown.GetLower().ToScalar(), leftup.GetLower().ToScalar(), rightdown.GetLower().ToScalar());
                 BishopMask[i, 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
                 RookMask[i, 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
                 RookMask[i, 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
+            }
+
+            for (int i = 0; i < 81; ++i)
+            {
+                LANCE_PSEUDO_ATTACKS[i, 0] = LanceAttacksBlack(i, default);
+                LANCE_PSEUDO_ATTACKS[i, 1] = LanceAttacksWhite(i, default);
+                BISHOP_PSEUDO_ATTACKS[i] = BishopAttacks(i, default);
+                ROOK_PSEUDO_ATTACKS[i] = RookAttacks(i, default);
             }
         }
     }

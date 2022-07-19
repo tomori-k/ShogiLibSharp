@@ -13,7 +13,7 @@ namespace ShogiLibSharp.Tests
     public class PerftTests
     {
         [TestMethod()]
-        public void GoTest()
+        public void Perft()
         {
             var testcases = new[]
             {
@@ -23,10 +23,32 @@ namespace ShogiLibSharp.Tests
             };
             foreach (var (sfen, depth, expected) in testcases)
             {
-                var (nodes, elapsed) = Perft.Go(depth, sfen);
+                var pos = new Position(sfen);
+                var sw = Stopwatch.StartNew();
+                var nodes = PerftImpl(pos, depth);
+                var elapsed = sw.Elapsed;
                 Trace.WriteLine($"sfen={sfen}, nodes={nodes}, elapsed: {elapsed}");
                 Assert.AreEqual(nodes, expected);
             }
+        }
+
+        private static ulong PerftImpl(Position pos, int depth)
+        {
+            var moves = Movegen.GenerateMoves(pos);
+
+            if (depth == 1)
+                return (ulong)moves.Count;
+
+            ulong count = 0;
+
+            foreach (Move m in moves)
+            {
+                pos.DoMove_PseudoLegal(m);
+                count += PerftImpl(pos, depth - 1);
+                pos.UndoMove();
+            }
+
+            return count;
         }
     }
 }

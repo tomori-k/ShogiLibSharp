@@ -82,6 +82,10 @@ namespace ShogiLibSharp
             }
         }
 
+        internal Move SetTo(int sq)
+        {
+            return new((ushort)(this.m + sq));
+        }
 
         public Move(ushort m)
         {

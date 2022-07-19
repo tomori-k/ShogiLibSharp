@@ -156,19 +156,19 @@ namespace ShogiLibSharp
 
             sb.AppendLine($"手番：{Player.Pretty()}");
             sb.AppendLine("  ９ ８ ７ ６ ５ ４ ３ ２ １");
-            sb.AppendLine("+---------------------------+");
+            sb.AppendLine("+-------------------------+");
 
             for (int rank = 0; rank < 9; ++rank)
             {
                 sb.Append("|");
 
                 for (int file = 8; file >= 0; --file)
-                    sb.Append($"{Squares[Square.Index(rank, file)].Pretty():3}");
+                    sb.Append($"{Squares[Square.Index(rank, file)].Pretty(),2}");
 
                 sb.AppendLine($"|{Square.PrettyRank(rank)}");
             }
 
-            sb.AppendLine("+---------------------------+");
+            sb.AppendLine("+-------------------------+");
             sb.AppendLine($"先手持ち駒：{CaptureListOf(Color.Black).Pretty()}");
             sb.AppendLine($"後手持ち駒：{CaptureListOf(Color.White).Pretty()}");
 

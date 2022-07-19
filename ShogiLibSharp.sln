@@ -5,7 +5,9 @@ VisualStudioVersion = 17.2.32526.322
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp", "ShogiLibSharp\ShogiLibSharp.csproj", "{76AF184D-48C8-4C33-91F1-A4FDFC38123A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharpTests", "ShogiLibSharpTests\ShogiLibSharpTests.csproj", "{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharpTests", "ShogiLibSharpTests\ShogiLibSharpTests.csproj", "{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovegenGenerator", "MovegenGenerator\MovegenGenerator.csproj", "{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

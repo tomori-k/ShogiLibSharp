@@ -34,6 +34,43 @@ jobs:
       
     - name: Build
       run: dotnet build --configuration Release --no-restore
+
+    - name: Test(AVX2)
+      run: dotnet test --configuration Release --no-restore --verbosity normal
+      env:
+        COMPlus_EnableAVX2: 1
+        COMPlus_EnableSSE41: 1
+        COMPlus_EnableSSSE3: 1
+        COMPlus_EnableSSE2: 1
     
-    - name: Test
-      run: dotnet test --no-restore --verbosity normal
+    - name: Test(SSE41)
+      run: dotnet test --configuration Release --no-restore --verbosity normal
+      env:
+        COMPlus_EnableAVX2: 0
+        COMPlus_EnableSSE41: 1
+        COMPlus_EnableSSSE3: 1
+        COMPlus_EnableSSE2: 1
+
+    - name: Test(SSSE3)
+      run: dotnet test --configuration Release --no-restore --verbosity normal
+      env:
+        COMPlus_EnableAVX2: 0
+        COMPlus_EnableSSE41: 0
+        COMPlus_EnableSSSE3: 1
+        COMPlus_EnableSSE2: 1
+
+    - name: Test(SSE2)
+      run: dotnet test --configuration Release --no-restore --verbosity normal
+      env:
+        COMPlus_EnableAVX2: 0
+        COMPlus_EnableSSE41: 0
+        COMPlus_EnableSSSE3: 0
+        COMPlus_EnableSSE2: 1
+
+    - name: Test(NoSSE)
+      run: dotnet test --configuration Release --no-restore --verbosity normal
+      env:
+        COMPlus_EnableAVX2: 0
+        COMPlus_EnableSSE41: 0
+        COMPlus_EnableSSSE3: 0
+        COMPlus_EnableSSE2: 0
