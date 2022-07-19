@@ -127,6 +127,18 @@ namespace ShogiLibSharp
                 sb.AppendLine(indent + $"while ({whileNode.Condition})");
                 GenerateCode(context, sb, whileNode.Statement, indent);
             }
+            else if (syntaxNode is SwitchStatementSyntax switchNode)
+            {
+                sb.AppendLine(indent + $"switch ({switchNode.Expression})");
+                foreach (var switchSectionNode in switchNode.Sections)
+                {
+                    //sb.AppendLine("ABC" + switchSectionNode.Statements.ToString());
+                    //foreach (var l in switchSectionNode.Labels)
+                    //    sb.AppendLine("ABC: " + l.ToString());
+                    //sb.AppendLine(switchSectionNode.Statements.ToString());
+                }
+                //GenerateCode(context, sb, switchNode.S);
+            }
             else if (syntaxNode is StatementSyntax)
             {
                 sb.AppendLine(indent + syntaxNode.ToString());
@@ -162,10 +174,10 @@ namespace MovegenGenerator
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            //if (!Debugger.IsAttached)
-            //{
-            //    Debugger.Launch();
-            //}
+            if (!Debugger.IsAttached)
+            {
+                Debugger.Launch();
+            }
             context.RegisterForSyntaxNotifications(() => new MovegenFuncFinder());
         }
 
