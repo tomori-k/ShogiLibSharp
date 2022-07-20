@@ -46,10 +46,11 @@ namespace ShogiLibSharp.Core
             var moves = new List<Move> {  };
             var occupancy = pos.GetOccupancy();
             var us = pos.ColorBB(pos.Player);
+            var pinned = pos.PinnedBy(pos.Player.Opponent()) & us;
 
             // 歩
             {
-                var fromBB = pos.PieceBB(pos.Player, Piece.Pawn);
+                var fromBB = pos.PieceBB(pos.Player, Piece.Pawn).AndNot(pinned);
                 var toBB = (pos.Player == Color.Black
                     ? fromBB >> 1 : fromBB << 1)
                     .AndNot(us);
@@ -76,7 +77,7 @@ namespace ShogiLibSharp.Core
 
             // 香
             {
-                var fromBB = pos.PieceBB(pos.Player, Piece.Lance);
+                var fromBB = pos.PieceBB(pos.Player, Piece.Lance).AndNot(pinned);
                 foreach (var from in fromBB)
                 {
                     var toBB = Bitboard
@@ -104,7 +105,7 @@ namespace ShogiLibSharp.Core
 
             // 桂
             {
-                var fromBB = pos.PieceBB(pos.Player, Piece.Knight);
+                var fromBB = pos.PieceBB(pos.Player, Piece.Knight).AndNot(pinned);
                 foreach (var from in fromBB)
                 {
                     var toBB = Bitboard
@@ -132,9 +133,9 @@ namespace ShogiLibSharp.Core
 
             // 銀、角、飛
             {
-                var fromBB = pos.PieceBB(pos.Player, Piece.Silver)
+                var fromBB = (pos.PieceBB(pos.Player, Piece.Silver)
                     | pos.PieceBB(pos.Player, Piece.Bishop)
-                    | pos.PieceBB(pos.Player, Piece.Rook);
+                    | pos.PieceBB(pos.Player, Piece.Rook)).AndNot(pinned);
 
                 foreach (var from in fromBB)
                 {
@@ -152,9 +153,24 @@ namespace ShogiLibSharp.Core
                 }
             }
 
+            // 玉
+            {
+                var from = pos.King(pos.Player);
+                var toBB = Bitboard.KingAttacks(from).AndNot(us);
+                foreach (var to in toBB)
+                {
+                    if (pos.EnumerateAttackers(
+                        pos.Player.Opponent(), to).None())
+                    {
+                        moves.Add(MoveExtensions.MakeMove(from, to));
+                    }
+                }
+            }
+
             // その他
             {
-                var fromBB = pos.Golds(pos.Player);
+                var fromBB = (pos.Golds(pos.Player) ^ pos.PieceBB(pos.Player, Piece.King))
+                    .AndNot(pinned);
                 foreach (var from in fromBB)
                 {
                     var toBB = Bitboard
@@ -167,11 +183,24 @@ namespace ShogiLibSharp.Core
                 }
             }
 
+            // ピンされている駒
+            if (pinned.Any())
+            {
+                var ksq = pos.King(pos.Player);
+                foreach (var from in pinned)
+                {
+                    var toBB = Bitboard
+                        .Attacks(pos.PieceAt(from), from, occupancy)
+                        .AndNot(us) & Bitboard.Line(ksq, from);
+                    foreach (var to in toBB)
+                    {
+                        AddMovesToList(pos.PieceAt(from), from, to, moves);
+                    }
+                }
+            }
+
             // 駒打ち
             GenerateDrops(pos, ~occupancy, moves);
-
-            // 非合法手（自殺手、打ち歩詰め）を省く
-            moves.RemoveIllegal(pos);
 
             return moves;
         }
@@ -238,8 +267,8 @@ namespace ShogiLibSharp.Core
                         toBB &= Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
                         var o = pos.Player.Opponent();
                         var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
-                        var m = MoveExtensions.MakeDrop(Piece.Pawn, uchifuzumeCand.LsbSquare());
-                        if (!toBB.TestZ(uchifuzumeCand) && m.IsUchifuzume(pos))
+                        if (!toBB.TestZ(uchifuzumeCand)
+                            && IsUchifuzume(uchifuzumeCand.LsbSquare(), pos))
                         {
                             toBB ^= uchifuzumeCand;
                         }
@@ -272,57 +301,8 @@ namespace ShogiLibSharp.Core
             }
         }
 
-        // RemoveAll を使うより速くなる
-        private static void RemoveIllegal(this List<Move> moves, Position pos)
+        private static bool IsUchifuzume(int to, Position pos)
         {
-            var i = 0;
-            while (i < moves.Count)
-            {
-                if (moves[i].IsSuicideMove(pos))
-                {
-                    moves[i] = moves[^1];
-                    moves.RemoveAt(moves.Count - 1);
-                }
-                else
-                    ++i;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsSuicideMove(this Move m, Position pos)
-        {
-            if (pos.InCheck())
-            {
-                return false;
-            }
-
-            if (m.IsDrop())
-            {
-                return false;
-            }
-
-            if (pos.PieceAt(m.From()).Colorless() == Piece.King)
-            {
-                return pos
-                    .EnumerateAttackers(pos.Player.Opponent(), m.To())
-                    .Any();
-            }
-            else
-            {
-                var pinned = pos.PinnedBy(pos.Player.Opponent());
-                if (!pinned.Test(m.From()))
-                {
-                    return false;
-                }
-                var ksq = pos.King(pos.Player);
-                var movable = Bitboard.Line(ksq, m.From());
-                return !movable.Test(m.To());
-            }
-        }
-
-        private static bool IsUchifuzume(this Move m, Position pos)
-        {
-            var to = m.To();
             var theirKsq = pos.King(pos.Player.Opponent());
             var defenders = pos.EnumerateAttackers(
                 pos.Player.Opponent(), to) ^ theirKsq;
