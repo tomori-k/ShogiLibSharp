@@ -206,7 +206,7 @@
             if (moveStr.Substring(1, 2) == "00")
             {
                 var pieceStr = moveStr.Substring(5, 2);
-                return Move.MakeDrop(ParsePiece(pieceStr), to);
+                return MoveExtensions.MakeDrop(ParsePiece(pieceStr), to);
             }
             else
             {
@@ -214,7 +214,7 @@
                 var komaAfterStr = moveStr[0] + moveStr.Substring(5, 2);
                 var komaAfter = ParsePiece(komaAfterStr);
                 var promote = !pos.PieceAt(from).IsPromoted() && komaAfter.IsPromoted();
-                return Move.MakeMove(from, to, promote);
+                return MoveExtensions.MakeMove(from, to, promote);
             }
         }
 

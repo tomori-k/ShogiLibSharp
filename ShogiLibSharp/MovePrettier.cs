@@ -84,11 +84,11 @@ namespace ShogiLibSharp
             var prettyPlayer = pos.Player
                 .Pretty(ColorExtensions.PrettyType.Triangle);
 
-            if (m == Move.MoveResign)
+            if (m == Move.Resign)
             {
                 return $"{prettyPlayer}投了";
             }
-            else if (m == Move.MoveWin)
+            else if (m == Move.Win)
             {
                 return $"{prettyPlayer}入玉宣言";
             }
@@ -119,7 +119,7 @@ namespace ShogiLibSharp
 
                 var from = m.From();
                 // 成れる可能性があるか。
-                var canPromote = pos.IsLegalMove(Move.MakeMove(from, to, true));
+                var canPromote = pos.IsLegalMove(MoveExtensions.MakeMove(from, to, true));
                 // あるなら、不成をつける必要がでてくる
                 var promote = canPromote ? m.IsPromote() ? "成" : "不成" : "";
                 var result = $"{prettyPlayer}{prettySq}{PrettyPiece(p)}";

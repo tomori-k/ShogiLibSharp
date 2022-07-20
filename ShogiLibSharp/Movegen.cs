@@ -60,16 +60,16 @@ namespace ShogiLibSharp
                     var rank = Square.RankOf(pos.Player, to);
                     if (rank == 0)
                     {
-                        moves.Add(Move.MakeMove(from, to, true));
+                        moves.Add(MoveExtensions.MakeMove(from, to, true));
                     }
                     else if (rank <= 2)
                     {
-                        moves.Add(Move.MakeMove(from, to, false));
-                        moves.Add(Move.MakeMove(from, to, true));
+                        moves.Add(MoveExtensions.MakeMove(from, to, false));
+                        moves.Add(MoveExtensions.MakeMove(from, to, true));
                     }
                     else
                     {
-                        moves.Add(Move.MakeMove(from, to, false));
+                        moves.Add(MoveExtensions.MakeMove(from, to, false));
                     }
                 }
             }
@@ -87,16 +87,16 @@ namespace ShogiLibSharp
                         var rank = Square.RankOf(pos.Player, to);
                         if (rank == 0)
                         {
-                            moves.Add(Move.MakeMove(from, to, true));
+                            moves.Add(MoveExtensions.MakeMove(from, to, true));
                         }
                         else if (rank <= 2)
                         {
-                            moves.Add(Move.MakeMove(from, to, false));
-                            moves.Add(Move.MakeMove(from, to, true));
+                            moves.Add(MoveExtensions.MakeMove(from, to, false));
+                            moves.Add(MoveExtensions.MakeMove(from, to, true));
                         }
                         else
                         {
-                            moves.Add(Move.MakeMove(from, to, false));
+                            moves.Add(MoveExtensions.MakeMove(from, to, false));
                         }
                     }
                 }
@@ -115,16 +115,16 @@ namespace ShogiLibSharp
                         var rank = Square.RankOf(pos.Player, to);
                         if (rank <= 1)
                         {
-                            moves.Add(Move.MakeMove(from, to, true));
+                            moves.Add(MoveExtensions.MakeMove(from, to, true));
                         }
                         else if (rank == 2)
                         {
-                            moves.Add(Move.MakeMove(from, to, false));
-                            moves.Add(Move.MakeMove(from, to, true));
+                            moves.Add(MoveExtensions.MakeMove(from, to, false));
+                            moves.Add(MoveExtensions.MakeMove(from, to, true));
                         }
                         else
                         {
-                            moves.Add(Move.MakeMove(from, to, false));
+                            moves.Add(MoveExtensions.MakeMove(from, to, false));
                         }
                     }
                 }
@@ -143,10 +143,10 @@ namespace ShogiLibSharp
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        moves.Add(Move.MakeMove(from, to, false));
+                        moves.Add(MoveExtensions.MakeMove(from, to, false));
                         if (Square.CanPromote(pos.Player, from, to))
                         {
-                            moves.Add(Move.MakeMove(from, to, true));
+                            moves.Add(MoveExtensions.MakeMove(from, to, true));
                         }
                     }
                 }
@@ -162,7 +162,7 @@ namespace ShogiLibSharp
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        moves.Add(Move.MakeMove(from, to));
+                        moves.Add(MoveExtensions.MakeMove(from, to));
                     }
                 }
             }
@@ -193,7 +193,7 @@ namespace ShogiLibSharp
                     .None();
                 if (canMove)
                 {
-                    moves.Add(Move.MakeMove(ksq, to));
+                    moves.Add(MoveExtensions.MakeMove(ksq, to));
                 }
             }
 
@@ -238,7 +238,7 @@ namespace ShogiLibSharp
                         toBB &= Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
                         var o = pos.Player.Opponent();
                         var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
-                        var m = Move.MakeDrop(Piece.Pawn, uchifuzumeCand.LsbSquare());
+                        var m = MoveExtensions.MakeDrop(Piece.Pawn, uchifuzumeCand.LsbSquare());
                         if (!toBB.TestZ(uchifuzumeCand) && m.IsUchifuzume(pos))
                         {
                             toBB ^= uchifuzumeCand;
@@ -246,7 +246,7 @@ namespace ShogiLibSharp
                     }
                     foreach (var to in toBB)
                     {
-                        moves.Add(Move.MakeDrop(p, to));
+                        moves.Add(MoveExtensions.MakeDrop(p, to));
                     }
                 }
             }
@@ -260,15 +260,15 @@ namespace ShogiLibSharp
             if ((Square.RankOf(c, to) <= 1 && p == Piece.Knight)
                 || (Square.RankOf(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
             {
-                moves.Add(Move.MakeMove(from, to, true));
+                moves.Add(MoveExtensions.MakeMove(from, to, true));
             }
             else
             {
-                moves.Add(Move.MakeMove(from, to, false));
+                moves.Add(MoveExtensions.MakeMove(from, to, false));
 
                 if (Square.CanPromote(c, from, to)
                     && !(p.IsPromoted() || p == Piece.Gold || p == Piece.King))
-                    moves.Add(Move.MakeMove(from, to, true));
+                    moves.Add(MoveExtensions.MakeMove(from, to, true));
             }
         }
 

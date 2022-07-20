@@ -77,14 +77,14 @@ namespace ShogiLibSharp
             if (usiMove[1] == '*')
             {
                 var dropped = FromUsi(usiMove[0]);
-                return Move.MakeDrop(dropped, to);
+                return MoveExtensions.MakeDrop(dropped, to);
             }
             // 駒移動
             else
             {
                 var from = ParseSquare(usiMove.Substring(0, 2));
                 var promote = usiMove.Length >= 5 && usiMove[4] == '+';
-                return Move.MakeMove(from, to, promote);
+                return MoveExtensions.MakeMove(from, to, promote);
             }
         }
 

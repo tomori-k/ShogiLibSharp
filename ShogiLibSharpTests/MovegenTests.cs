@@ -81,7 +81,7 @@ namespace ShogiLibSharp.Tests
             foreach (var (sfen, sq, expected) in testcases)
             {
                 var pos = new Position(sfen);
-                var move = Move.MakeDrop(Piece.Pawn, sq);
+                var move = MoveExtensions.MakeDrop(Piece.Pawn, sq);
                 Assert.AreEqual(expected, !pos.IsLegalMove(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
             }
         }
@@ -91,31 +91,31 @@ namespace ShogiLibSharp.Tests
         {
             var testcases = new[]
             {
-                ("9/9/9/9/4g4/9/1r3GK2/7S1/k7+b b Rb2g3s4n4l18p 1", Move.MakeDrop(Piece.Rook, Square.Index(0, 8)), false),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeDrop(Piece.Bishop, Square.Index(5, 5)), true),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(6, 1)), true),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(5, 3)), true),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(5, 2)), false),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeDrop(Piece.Bishop, Square.Index(6, 6)), false),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 4), Square.Index(7, 4)), true),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 4), Square.Index(6, 3)), false),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", Move.MakeMove(Square.Index(7, 1), Square.Index(6, 1)), true),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", Move.MakeMove(Square.Index(7, 1), Square.Index(8, 0)), false),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", Move.MakeMove(Square.Index(8, 4), Square.Index(7, 4)), false),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(5, 3)), true),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(5, 1)), true),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(7, 3)), false),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", Move.MakeMove(Square.Index(8, 2), Square.Index(8, 0)), true),
-                ("9/9/9/9/7g1/9/1r2g1K2/9/k3P1R1+b b BS2g3s4n4l17p 1", Move.MakeMove(Square.Index(8, 2), Square.Index(8, 0)), false),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", Move.MakeDrop(Piece.Bishop, Square.Index(6, 6)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeDrop(Piece.Gold, Square.Index(6, 1)), false),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeDrop(Piece.Gold, Square.Index(6, 3)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(6, 3)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(6, 2), Square.Index(7, 3)), false),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(7, 1), Square.Index(6, 0)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeMove(Square.Index(7, 1), Square.Index(6, 1)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", Move.MakeDrop(Piece.Bishop, Square.Index(3, 3)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k4BR1+b b GP2g3s4n4l17p 1", Move.MakeMove(Square.Index(8, 3), Square.Index(6, 1)), false),
+                ("9/9/9/9/4g4/9/1r3GK2/7S1/k7+b b Rb2g3s4n4l18p 1", MoveExtensions.MakeDrop(Piece.Rook, Square.Index(0, 8)), false),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(5, 5)), true),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(6, 1)), true),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 3)), true),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 2)), false),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(6, 6)), false),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 4), Square.Index(7, 4)), true),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 4), Square.Index(6, 3)), false),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(6, 1)), true),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(8, 0)), false),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 4), Square.Index(7, 4)), false),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 3)), true),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 1)), true),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(7, 3)), false),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 2), Square.Index(8, 0)), true),
+                ("9/9/9/9/7g1/9/1r2g1K2/9/k3P1R1+b b BS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 2), Square.Index(8, 0)), false),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(6, 6)), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Gold, Square.Index(6, 1)), false),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Gold, Square.Index(6, 3)), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(6, 3)), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(7, 3)), false),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(6, 0)), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(6, 1)), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(3, 3)), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k4BR1+b b GP2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 3), Square.Index(6, 1)), false),
             };
             foreach (var (sfen, move, expected) in testcases)
             {

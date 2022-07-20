@@ -10,116 +10,80 @@ namespace ShogiLibSharp
     /// <summary>
     /// 指し手
     /// </summary>
-    public struct Move : IEquatable<Move>
+    public enum Move : ushort
     {
-        private readonly ushort m;
+        None = 0,
+        Win = 2 + (2 << 7),
+        Resign = 3 + (3 << 7),
+        ToMask = 0x7f,
+        PromoteBit = 0x4000,
+        DropBit = 0x8000,
+    }
 
-        public static readonly Move MoveNone = default;
-        public static readonly Move MoveWin = MakeMove(2, 2, false);
-        public static readonly Move MoveResign = MakeMove(3, 3, false);
-
+    public static class MoveExtensions
+    {
         /// <summary>
         /// 移動先
         /// </summary>
         /// <returns></returns>
-        public int To()
+        public static int To(this Move m)
         {
-            return m & 0x7f;
+            return (int)(m & Move.ToMask);
         }
 
         /// <summary>
         /// 移動元
         /// </summary>
         /// <returns></returns>
-        public int From()
+        public static int From(this Move m)
         {
-            return m >> 7 & 0x7f;
+            return (int)m >> 7 & (int)Move.ToMask;
         }
 
         /// <summary>
         /// 打つ駒の種類
         /// </summary>
-        /// <returns>PAWN, LANCE, KNIGHT, SILVER, GOLD, BISHOP, ROOK のどれか</returns>
-        public Piece Dropped()
+        /// <returns>Pawn, Lance, Knight, Silver, Gold, Bishop, Rook のどれか</returns>
+        public static Piece Dropped(this Move m)
         {
-            return (Piece)From();
+            return (Piece)m.From();
         }
 
         /// <summary>
         /// 成る指し手か
         /// </summary>
         /// <returns></returns>
-        public bool IsPromote()
+        public static bool IsPromote(this Move m)
         {
-            return (m & (1 << 14)) != 0;
+            return (m & Move.PromoteBit) != 0;
         }
 
         /// <summary>
         /// 駒打ちか
         /// </summary>
         /// <returns></returns>
-        public bool IsDrop()
+        public static bool IsDrop(this Move m)
         {
-            return (m & (1 << 15)) != 0;
+            return (m & Move.DropBit) != 0;
         }
 
         /// <summary>
         /// USI 形式の指し手文字列に変換
         /// </summary>
         /// <returns></returns>
-        public string Usi()
+        public static string Usi(this Move m)
         {
-            var to = ShogiLibSharp.Usi.Square(To());
-            if (IsDrop())
+            var to = ShogiLibSharp.Usi.Square(m.To());
+            if (m.IsDrop())
             {
-                return $"{Dropped().Usi()}*{to}";
+                return $"{m.Dropped().Usi()}*{to}";
             }
             else
             {
-                var from = ShogiLibSharp.Usi.Square(From());
-                var promote = (IsPromote() ? "+" : "");
+                var from = ShogiLibSharp.Usi.Square(m.From());
+                var promote = (m.IsPromote() ? "+" : "");
                 return $"{from}{to}{promote}";
             }
-        }
-
-        internal Move SetTo(int sq)
-        {
-            return new((ushort)(this.m + sq));
-        }
-
-        public Move(ushort m)
-        {
-            this.m = m;
-        }
-
-        public bool Equals(Move other)
-        {
-            return this.m == other.m;
-        }
-
-        public override bool Equals([NotNullWhen(true)] object? obj)
-        {
-            return obj is Move move && Equals(move);
-        }
-
-        public override int GetHashCode()
-        {
-            return m;
-        }
-
-        public override string ToString()
-        {
-            return Usi();
-        }
-
-        public static bool operator ==(Move lhs, Move rhs)
-        {
-            return lhs.Equals(rhs);
-        }
-
-        public static bool operator !=(Move lhs, Move rhs)
-        {
-            return !(lhs == rhs);
         }
 
         /// <summary>
@@ -130,7 +94,7 @@ namespace ShogiLibSharp
         /// <param name="promote">成る指し手かどうか</param>
         public static Move MakeMove(int from, int to, bool promote = false)
         {
-            return new Move((ushort)(to + (from << 7) + (Convert.ToInt32(promote) << 14)));
+            return (Move)(to + (from << 7) + (Convert.ToInt32(promote) << 14));
         }
 
         /// <summary>
@@ -141,7 +105,7 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static Move MakeDrop(Piece p, int to)
         {
-            return new Move((ushort)(to + ((int)p << 7) + (1 << 15)));
+            return (Move)(to + ((int)p << 7) + (1 << 15));
         }
     }
 }
