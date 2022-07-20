@@ -13,8 +13,7 @@ namespace ShogiLibSharp
     {
         public Color Player { get; set; }
         public Piece[] Squares { get; } = new Piece[81];
-        public CaptureList[] CaptureLists { get; }
-            = new[] { new CaptureList(), new CaptureList() };
+        public CaptureList[] CaptureLists { get; } = new CaptureList[2];
 
         public Board() { }
 
@@ -22,10 +21,7 @@ namespace ShogiLibSharp
         {
             Player = board.Player;
             Squares = (Piece[])board.Squares.Clone();
-            CaptureLists = new[] {
-                board.CaptureLists[0].Clone(),
-                board.CaptureLists[1].Clone()
-            };
+            CaptureLists = new[] { board.CaptureLists[0], board.CaptureLists[1] };
         }
 
         /// <summary>
@@ -33,9 +29,9 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
-        public CaptureList CaptureListOf(Color c)
+        public ref CaptureList CaptureListOf(Color c)
         {
-            return CaptureLists[(int)c];
+            return ref CaptureLists[(int)c];
         }
 
         public Board Clone()

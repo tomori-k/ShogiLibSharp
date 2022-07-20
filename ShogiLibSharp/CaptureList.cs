@@ -10,53 +10,47 @@ namespace ShogiLibSharp
     /// <summary>
     /// 駒台
     /// </summary>
-    public class CaptureList
+    public enum CaptureList : ulong
     {
-        private ulong caps;
+        Zero = 0UL,
+        ExceptPawnMask = 0xffffffffffff0000UL,
+    }
 
-        public CaptureList()
-        {
-            this.caps = 0;
-        }
-
-        public CaptureList(ulong caps)
-        {
-            this.caps = caps;
-        }
-
+    public static class CaptureListExtensions
+    {
         /// <summary>
         /// 駒台をクリア
         /// </summary>
-        public void Clear()
+        public static void Clear(this ref CaptureList captureList)
         {
-            caps = 0UL;
+            captureList = CaptureList.Zero;
         }
 
         /// <summary>
         /// 駒台が空かどうか
         /// </summary>
         /// <returns></returns>
-        public bool None()
+        public static bool None(this CaptureList captureList)
         {
-            return caps == 0UL;
+            return captureList == CaptureList.Zero;
         }
 
         /// <summary>
         /// 駒台に駒があるかどうか
         /// </summary>
         /// <returns></returns>
-        public bool Any()
+        public static bool Any(this CaptureList captureList)
         {
-            return !None();
+            return !captureList.None();
         }
 
         /// <summary>
         /// 歩以外の駒を持っているか
         /// </summary>
         /// <returns></returns>
-        public bool ExceptPawn()
+        public  static bool ExceptPawn(this CaptureList captureList)
         {
-            return (caps & 0xffffffffffffff00UL) != 0UL;
+            return (captureList & CaptureList.ExceptPawnMask) != 0UL;
         }
 
         /// <summary>
@@ -64,19 +58,19 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="p">PAWN, LANCE, KNIGHT, SILVER, GOLD, BISHOP, ROOKのどれか</param>
         /// <returns></returns>
-        public int Count(Piece p)
+        public static int Count(this CaptureList captureList, Piece p)
         {
-            return (int)(caps >> (((int)p - 1) * 8) & 0xffUL);
+            return (int)((ulong)captureList >> ((int)p * 8) & 0xffUL);
         }
 
         /// <summary>
         /// 宣言勝ちにおける持ち駒の得点を計算
         /// </summary>
         /// <returns></returns>
-        public int Point()
+        public static int Point(this CaptureList captureList)
         {
-            ulong t = caps * 0x0101010101010101UL;
-            int small = (int)(t >> 32 & 0xffUL);
+            ulong t = (ulong)captureList * 0x0101010101010101UL;
+            int small = (int)(t >> 40 & 0xffUL);
             return ((int)(t >> 56) - small) * 5 + small;
         }
 
@@ -85,9 +79,9 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="p">PAWN, LANCE, KNIGHT, SILVER, GOLD, BISHOP, ROOKのどれか</param>
         /// <param name="cnt">負の数も指定可能。ただし、結果が負になると壊れる。</param>
-        public void Add(Piece p, int cnt)
+        public static void Add(this ref CaptureList captureList, Piece p, int cnt)
         {
-            caps += (1UL << (((int)p - 1) * 8)) * (ulong)cnt;
+            captureList += (1UL << ((int)p * 8)) * (ulong)cnt;
         }
 
         /// <summary>
@@ -95,48 +89,43 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="comp"></param>
         /// <returns></returns>
-        public bool IsEqualOrSuperiorTo(CaptureList comp)
+        public static bool IsEqualOrSuperiorTo(this CaptureList captureList, CaptureList comp)
         {
-            return ((caps - comp.caps) & 0x8080808080808080UL) == 0UL;
+            return ((captureList - comp) & 0x8080808080808080UL) == 0UL;
         }
 
         /// <summary>
         /// 持ち駒の総数を取得
         /// </summary>
         /// <returns></returns>
-        public int CountAll()
+        public static int CountAll(this CaptureList captureList)
         {
-            return (int)((caps * 0x0101010101010101UL) >> 56);
+            return (int)(((ulong)captureList * 0x0101010101010101UL) >> 56);
         }
 
         /// <summary>
         /// 歩以外の持ち駒の総数を取得
         /// </summary>
         /// <returns></returns>
-        public int CountExceptPawn()
+        public static int CountExceptPawn(this CaptureList captureList)
         {
-            return (int)(((caps & ~0xFFUL) * 0x0101010101010101UL) >> 56);
-        }
-
-        public CaptureList Clone()
-        {
-            return new CaptureList(caps);
+            return (int)(((ulong)(captureList & CaptureList.ExceptPawnMask) * 0x0101010101010101UL) >> 56);
         }
 
         /// <summary>
         /// 人が見やすいように変換
         /// </summary>
         /// <returns></returns>
-        public string Pretty()
+        public static string Pretty(this CaptureList captureList)
         {
-            if (Any())
+            if (captureList.Any())
             {
                 var sb = new StringBuilder();
                 foreach (var p in PieceExtensions.PawnToRook)
                 {
-                    if (Count(p) > 0)
+                    if (captureList.Count(p) > 0)
                     {
-                        sb.Append($"{p.Pretty()}{Count(p)}");
+                        sb.Append($"{p.Pretty()}{captureList.Count(p)}");
                     }
                 }
                 return sb.ToString();
@@ -145,17 +134,6 @@ namespace ShogiLibSharp
             {
                 return "なし";
             }
-        }
-
-        public override bool Equals([NotNullWhen(true)] object? obj)
-        {
-            return obj is CaptureList list && this.caps == list.caps;
-        }
-
-        // todo: 32bit へのパック、あとで実装
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(caps);
         }
     }
 }

@@ -118,9 +118,9 @@ namespace ShogiLibSharp
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
-        public CaptureList CaptureListOf(Color c)
+        public ref CaptureList CaptureListOf(Color c)
         {
-            return board.CaptureListOf(c);
+            return ref board.CaptureListOf(c);
         }
 
         /// <summary>
