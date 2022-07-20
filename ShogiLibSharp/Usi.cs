@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     public static class Usi
     {
@@ -55,8 +55,8 @@ namespace ShogiLibSharp
             {
                 throw new ArgumentException($"マス番号が範囲外です：{sq}");
             }
-            var rank = ShogiLibSharp.Square.RankOf(sq);
-            var file = ShogiLibSharp.Square.FileOf(sq);
+            var rank = Core.Square.RankOf(sq);
+            var file = Core.Square.FileOf(sq);
             return $"{file + 1}{(char)('a' + rank)}";
         }
 
@@ -104,7 +104,7 @@ namespace ShogiLibSharp
             }
             var file = usiSq[0] - '1';
             var rank = usiSq[1] - 'a';
-            return ShogiLibSharp.Square.Index(rank, file);
+            return Core.Square.Index(rank, file);
         }
     }
 }

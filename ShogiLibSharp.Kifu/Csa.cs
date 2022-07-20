@@ -1,4 +1,6 @@
-﻿namespace ShogiLibSharp
+﻿using ShogiLibSharp.Core;
+
+namespace ShogiLibSharp.Kifu
 {
     public static class Csa
     {

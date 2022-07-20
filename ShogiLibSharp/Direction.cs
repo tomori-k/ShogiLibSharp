@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     /// <summary>
     /// あるマスから別のマスを見たときの方向           <br/>

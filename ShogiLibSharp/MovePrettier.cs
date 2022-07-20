@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     public static class MovePrettier
     {

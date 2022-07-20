@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     /// <summary>
     /// 指し手
@@ -73,14 +73,14 @@ namespace ShogiLibSharp
         /// <returns></returns>
         public static string Usi(this Move m)
         {
-            var to = ShogiLibSharp.Usi.Square(m.To());
+            var to = Core.Usi.Square(m.To());
             if (m.IsDrop())
             {
                 return $"{m.Dropped().Usi()}*{to}";
             }
             else
             {
-                var from = ShogiLibSharp.Usi.Square(m.From());
+                var from = Core.Usi.Square(m.From());
                 var promote = (m.IsPromote() ? "+" : "");
                 return $"{from}{to}{promote}";
             }

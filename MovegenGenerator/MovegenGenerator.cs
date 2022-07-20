@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace MovegenGenerator
+namespace ShogiLibSharp.MovegenGenerator
 {
     [Generator]
     public class MovegenGenerator : ISourceGenerator
@@ -26,7 +26,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Numerics;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     public static partial class Movegen
     {
@@ -70,7 +70,7 @@ namespace ShogiLibSharp
                     .GetSemanticModel(foreachNode.Expression.SyntaxTree)
                     .GetTypeInfo(foreachNode.Expression);
 
-                if (type.Type.ToString() == "ShogiLibSharp.Bitboard")
+                if (type.Type.ToString() == "ShogiLibSharp.Core.Bitboard")
                 {
                     var nest = indent.Length;
                     sb.AppendLine(@$"
@@ -151,7 +151,7 @@ namespace ShogiLibSharp
         {
             context.AddSource("InlineBitboardEnumeratorAttribute.cs", @"
 using System;
-namespace MovegenGenerator
+namespace ShogiLibSharp.MovegenGenerator
 {
     [AttributeUsage(AttributeTargets.Method)]
     internal sealed class InlineBitboardEnumeratorAttribute : Attribute
@@ -163,7 +163,7 @@ namespace MovegenGenerator
 
             context.AddSource("MakePublicAttribute.cs", @"
 using System;
-namespace MovegenGenerator
+namespace ShogiLibSharp.MovegenGenerator
 {
     [AttributeUsage(AttributeTargets.Method)]
     internal sealed class MakePublicAttribute : Attribute

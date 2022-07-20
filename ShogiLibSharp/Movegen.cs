@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
-using MovegenGenerator;
+using ShogiLibSharp.MovegenGenerator;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     public static partial class Movegen
     {

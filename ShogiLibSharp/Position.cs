@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     public class Position
     {

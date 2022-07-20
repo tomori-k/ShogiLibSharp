@@ -3,7 +3,7 @@ using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     /// <summary>
     /// 駒があるかないかのみを表すデータ構造                 <br/>

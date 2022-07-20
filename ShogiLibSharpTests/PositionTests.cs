@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ShogiLibSharp;
+using ShogiLibSharp.Core;
+using ShogiLibSharp.Kifu;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp
+namespace ShogiLibSharp.Core
 {
     public enum Repetition
     {
