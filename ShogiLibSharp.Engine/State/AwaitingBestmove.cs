@@ -11,9 +11,9 @@ namespace ShogiLibSharp.Engine.State
     {
         public override string Name => "bestmove 待ち";
 
-        public override void Bestmove(string message, ref StateBase currentState)
+        public override void Bestmove(string message, UsiEngine context)
         {
-            currentState = new PlayingGame();
+            context.SetStateWithLock(new PlayingGame());
             try
             {
                 var (move, ponder) = Misc.ParseBestmove(message);

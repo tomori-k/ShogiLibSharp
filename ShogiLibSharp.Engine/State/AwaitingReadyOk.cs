@@ -16,9 +16,9 @@ namespace ShogiLibSharp.Engine.State
             this.Tcs = new TaskCompletionSource();
         }
 
-        public override void ReadyOk(ref StateBase currentState)
+        public override void ReadyOk(UsiEngine context)
         {
-            currentState = new AwaitingGame();
+            context.SetStateWithLock(new AwaitingGame());
             this.Tcs.SetResult();
         }
     }

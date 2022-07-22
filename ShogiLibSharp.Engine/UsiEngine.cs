@@ -7,7 +7,16 @@ namespace ShogiLibSharp.Engine
     public class UsiEngine
     {
         private Process? process;
+        private object stateSyncObj = new();
         private StateBase currentState = new Deactivated();
+
+        internal void SetStateWithLock(StateBase newState)
+        {
+            lock (stateSyncObj)
+            {
+                this.currentState = newState;
+            }
+        }
 
         public async Task BeginAsync(string fileName, string arguments)
         {
@@ -38,20 +47,14 @@ namespace ShogiLibSharp.Engine
             // send usi
             process.StandardInput.WriteLine("usi");
 
-            lock (currentState)
-            {
-                currentState = new AwaitingUsiOk();
-            }
+            SetStateWithLock(new AwaitingUsiOk());
 
             await ((AwaitingUsiOk)currentState).Tcs.Task;
         }
 
         private void Process_Exited(object? sender, EventArgs e)
         {
-            lock (currentState)
-            {
-                currentState.Exited(ref currentState);
-            }
+            currentState.Exited(this);
         }
 
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
@@ -63,41 +66,26 @@ namespace ShogiLibSharp.Engine
         {
             if (e.Data == "usiok")
             {
-                lock (currentState)
-                {
-                    currentState.UsiOk(ref currentState);
-                }
+                currentState.UsiOk(this);
             }
             else if (e.Data == "readyok")
             {
-                lock (currentState)
-                {
-                    currentState.ReadyOk(ref currentState);
-                }
+                currentState.ReadyOk(this);
             }
             else if (e.Data?.StartsWith("bestmove") ?? false)
             {
-                lock (currentState)
-                {
-                    currentState.Bestmove(e.Data!, ref currentState);
-                }
+                currentState.Bestmove(e.Data!, this);
             }
         }
 
         public void SetOption()
         {
-            lock (currentState)
-            {
-                currentState.SetOption(process!, ref currentState);
-            }
+            currentState.SetOption(process!, this);
         }
 
         private void IsReady()
         {
-            lock (currentState)
-            {
-                currentState.IsReady(process!, ref currentState);
-            }
+            currentState.IsReady(process!, this);
         }
 
         public async Task IsReadyAsync()
@@ -108,18 +96,12 @@ namespace ShogiLibSharp.Engine
 
         public void StartNewGame()
         {
-            lock (currentState)
-            {
-                currentState.StartNewGame(process!, ref currentState);
-            }
+            currentState.StartNewGame(process!, this);
         }
 
         private void Quit()
         {
-            lock (currentState)
-            {
-                currentState.Quit(process!, ref currentState);
-            }
+            currentState.Quit(process!, this);
         }
 
         public async Task QuitAsync()
@@ -130,10 +112,7 @@ namespace ShogiLibSharp.Engine
 
         private void Go(Position pos, SearchLimit limits)
         {
-            lock (currentState)
-            {
-                currentState.Go(process!, pos, limits, ref currentState);
-            }
+            currentState.Go(process!, pos, limits, this);
         }
 
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits)
@@ -145,26 +124,17 @@ namespace ShogiLibSharp.Engine
 
         public void GoPonder(Position pos, SearchLimit limits)
         {
-            lock (currentState)
-            {
-                currentState.GoPonder(process!, pos, limits, ref currentState);
-            }
+            currentState.GoPonder(process!, pos, limits, this);
         }
 
         public void NotifyPonderHit()
         {
-            lock (currentState)
-            {
-                currentState.NotifyPonderHit(process!, ref currentState);
-            }
+            currentState.NotifyPonderHit(process!, this);
         }
 
         private void Stop()
         {
-            lock (currentState)
-            {
-                currentState.Stop(process!, ref currentState);
-            }
+            currentState.Stop(process!, this);
         }
 
         public async Task StopAsync()
@@ -175,10 +145,7 @@ namespace ShogiLibSharp.Engine
 
         public void Gameover(string message)
         {
-            lock (currentState)
-            {
-                currentState.Gameover(process!, message, ref currentState);
-            }
+            currentState.Gameover(process!, message, this);
         }
     }
 }

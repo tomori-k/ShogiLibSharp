@@ -11,9 +11,9 @@ namespace ShogiLibSharp.Engine.State
         public override string Name => "終了処理中";
         public TaskCompletionSource Tcs { get; } = new();
 
-        public override void Exited(ref StateBase currentState)
+        public override void Exited(UsiEngine context)
         {
-            currentState = new Invalid();
+            context.SetStateWithLock(new Invalid());
             Tcs.SetResult();
         }
     }

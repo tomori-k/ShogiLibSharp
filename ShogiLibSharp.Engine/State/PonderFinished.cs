@@ -19,12 +19,12 @@ namespace ShogiLibSharp.Engine.State
             (this.ponderedPos, this.bestmoveCmd) = (ponderedPos, bestmoveCmd);
         }
 
-        public override void Go(Process process, Position pos, SearchLimit limits, ref StateBase currentState)
+        public override void Go(Process process, Position pos, SearchLimit limits, UsiEngine context)
         {
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderedPos)
             {
-                currentState = new PlayingGame();
+                context.SetStateWithLock(new PlayingGame());
                 try
                 {
                     var (bestmove, ponder) = Misc.ParseBestmove(bestmoveCmd);
@@ -37,14 +37,14 @@ namespace ShogiLibSharp.Engine.State
             }
             else
             {
-                currentState = new AwaitingBestmoveOrStop();
+                context.SetStateWithLock(new AwaitingBestmoveOrStop());
                 process.StandardInput.SendGo(sfen, limits);
             }
         }
 
-        public override void Stop(Process process, ref StateBase currentState)
+        public override void Stop(Process process, UsiEngine context)
         {
-            currentState = new PlayingGame();
+            context.SetStateWithLock(new PlayingGame());
             try
             {
                 var (bestmove, ponder) = Misc.ParseBestmove(bestmoveCmd);

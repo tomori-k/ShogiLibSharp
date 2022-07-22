@@ -12,10 +12,10 @@ namespace ShogiLibSharp.Engine.State
     {
         public override string Name => "usinewgame 待ち";
 
-        public override void StartNewGame(Process process, ref StateBase currentState)
+        public override void StartNewGame(Process process, UsiEngine context)
         {
             process.StandardInput.WriteLine("usinewgame");
-            currentState = new PlayingGame();
+            context.SetStateWithLock(new PlayingGame());
         }
     }
 }

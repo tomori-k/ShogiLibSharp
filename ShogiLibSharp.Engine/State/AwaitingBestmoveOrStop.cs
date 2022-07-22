@@ -12,9 +12,9 @@ namespace ShogiLibSharp.Engine.State
     {
         public override string Name => "bestmove または stop 待ち";
 
-        public override void Stop(Process process, ref StateBase currentState)
+        public override void Stop(Process process, UsiEngine context)
         {
-            currentState = new AwaitingBestmove();
+            context.SetStateWithLock(new AwaitingBestmove());
             process.StandardInput.WriteLine("stop");
         }
     }

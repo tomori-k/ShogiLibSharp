@@ -16,9 +16,9 @@ namespace ShogiLibSharp.Engine.State
             this.Tcs = new TaskCompletionSource();
         }
 
-        public override void UsiOk(ref StateBase currentState)
+        public override void UsiOk(UsiEngine context)
         {
-            currentState = new Activated();
+            context.SetStateWithLock(new Activated());
             Tcs.SetResult();
         }
     }

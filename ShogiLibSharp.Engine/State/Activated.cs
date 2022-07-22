@@ -12,20 +12,20 @@ namespace ShogiLibSharp.Engine.State
     {
         public override string Name => "プロセス起動中";
 
-        public override void SetOption(Process process, ref StateBase currentState)
+        public override void SetOption(Process process, UsiEngine context)
         {
             throw new NotImplementedException();
         }
 
-        public override void IsReady(Process process, ref StateBase currentState)
+        public override void IsReady(Process process, UsiEngine context)
         {
-            currentState = new AwaitingReadyOk();
+            context.SetStateWithLock(new AwaitingReadyOk());
             process.StandardInput.WriteLine("isready");
         }
 
-        public override void Quit(Process process, ref StateBase currentState)
+        public override void Quit(Process process, UsiEngine context)
         {
-            currentState = new Quiting();
+            context.SetStateWithLock(new Quiting());
             process.StandardInput.WriteLine("quit");
         }
     }
