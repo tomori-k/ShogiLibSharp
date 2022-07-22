@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Tests", "Shog
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.MovegenGenerator", "ShogiLibSharp.MovegenGenerator\ShogiLibSharp.MovegenGenerator.csproj", "{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharp.Kifu", "ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj", "{8A58EBCB-F319-4999-8F23-45E732BDC165}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Kifu", "ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj", "{8A58EBCB-F319-4999-8F23-45E732BDC165}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharp.Engine", "ShogiLibSharp.Engine\ShogiLibSharp.Engine.csproj", "{279C6478-B62A-44A4-B9C1-8EF158CCC807}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{8A58EBCB-F319-4999-8F23-45E732BDC165}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A58EBCB-F319-4999-8F23-45E732BDC165}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A58EBCB-F319-4999-8F23-45E732BDC165}.Release|Any CPU.Build.0 = Release|Any CPU
+		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
