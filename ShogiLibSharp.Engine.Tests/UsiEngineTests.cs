@@ -17,7 +17,17 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod()]
         public async Task UsiEngineTest()
         {
+            var engine = new UsiEngine(CreateMock0());
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+            var (m, p) = await engine.GoAsync(new Position(Position.Hirate), new SearchLimit() { Byoyomi = 1000 });
+            engine.Gameover("win");
+            await engine.QuitAsync();
+        }
 
+        private static IEngineProcess CreateMock0()
+        {
             // 固定値と any の共存はできないっぽい
             // mock.Setup(x => x.SendLine(It.IsAny<string>()))
             // mock.Setup(x => x.SendLine("something"))
@@ -84,13 +94,7 @@ namespace ShogiLibSharp.Engine.Tests
                 Trace.WriteLine($"  > {s}");
             };
 
-            var engine = new UsiEngine(mock.Object);
-            await engine.BeginAsync();
-            await engine.IsReadyAsync();
-            engine.StartNewGame();
-            var (m, p) = await engine.GoAsync(new Position(Position.Hirate), new SearchLimit() { Byoyomi = 1000 });
-            engine.Gameover("win");
-            await engine.QuitAsync();
+            return obj;
         }
 
         private static string CreateBestmoveCommandRandom(Position pos)
