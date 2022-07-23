@@ -7,22 +7,20 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class AwaitingBestmove : BestmoveAwaitable
+    internal class AwaitingBestmove : StateBase
     {
+        private TaskCompletionSource<(Move, Move)> tcs;
+        public AwaitingBestmove(TaskCompletionSource<(Move, Move)> tcs)
+        {
+            this.tcs = tcs;
+        }
+
         public override string Name => "bestmove 待ち";
 
         public override void Bestmove(string message, UsiEngine context)
         {
-            context.SetStateWithLock(new PlayingGame());
-            try
-            {
-                var (move, ponder) = Misc.ParseBestmove(message);
-                this.Tcs.SetResult((move, ponder));
-            }
-            catch (FormatException e)
-            {
-                this.Tcs.SetException(e);
-            } 
+            context.State = new PlayingGame();
+            Misc.NotifyBestmoveReceived(tcs, message);
         }
     }
 }

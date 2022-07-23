@@ -8,53 +8,51 @@ namespace ShogiLibSharp.Engine
     {
         private Process? process;
         private object stateSyncObj = new();
-        private StateBase currentState = new Deactivated();
-
-        internal void SetStateWithLock(StateBase newState)
-        {
-            lock (stateSyncObj)
-            {
-                this.currentState = newState;
-            }
-        }
+        internal StateBase State { get; set; } = new Deactivated();
 
         public async Task BeginAsync(string fileName, string arguments)
         {
-            if (currentState is Invalid)
+            var tcs = new TaskCompletionSource();
+            lock (stateSyncObj)
             {
-                throw new ObjectDisposedException(nameof(currentState));
+                if (State is not Deactivated)
+                {
+                    throw new InvalidOperationException("すでにエンジンを起動しています。");
+                }
+
+                var si = new ProcessStartInfo(fileName, arguments)
+                {
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                process = new Process()
+                {
+                    StartInfo = si,
+                    EnableRaisingEvents = true,
+                };
+                process.OutputDataReceived += Process_OutputDataReceived;
+                process.ErrorDataReceived += Process_ErrorDataReceived;
+                process.Exited += Process_Exited;
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                // send usi
+                process.StandardInput.WriteLine("usi");
+
+                State = new AwaitingUsiOk(tcs);
             }
-
-            var si = new ProcessStartInfo(fileName, arguments)
-            {
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-            process = new Process()
-            {
-                StartInfo = si,
-                EnableRaisingEvents = true,
-            };
-            process.OutputDataReceived += Process_OutputDataReceived;
-            process.ErrorDataReceived += Process_ErrorDataReceived;
-            process.Exited += Process_Exited;
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            // send usi
-            process.StandardInput.WriteLine("usi");
-
-            SetStateWithLock(new AwaitingUsiOk());
-
-            await ((AwaitingUsiOk)currentState).Tcs.Task;
+            await tcs.Task;
         }
 
         private void Process_Exited(object? sender, EventArgs e)
         {
-            currentState.Exited(this);
+            lock (stateSyncObj)
+            {
+                State.Exited(this);
+            }
         }
 
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
@@ -66,86 +64,125 @@ namespace ShogiLibSharp.Engine
         {
             if (e.Data == "usiok")
             {
-                currentState.UsiOk(this);
+                lock (stateSyncObj)
+                {
+                    State.UsiOk(this);
+                }
             }
             else if (e.Data == "readyok")
             {
-                currentState.ReadyOk(this);
+                lock (stateSyncObj)
+                {
+                    State.ReadyOk(this);
+                }
             }
             else if (e.Data?.StartsWith("bestmove") ?? false)
             {
-                currentState.Bestmove(e.Data!, this);
+                lock (stateSyncObj)
+                {
+                    State.Bestmove(e.Data!, this);
+                }
             }
         }
 
         public void SetOption()
         {
-            currentState.SetOption(process!, this);
+            lock (stateSyncObj)
+            {
+                State.SetOption(process!, this);
+            }
         }
 
-        private void IsReady()
+        public void IsReady(TaskCompletionSource tcs)
         {
-            currentState.IsReady(process!, this);
+            lock (stateSyncObj)
+            {
+                State.IsReady(process!, tcs, this);
+            }
         }
 
         public async Task IsReadyAsync()
         {
-            IsReady();
-            await ((AwaitingReadyOk)currentState).Tcs.Task;
+            var tcs = new TaskCompletionSource();
+            IsReady(tcs);
+            await tcs.Task;
         }
 
         public void StartNewGame()
         {
-            currentState.StartNewGame(process!, this);
+            lock (stateSyncObj)
+            {
+                State.StartNewGame(process!, this);
+            }
         }
 
-        private void Quit()
+        public void Quit(TaskCompletionSource tcs)
         {
-            currentState.Quit(process!, this);
+            lock (stateSyncObj)
+            {
+                State.Quit(process!, tcs, this);
+            }
         }
 
         public async Task QuitAsync()
         {
-            Quit();
-            await ((Quiting)currentState).Tcs.Task;
+            var tcs = new TaskCompletionSource();
+            Quit(tcs);
+            await tcs.Task;
         }
 
-        private void Go(Position pos, SearchLimit limits)
+        public void Go(Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
         {
-            currentState.Go(process!, pos, limits, this);
+            lock (stateSyncObj)
+            {
+                State.Go(process!, pos, limits, tcs, this);
+            }
         }
 
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits)
         {
-            Go(pos, limits);
-            var (bestmove, ponder) = await ((BestmoveAwaitable)currentState).Tcs.Task;
-            return (bestmove, ponder);
+            var tcs = new TaskCompletionSource<(Move, Move)>();
+            Go(pos, limits, tcs);
+            return await tcs.Task;
         }
 
         public void GoPonder(Position pos, SearchLimit limits)
         {
-            currentState.GoPonder(process!, pos, limits, this);
+            lock (stateSyncObj)
+            {
+                State.GoPonder(process!, pos, limits, this);
+            }
         }
 
         public void NotifyPonderHit()
         {
-            currentState.NotifyPonderHit(process!, this);
+            lock (stateSyncObj)
+            {
+                State.NotifyPonderHit(process!, this);
+            }
         }
 
-        private void Stop()
+        public void Stop(TaskCompletionSource<(Move, Move)> tcs)
         {
-            currentState.Stop(process!, this);
+            lock (stateSyncObj)
+            {
+                State.Stop(process!, tcs, this);
+            }
         }
 
-        public async Task StopAsync()
+        public async Task<(Move, Move)> StopAsync()
         {
-            Stop();
-            await ((BestmoveAwaitable)currentState).Tcs.Task;
+            var tcs = new TaskCompletionSource<(Move, Move)>();
+            Stop(tcs);
+            return await tcs.Task;
         }
 
         public void Gameover(string message)
         {
-            currentState.Gameover(process!, message, this);
+            lock (stateSyncObj)
+            {
+                State.Gameover(process!, message, this);
+            }
         }
     }
 }

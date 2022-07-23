@@ -8,52 +8,42 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class PonderFinished : BestmoveAwaitable
+    internal class PonderFinished : StateBase
     {
         public override string Name => "次の go が来るまでに ponder が終了";
 
         private string ponderedPos, bestmoveCmd;
 
-        public PonderFinished(string ponderedPos, string bestmoveCmd)
+        public PonderFinished(
+            string ponderedPos, string bestmoveCmd)
         {
             (this.ponderedPos, this.bestmoveCmd) = (ponderedPos, bestmoveCmd);
         }
 
-        public override void Go(Process process, Position pos, SearchLimit limits, UsiEngine context)
+        public override void Go(
+            Process process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderedPos)
             {
-                context.SetStateWithLock(new PlayingGame());
-                try
-                {
-                    var (bestmove, ponder) = Misc.ParseBestmove(bestmoveCmd);
-                    this.Tcs.SetResult((bestmove, ponder));
-                }
-                catch (FormatException e)
-                {
-                    this.Tcs.SetException(e);
-                }
+                context.State = new PlayingGame();
+                Misc.NotifyBestmoveReceived(tcs, bestmoveCmd);
             }
             else
-            {
-                context.SetStateWithLock(new AwaitingBestmoveOrStop());
-                process.StandardInput.SendGo(sfen, limits);
-            }
+                throw new InvalidOperationException("違う局面の思考を開始する前に、stop する必要があります。");
         }
 
-        public override void Stop(Process process, UsiEngine context)
+        public override void Stop(Process process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
-            context.SetStateWithLock(new PlayingGame());
-            try
-            {
-                var (bestmove, ponder) = Misc.ParseBestmove(bestmoveCmd);
-                this.Tcs.SetResult((bestmove, ponder));
-            }
-            catch (FormatException e)
-            {
-                this.Tcs.SetException(e);
-            }
+            context.State = new PlayingGame();
+            Misc.NotifyBestmoveReceived(tcs, bestmoveCmd);
+        }
+
+        public override void NotifyPonderHit(Process process, UsiEngine context)
+        {
+            // go ponder に対し ponderhit or stop を送る前に、エンジンが
+            // bestmove を返してきた状態で、その後に ponderhit を送ろうとしたケース
+            // 単純に指示を無視する
         }
     }
 }

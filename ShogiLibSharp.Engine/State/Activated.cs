@@ -17,16 +17,16 @@ namespace ShogiLibSharp.Engine.State
             throw new NotImplementedException();
         }
 
-        public override void IsReady(Process process, UsiEngine context)
+        public override void IsReady(Process process, TaskCompletionSource tcs, UsiEngine context)
         {
-            context.SetStateWithLock(new AwaitingReadyOk());
             process.StandardInput.WriteLine("isready");
+            context.State = new AwaitingReadyOk(tcs);
         }
 
-        public override void Quit(Process process, UsiEngine context)
+        public override void Quit(Process process, TaskCompletionSource tcs, UsiEngine context)
         {
-            context.SetStateWithLock(new Quiting());
             process.StandardInput.WriteLine("quit");
+            context.State = new Quiting(tcs);
         }
     }
 }

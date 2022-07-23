@@ -9,17 +9,17 @@ namespace ShogiLibSharp.Engine.State
     internal class AwaitingUsiOk : StateBase
     {
         public override string Name => "usiok 待ち";
-        public TaskCompletionSource Tcs { get; }
+        private TaskCompletionSource tcs;
 
-        public AwaitingUsiOk()
+        public AwaitingUsiOk(TaskCompletionSource tcs)
         {
-            this.Tcs = new TaskCompletionSource();
+            this.tcs = tcs;
         }
 
         public override void UsiOk(UsiEngine context)
         {
-            context.SetStateWithLock(new Activated());
-            Tcs.SetResult();
+            context.State = new Activated();
+            tcs.SetResult();
         }
     }
 }

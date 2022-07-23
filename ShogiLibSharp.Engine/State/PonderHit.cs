@@ -18,26 +18,26 @@ namespace ShogiLibSharp.Engine.State
             this.ponderingPos = ponderingPos;
         }
 
-        public override void Go(Process process, Position pos, SearchLimit limits, UsiEngine context)
+        public override void Go(Process process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderingPos)
             {
-                context.SetStateWithLock(new AwaitingBestmoveOrStop());
+                context.State = new AwaitingBestmoveOrStop(tcs);
             }
             else
                 throw new InvalidOperationException("思考中に、別の局面の思考を開始することはできません。");
         }
 
-        public override void Stop(Process process, UsiEngine context)
+        public override void Stop(Process process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
-            context.SetStateWithLock(new AwaitingBestmove());
             process.StandardInput.WriteLine("stop");
+            context.State = new AwaitingBestmove(tcs);
         }
 
         public override void Bestmove(string message, UsiEngine context)
         {
-            context.SetStateWithLock(new PonderFinished(ponderingPos, message));
+            context.State = new PonderFinished(ponderingPos, message);
         }
     }
 }

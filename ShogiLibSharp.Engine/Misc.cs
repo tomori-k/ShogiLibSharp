@@ -34,5 +34,18 @@ namespace ShogiLibSharp.Engine
                 sw.WriteLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} binc {limits.Binc} winc {limits.Winc}");
             }
         }
+
+        public static void NotifyBestmoveReceived(TaskCompletionSource<(Move, Move)> tcs, string command)
+        {
+            try
+            {
+                var (move, ponder) = ParseBestmove(command);
+                tcs.SetResult((move, ponder));
+            }
+            catch (FormatException e)
+            {
+                tcs.SetException(e);
+            }
+        }
     }
 }

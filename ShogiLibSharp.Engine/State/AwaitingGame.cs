@@ -15,7 +15,7 @@ namespace ShogiLibSharp.Engine.State
         public override void StartNewGame(Process process, UsiEngine context)
         {
             process.StandardInput.WriteLine("usinewgame");
-            context.SetStateWithLock(new PlayingGame());
+            context.State = new PlayingGame();
         }
     }
 }

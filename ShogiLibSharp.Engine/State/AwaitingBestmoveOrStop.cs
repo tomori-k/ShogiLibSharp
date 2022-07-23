@@ -10,12 +10,16 @@ namespace ShogiLibSharp.Engine.State
 {
     internal class AwaitingBestmoveOrStop : AwaitingBestmove
     {
+        public AwaitingBestmoveOrStop(TaskCompletionSource<(Move, Move)> tcs) : base(tcs)
+        {
+        }
+
         public override string Name => "bestmove または stop 待ち";
 
-        public override void Stop(Process process, UsiEngine context)
+        public override void Stop(Process process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
-            context.SetStateWithLock(new AwaitingBestmove());
             process.StandardInput.WriteLine("stop");
+            context.State = new AwaitingBestmove(tcs);
         }
     }
 }
