@@ -21,17 +21,17 @@ namespace ShogiLibSharp.Engine
                 : (Usi.ParseMove(sp[1]), Usi.ParseMove(sp[3]));
         }
 
-        public static void SendGo(this StreamWriter sw, string sfenWithMoves, SearchLimit limits, bool ponder = false)
+        public static void SendGo(IEngineProcess process, string sfenWithMoves, SearchLimit limits, bool ponder = false)
         {
             var ponderEnabled = ponder ? " ponder" : "";
-            sw.WriteLine($"position {sfenWithMoves}");
+            process.SendLine($"position {sfenWithMoves}");
             if (limits.Binc == 0 && limits.Winc == 0)
             {
-                sw.WriteLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} byoyomi {limits.Byoyomi}");
+                process.SendLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} byoyomi {limits.Byoyomi}");
             }
             else
             {
-                sw.WriteLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} binc {limits.Binc} winc {limits.Winc}");
+                process.SendLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} binc {limits.Binc} winc {limits.Winc}");
             }
         }
 

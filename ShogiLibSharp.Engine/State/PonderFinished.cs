@@ -21,7 +21,7 @@ namespace ShogiLibSharp.Engine.State
         }
 
         public override void Go(
-            Process process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+            IEngineProcess process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderedPos)
@@ -33,13 +33,13 @@ namespace ShogiLibSharp.Engine.State
                 throw new InvalidOperationException("違う局面の思考を開始する前に、stop する必要があります。");
         }
 
-        public override void Stop(Process process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+        public override void Stop(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
             context.State = new PlayingGame();
             Misc.NotifyBestmoveReceived(tcs, bestmoveCmd);
         }
 
-        public override void NotifyPonderHit(Process process, UsiEngine context)
+        public override void NotifyPonderHit(IEngineProcess process, UsiEngine context)
         {
             // go ponder に対し ponderhit or stop を送る前に、エンジンが
             // bestmove を返してきた状態で、その後に ponderhit を送ろうとしたケース

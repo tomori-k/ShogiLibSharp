@@ -11,7 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.MovegenGenera
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Kifu", "ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj", "{8A58EBCB-F319-4999-8F23-45E732BDC165}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharp.Engine", "ShogiLibSharp.Engine\ShogiLibSharp.Engine.csproj", "{279C6478-B62A-44A4-B9C1-8EF158CCC807}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Engine", "ShogiLibSharp.Engine\ShogiLibSharp.Engine.csproj", "{279C6478-B62A-44A4-B9C1-8EF158CCC807}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharp.Engine.Tests", "ShogiLibSharp.Engine.Tests\ShogiLibSharp.Engine.Tests.csproj", "{F8B04749-193B-4B44-90F9-52087EA9ABC5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{279C6478-B62A-44A4-B9C1-8EF158CCC807}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8B04749-193B-4B44-90F9-52087EA9ABC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8B04749-193B-4B44-90F9-52087EA9ABC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8B04749-193B-4B44-90F9-52087EA9ABC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8B04749-193B-4B44-90F9-52087EA9ABC5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

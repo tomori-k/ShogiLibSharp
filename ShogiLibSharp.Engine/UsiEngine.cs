@@ -6,45 +6,71 @@ namespace ShogiLibSharp.Engine
 {
     public class UsiEngine
     {
-        private Process? process;
+        private IEngineProcess process;
         private object stateSyncObj = new();
         internal StateBase State { get; set; } = new Deactivated();
 
-        public async Task BeginAsync(string fileName, string arguments)
+        public UsiEngine(string fileName, string arguments = "")
         {
-            var tcs = new TaskCompletionSource();
-            lock (stateSyncObj)
+            var si = new ProcessStartInfo(fileName, arguments)
             {
-                if (State is not Deactivated)
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            this.process = new EngineProcess()
+            {
+                StartInfo = si,
+                EnableRaisingEvents = true,
+            };
+            this.process.StdOutReceived += Process_StdOutReceived;
+            this.process.StdErrReceived += Process_StdErrReceived;
+            this.process.Exited += Process_Exited;
+        }
+
+        /// <summary>
+        /// テスト用
+        /// </summary>
+        /// <param name="process"></param>
+        public UsiEngine(IEngineProcess process)
+        {
+            this.process = process;
+            this.process.StdOutReceived += Process_StdOutReceived;
+            this.process.StdErrReceived += Process_StdErrReceived;
+            this.process.Exited += Process_Exited;
+        }
+
+        private void Process_StdOutReceived(string? message)
+        {
+            if (message == null) return;
+
+            if (message == "usiok")
+            {
+                lock (stateSyncObj)
                 {
-                    throw new InvalidOperationException("すでにエンジンを起動しています。");
+                    State.UsiOk(this);
                 }
-
-                var si = new ProcessStartInfo(fileName, arguments)
-                {
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                };
-                process = new Process()
-                {
-                    StartInfo = si,
-                    EnableRaisingEvents = true,
-                };
-                process.OutputDataReceived += Process_OutputDataReceived;
-                process.ErrorDataReceived += Process_ErrorDataReceived;
-                process.Exited += Process_Exited;
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                // send usi
-                process.StandardInput.WriteLine("usi");
-
-                State = new AwaitingUsiOk(tcs);
             }
-            await tcs.Task;
+            else if (message == "readyok")
+            {
+                lock (stateSyncObj)
+                {
+                    State.ReadyOk(this);
+                }
+            }
+            else if (message.StartsWith("bestmove"))
+            {
+                lock (stateSyncObj)
+                {
+                    State.Bestmove(message, this);
+                }
+            }
+        }
+
+        private void Process_StdErrReceived(string? message)
+        {
+            throw new NotImplementedException();
         }
 
         private void Process_Exited(object? sender, EventArgs e)
@@ -55,41 +81,33 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        public async Task BeginAsync()
         {
-            throw new NotImplementedException();
-        }
+            var tcs = new TaskCompletionSource();
+            lock (stateSyncObj)
+            {
+                if (State is not Deactivated)
+                {
+                    throw new InvalidOperationException("すでにエンジンを起動しています。");
+                }
 
-        private void Process_OutputDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            if (e.Data == "usiok")
-            {
-                lock (stateSyncObj)
-                {
-                    State.UsiOk(this);
-                }
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                // send usi
+                process.SendLine("usi");
+
+                State = new AwaitingUsiOk(tcs);
             }
-            else if (e.Data == "readyok")
-            {
-                lock (stateSyncObj)
-                {
-                    State.ReadyOk(this);
-                }
-            }
-            else if (e.Data?.StartsWith("bestmove") ?? false)
-            {
-                lock (stateSyncObj)
-                {
-                    State.Bestmove(e.Data!, this);
-                }
-            }
+            await tcs.Task;
         }
 
         public void SetOption()
         {
             lock (stateSyncObj)
             {
-                State.SetOption(process!, this);
+                State.SetOption(process, this);
             }
         }
 
@@ -97,7 +115,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.IsReady(process!, tcs, this);
+                State.IsReady(process, tcs, this);
             }
         }
 
@@ -112,7 +130,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.StartNewGame(process!, this);
+                State.StartNewGame(process, this);
             }
         }
 
@@ -120,7 +138,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.Quit(process!, tcs, this);
+                State.Quit(process, tcs, this);
             }
         }
 
@@ -135,7 +153,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.Go(process!, pos, limits, tcs, this);
+                State.Go(process, pos, limits, tcs, this);
             }
         }
 
@@ -150,7 +168,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.GoPonder(process!, pos, limits, this);
+                State.GoPonder(process, pos, limits, this);
             }
         }
 
@@ -158,7 +176,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.NotifyPonderHit(process!, this);
+                State.NotifyPonderHit(process, this);
             }
         }
 
@@ -166,7 +184,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.Stop(process!, tcs, this);
+                State.Stop(process, tcs, this);
             }
         }
 
@@ -181,7 +199,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.Gameover(process!, message, this);
+                State.Gameover(process, message, this);
             }
         }
     }

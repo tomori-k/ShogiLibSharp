@@ -12,32 +12,32 @@ namespace ShogiLibSharp.Engine.State
     {
         public abstract string Name { get; }
 
-        public virtual void SetOption(Process process, UsiEngine context)
+        public virtual void SetOption(IEngineProcess process, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、setoption コマンドの送信は不正な操作です。");
 
-        public virtual void IsReady(Process process, TaskCompletionSource tcs, UsiEngine context)
+        public virtual void IsReady(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、isready コマンドの送信は不正な操作です。");
 
-        public virtual void Quit(Process process, TaskCompletionSource tcs, UsiEngine context)
+        public virtual void Quit(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、quit コマンドの送信は不正な操作です。");
 
-        public virtual void StartNewGame(Process process, UsiEngine context)
+        public virtual void StartNewGame(IEngineProcess process, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、usinewgame コマンドの送信は不正な操作です。");
 
         public virtual void Go(
-            Process process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+            IEngineProcess process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、go コマンドの送信は不正な操作です。");
 
-        public virtual void GoPonder(Process process, Position pos, SearchLimit limits, UsiEngine context)
+        public virtual void GoPonder(IEngineProcess process, Position pos, SearchLimit limits, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、go ponder コマンドの送信は不正な操作です。");
 
-        public virtual void NotifyPonderHit(Process process, UsiEngine context)
+        public virtual void NotifyPonderHit(IEngineProcess process, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、ponderhit コマンドの送信は不正な操作です。");
 
-        public virtual void Stop(Process process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+        public virtual void Stop(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、stop コマンドの送信は不正な操作です。");
 
-        public virtual void Gameover(Process process, string message, UsiEngine context)
+        public virtual void Gameover(IEngineProcess process, string message, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、gameover コマンドの送信は不正な操作です。");
 
         public virtual void UsiOk(UsiEngine context)
