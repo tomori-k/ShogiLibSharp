@@ -16,9 +16,9 @@ namespace ShogiLibSharp.Engine.State
 
         public override string Name => "bestmove または stop 待ち";
 
-        public override void Stop(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+        public override void Cancel(IEngineProcess process, UsiEngine context)
         {
-            context.State = new AwaitingBestmove(tcs);
+            context.State = new AwaitingBestmove(this.tcs);
             process.SendLine("stop");
         }
     }

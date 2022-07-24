@@ -63,7 +63,7 @@ namespace ShogiLibSharp.Engine
             {
                 lock (stateSyncObj)
                 {
-                    State.Bestmove(message, this);
+                    State.Bestmove(process, message, this);
                 }
             }
         }
@@ -111,7 +111,7 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        public void IsReady(TaskCompletionSource tcs)
+        private void IsReady(TaskCompletionSource tcs)
         {
             lock (stateSyncObj)
             {
@@ -134,7 +134,7 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        public void Quit(TaskCompletionSource tcs)
+        private void Quit(TaskCompletionSource tcs)
         {
             lock (stateSyncObj)
             {
@@ -149,18 +149,20 @@ namespace ShogiLibSharp.Engine
             await tcs.Task;
         }
 
-        public void Go(Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
+        public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
+            var tcs = new TaskCompletionSource<(Move, Move)>();
             lock (stateSyncObj)
             {
                 State.Go(process, pos, limits, tcs, this);
             }
-        }
-
-        public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits)
-        {
-            var tcs = new TaskCompletionSource<(Move, Move)>();
-            Go(pos, limits, tcs);
+            ct.Register(() =>
+            {
+                lock (stateSyncObj)
+                {
+                    State.Cancel(process, this);
+                }
+            });
             return await tcs.Task;
         }
 
@@ -172,26 +174,13 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        public void NotifyPonderHit()
-        {
-            lock (stateSyncObj)
-            {
-                State.NotifyPonderHit(process, this);
-            }
-        }
-
-        public void Stop(TaskCompletionSource<(Move, Move)> tcs)
-        {
-            lock (stateSyncObj)
-            {
-                State.Stop(process, tcs, this);
-            }
-        }
-
-        public async Task<(Move, Move)> StopAsync()
+        public async Task<(Move, Move)> StopPonderAsync()
         {
             var tcs = new TaskCompletionSource<(Move, Move)>();
-            Stop(tcs);
+            lock (stateSyncObj)
+            {
+                State.StopPonder(process, tcs, this);
+            }
             return await tcs.Task;
         }
 

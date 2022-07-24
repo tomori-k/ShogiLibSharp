@@ -31,11 +31,11 @@ namespace ShogiLibSharp.Engine.State
         public virtual void GoPonder(IEngineProcess process, Position pos, SearchLimit limits, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、go ponder コマンドの送信は不正な操作です。");
 
-        public virtual void NotifyPonderHit(IEngineProcess process, UsiEngine context)
-            => throw new InvalidOperationException($"状態：{Name} において、ponderhit コマンドの送信は不正な操作です。");
+        public virtual void Cancel(IEngineProcess process, UsiEngine context)
+            => throw new InvalidOperationException($"状態：{Name} において、探索のキャンセルは不正な操作です。");
 
-        public virtual void Stop(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
-            => throw new InvalidOperationException($"状態：{Name} において、stop コマンドの送信は不正な操作です。");
+        public virtual void StopPonder(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+            => throw new InvalidOperationException($"状態：{Name} において、ponder の停止は不正な操作です。");
 
         public virtual void Gameover(IEngineProcess process, string message, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、gameover コマンドの送信は不正な操作です。");
@@ -46,7 +46,7 @@ namespace ShogiLibSharp.Engine.State
         public virtual void ReadyOk(UsiEngine context)
             => throw new EngineException($"状態：{Name} において不正なコマンド readyok を受信しました。");
 
-        public virtual void Bestmove(string message, UsiEngine context)
+        public virtual void Bestmove(IEngineProcess process, string message, UsiEngine context)
             => throw new EngineException($"状態：{Name} において不正なコマンド {message} を受信しました。");
 
         public virtual void Exited(UsiEngine context)

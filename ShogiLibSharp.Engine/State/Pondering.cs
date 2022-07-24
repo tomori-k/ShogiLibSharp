@@ -19,19 +19,29 @@ namespace ShogiLibSharp.Engine.State
             this.ponderingPos = ponderingPos;
         }
 
-        public override void NotifyPonderHit(IEngineProcess process, UsiEngine context)
+        public override void Go(
+            IEngineProcess process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
-            context.State = new PonderHit(ponderingPos);
-            process.SendLine("ponderhit");
+            var sfen = pos.SfenWithMoves();
+            if (sfen == ponderingPos)
+            {
+                context.State = new AwaitingBestmoveOrStop(tcs);
+                process.SendLine("ponderhit");
+            }
+            else
+            {
+                context.State = new WaitingForStopPonder(pos, limits, tcs);
+                process.SendLine("stop");
+            }
         }
 
-        public override void Stop(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+        public override void StopPonder(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
             context.State = new AwaitingBestmove(tcs);
             process.SendLine("stop");
         }
 
-        public override void Bestmove(string message, UsiEngine context)
+        public override void Bestmove(IEngineProcess process, string message, UsiEngine context)
         {
             context.State = new PonderFinished(ponderingPos, message);
         }

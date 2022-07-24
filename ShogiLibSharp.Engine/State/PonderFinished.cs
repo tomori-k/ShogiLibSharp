@@ -30,20 +30,16 @@ namespace ShogiLibSharp.Engine.State
                 Misc.NotifyBestmoveReceived(tcs, bestmoveCmd);
             }
             else
-                throw new InvalidOperationException("違う局面の思考を開始する前に、stop する必要があります。");
+            {
+                context.State = new AwaitingBestmoveOrStop(tcs);
+                Misc.SendGo(process, sfen, limits);
+            }
         }
 
-        public override void Stop(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+        public override void StopPonder(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
             context.State = new PlayingGame();
             Misc.NotifyBestmoveReceived(tcs, bestmoveCmd);
-        }
-
-        public override void NotifyPonderHit(IEngineProcess process, UsiEngine context)
-        {
-            // go ponder に対し ponderhit or stop を送る前に、エンジンが
-            // bestmove を返してきた状態で、その後に ponderhit を送ろうとしたケース
-            // 単純に指示を無視する
         }
     }
 }

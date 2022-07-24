@@ -9,7 +9,7 @@ namespace ShogiLibSharp.Engine.State
 {
     internal class AwaitingBestmove : StateBase
     {
-        private TaskCompletionSource<(Move, Move)> tcs;
+        protected TaskCompletionSource<(Move, Move)> tcs;
         public AwaitingBestmove(TaskCompletionSource<(Move, Move)> tcs)
         {
             this.tcs = tcs;
@@ -17,7 +17,7 @@ namespace ShogiLibSharp.Engine.State
 
         public override string Name => "bestmove 待ち";
 
-        public override void Bestmove(string message, UsiEngine context)
+        public override void Bestmove(IEngineProcess process, string message, UsiEngine context)
         {
             context.State = new PlayingGame();
             Misc.NotifyBestmoveReceived(tcs, message);
