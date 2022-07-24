@@ -134,17 +134,16 @@ namespace ShogiLibSharp.Engine
             {
                 State.Go(process, pos, limits, tcs, this);
             }
-            var registration = ct.Register(() =>
+
+            using var registration = ct.Register(() =>
             {
                 lock (stateSyncObj)
                 {
                     State.Cancel(process, this);
                 }
-            });
-            using (registration) // この Go に対するキャンセルを解除
-            {
-                return await tcs.Task;
-            }
+            }); // この Go に対するキャンセルを解除
+
+            return await tcs.Task;
         }
 
         public void GoPonder(Position pos, SearchLimit limits)
