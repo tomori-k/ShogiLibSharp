@@ -37,7 +37,7 @@ namespace ShogiLibSharp.Engine.Tests
 
             // go
             var pos = new Position(Position.Hirate);
-            var cts = new CancellationTokenSource(1000);
+            using var cts = new CancellationTokenSource(1000);
 
             // 20秒の探索を1秒キャンセル
             var (m1, p1) = await engine.GoAsync(pos, new SearchLimit() { Byoyomi = 20000 }, cts.Token);
@@ -108,11 +108,11 @@ namespace ShogiLibSharp.Engine.Tests
 
             // 1つ前の CancellationTokenSource のキャンセルに反応しないかテスト
             {
-                var cts1 = new CancellationTokenSource();
+                using var cts1 = new CancellationTokenSource();
                 var task0 = engine.GoAsync(pos, new SearchLimit() { Byoyomi = 0 }, cts1.Token);
                 await Task.Delay(1000);           // task0 が終わるぐらい十分な時間待つ
                 Assert.IsTrue(task0.IsCompleted); // 多分終わってる
-                var cts2 = new CancellationTokenSource();
+                using var cts2 = new CancellationTokenSource();
                 var task1 = engine.GoAsync(pos, new SearchLimit() { Byoyomi = 1000000000 }, cts2.Token);
                 cts1.Cancel();         // 2回目の Go に対して、1つ目のキャンセルは無視
                 await Task.Delay(100); // 大体 100 ms ぐらい待てば、（キャンセルが効いているなら） bestmove が返ってきてるはず（しかし現在の実装では実際は bestmove を無限に待つ可能性もある → bestmove 待ちのタイムアウトが必要）
@@ -123,7 +123,7 @@ namespace ShogiLibSharp.Engine.Tests
             }
             // !task0.IsCompleted の間は 、次の Go はできない
             {
-                var cts = new CancellationTokenSource();
+                using var cts = new CancellationTokenSource();
                 var task0 = engine.GoAsync(pos, new SearchLimit() { Byoyomi = 1000000000 }, cts.Token);
                 await Task.Delay(100);
                 Assert.IsFalse(task0.IsCompleted);
