@@ -14,7 +14,7 @@ namespace ShogiLibSharp.Engine.Tests
     [TestClass()]
     public class UsiEngineTests
     {
-        [TestMethod(), Timeout(1000000)]
+        [TestMethod(), Timeout(10000)]
         public async Task UsiEngineTest()
         {
             var (process, log) = CreateMockProcess();
@@ -92,6 +92,47 @@ namespace ShogiLibSharp.Engine.Tests
 < gameover win
 < quit
 ");
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task GoAsyncTest()
+        {
+            var (process, log) = CreateMockProcess();
+            var engine = new UsiEngine(process);
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+
+            var pos = new Position(Position.Hirate);
+
+            // 1つ前の CancellationTokenSource のキャンセルに反応しないかテスト
+            {
+                var cts1 = new CancellationTokenSource();
+                var task0 = engine.GoAsync(pos, new SearchLimit() { Byoyomi = 0 }, cts1.Token);
+                await Task.Delay(1000);           // task0 が終わるぐらい十分な時間待つ
+                Assert.IsTrue(task0.IsCompleted); // 多分終わってる
+                var cts2 = new CancellationTokenSource();
+                var task1 = engine.GoAsync(pos, new SearchLimit() { Byoyomi = 1000000000 }, cts2.Token);
+                cts1.Cancel();         // 2回目の Go に対して、1つ目のキャンセルは無視
+                await Task.Delay(100); // 大体 100 ms ぐらい待てば、（キャンセルが効いているなら） bestmove が返ってきてるはず（しかし現在の実装では実際は bestmove を無限に待つ可能性もある → bestmove 待ちのタイムアウトが必要）
+                Assert.IsFalse(task1.IsCompleted);
+                cts2.Cancel();
+                await task0;
+                await task1;
+            }
+            // !task0.IsCompleted の間は 、次の Go はできない
+            {
+                var cts = new CancellationTokenSource();
+                var task0 = engine.GoAsync(pos, new SearchLimit() { Byoyomi = 1000000000 }, cts.Token);
+                await Task.Delay(100);
+                Assert.IsFalse(task0.IsCompleted);
+                await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+                {
+                    await engine.GoAsync(pos, new SearchLimit() { Byoyomi = 0 }); // error!
+                });
+                cts.Cancel();
+                await task0;
+            }
         }
 
         private static (IEngineProcess, StringBuilder) CreateMockProcess()
