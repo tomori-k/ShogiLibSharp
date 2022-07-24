@@ -12,6 +12,9 @@ namespace ShogiLibSharp.Engine.State
     {
         public abstract string Name { get; }
 
+        public virtual void Begin(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
+            => throw new InvalidOperationException("既にエンジンを起動しています。");
+
         public virtual void SetOption(IEngineProcess process, UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、setoption コマンドの送信は不正な操作です。");
 

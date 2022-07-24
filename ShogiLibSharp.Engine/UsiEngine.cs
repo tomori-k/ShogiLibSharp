@@ -86,19 +86,7 @@ namespace ShogiLibSharp.Engine
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
-                if (State is not Deactivated)
-                {
-                    throw new InvalidOperationException("すでにエンジンを起動しています。");
-                }
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                // send usi
-                process.SendLine("usi");
-
-                State = new WaitingForUsiOk(tcs);
+                State.Begin(process, tcs, this);
             }
             await tcs.Task;
         }
@@ -111,18 +99,13 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private void IsReady(TaskCompletionSource tcs)
+        public async Task IsReadyAsync()
         {
+            var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
                 State.IsReady(process, tcs, this);
             }
-        }
-
-        public async Task IsReadyAsync()
-        {
-            var tcs = new TaskCompletionSource();
-            IsReady(tcs);
             await tcs.Task;
         }
 
@@ -134,18 +117,13 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private void Quit(TaskCompletionSource tcs)
+        public async Task QuitAsync()
         {
+            var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
                 State.Quit(process, tcs, this);
             }
-        }
-
-        public async Task QuitAsync()
-        {
-            var tcs = new TaskCompletionSource();
-            Quit(tcs);
             await tcs.Task;
         }
 
