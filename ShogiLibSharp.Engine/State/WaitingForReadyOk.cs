@@ -6,19 +6,19 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class AwaitingReadyOk : StateBase
+    internal class WaitingForReadyOk : StateBase
     {
         public override string Name => "readyok 待ち";
         private TaskCompletionSource tcs;
 
-        public AwaitingReadyOk(TaskCompletionSource tcs)
+        public WaitingForReadyOk(TaskCompletionSource tcs)
         {
             this.tcs = tcs;
         }
 
         public override void ReadyOk(UsiEngine context)
         {
-            context.State = new AwaitingGame();
+            context.State = new WaitingForNextGame();
             this.tcs.SetResult();
         }
     }

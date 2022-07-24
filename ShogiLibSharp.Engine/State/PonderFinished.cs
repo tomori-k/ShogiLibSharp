@@ -31,7 +31,7 @@ namespace ShogiLibSharp.Engine.State
             }
             else
             {
-                context.State = new AwaitingBestmoveOrStop(tcs);
+                context.State = new WaitingForBestmoveOrStop(tcs);
                 Misc.SendGo(process, sfen, limits);
             }
         }

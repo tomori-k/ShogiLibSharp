@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class AwaitingBestmove : StateBase
+    internal class WaitingForBestmove : StateBase
     {
         protected TaskCompletionSource<(Move, Move)> tcs;
-        public AwaitingBestmove(TaskCompletionSource<(Move, Move)> tcs)
+        public WaitingForBestmove(TaskCompletionSource<(Move, Move)> tcs)
         {
             this.tcs = tcs;
         }

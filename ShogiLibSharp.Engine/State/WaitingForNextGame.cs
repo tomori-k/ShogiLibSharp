@@ -8,7 +8,7 @@ using ShogiLibSharp.Core;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class AwaitingGame : StateBase
+    internal class WaitingForNextGame : StateBase
     {
         public override string Name => "usinewgame 待ち";
 

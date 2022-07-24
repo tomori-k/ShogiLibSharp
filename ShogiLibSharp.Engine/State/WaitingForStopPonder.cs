@@ -24,7 +24,7 @@ namespace ShogiLibSharp.Engine.State
 
         public override void Bestmove(IEngineProcess process, string message, UsiEngine context)
         {
-            context.State = new AwaitingBestmoveOrStop(tcs);
+            context.State = new WaitingForBestmoveOrStop(tcs);
             Misc.SendGo(process, pos.SfenWithMoves(), limits);
         }
     }

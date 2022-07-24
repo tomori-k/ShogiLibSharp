@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class AwaitingUsiOk : StateBase
+    internal class WaitingForUsiOk : StateBase
     {
         public override string Name => "usiok 待ち";
         private TaskCompletionSource tcs;
 
-        public AwaitingUsiOk(TaskCompletionSource tcs)
+        public WaitingForUsiOk(TaskCompletionSource tcs)
         {
             this.tcs = tcs;
         }

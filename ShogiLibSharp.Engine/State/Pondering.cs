@@ -25,7 +25,7 @@ namespace ShogiLibSharp.Engine.State
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderingPos)
             {
-                context.State = new AwaitingBestmoveOrStop(tcs);
+                context.State = new WaitingForBestmoveOrStop(tcs);
                 process.SendLine("ponderhit");
             }
             else
@@ -37,7 +37,7 @@ namespace ShogiLibSharp.Engine.State
 
         public override void StopPonder(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
-            context.State = new AwaitingBestmove(tcs);
+            context.State = new WaitingForBestmove(tcs);
             process.SendLine("stop");
         }
 

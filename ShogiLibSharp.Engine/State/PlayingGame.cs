@@ -15,7 +15,7 @@ namespace ShogiLibSharp.Engine.State
         public override void Go(
             IEngineProcess process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
         {
-            context.State = new AwaitingBestmoveOrStop(tcs);
+            context.State = new WaitingForBestmoveOrStop(tcs);
             Misc.SendGo(process, pos.SfenWithMoves(), limits);
         }
 

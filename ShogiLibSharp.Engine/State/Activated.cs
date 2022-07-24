@@ -19,7 +19,7 @@ namespace ShogiLibSharp.Engine.State
 
         public override void IsReady(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
         {
-            context.State = new AwaitingReadyOk(tcs);
+            context.State = new WaitingForReadyOk(tcs);
             process.SendLine("isready");
         }
 

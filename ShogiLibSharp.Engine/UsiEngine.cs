@@ -98,7 +98,7 @@ namespace ShogiLibSharp.Engine
                 // send usi
                 process.SendLine("usi");
 
-                State = new AwaitingUsiOk(tcs);
+                State = new WaitingForUsiOk(tcs);
             }
             await tcs.Task;
         }

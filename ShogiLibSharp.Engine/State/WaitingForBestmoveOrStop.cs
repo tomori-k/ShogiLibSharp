@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.State
 {
-    internal class AwaitingBestmoveOrStop : AwaitingBestmove
+    internal class WaitingForBestmoveOrStop : WaitingForBestmove
     {
-        public AwaitingBestmoveOrStop(TaskCompletionSource<(Move, Move)> tcs) : base(tcs)
+        public WaitingForBestmoveOrStop(TaskCompletionSource<(Move, Move)> tcs) : base(tcs)
         {
         }
 
@@ -18,7 +18,7 @@ namespace ShogiLibSharp.Engine.State
 
         public override void Cancel(IEngineProcess process, UsiEngine context)
         {
-            context.State = new AwaitingBestmove(this.tcs);
+            context.State = new WaitingForBestmove(this.tcs);
             process.SendLine("stop");
         }
     }
