@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace ShogiLibSharp.Engine
 {
-    public class UsiEngine
+    public class UsiEngine : IDisposable
     {
         private IEngineProcess process;
         private object stateSyncObj = new();
@@ -171,6 +171,11 @@ namespace ShogiLibSharp.Engine
             {
                 State.Gameover(process, message, this);
             }
+        }
+
+        public void Dispose()
+        {
+            this.process.Dispose();
         }
     }
 }

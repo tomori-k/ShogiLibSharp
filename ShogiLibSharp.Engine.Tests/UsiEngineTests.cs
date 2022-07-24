@@ -18,7 +18,7 @@ namespace ShogiLibSharp.Engine.Tests
         public async Task UsiEngineTest()
         {
             var (process, log) = CreateMockProcess();
-            var engine = new UsiEngine(process);
+            using var engine = new UsiEngine(process);
 
             // プロセス起動
             await engine.BeginAsync();
@@ -98,7 +98,8 @@ namespace ShogiLibSharp.Engine.Tests
         public async Task GoAsyncTest()
         {
             var (process, log) = CreateMockProcess();
-            var engine = new UsiEngine(process);
+
+            using var engine = new UsiEngine(process);
             await engine.BeginAsync();
             await engine.IsReadyAsync();
             engine.StartNewGame();

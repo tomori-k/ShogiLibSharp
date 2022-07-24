@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine
 {
-    public interface IEngineProcess
+    public interface IEngineProcess : IDisposable
     {
         event Action<string?>? StdOutReceived;
         event Action<string?>? StdErrReceived;
