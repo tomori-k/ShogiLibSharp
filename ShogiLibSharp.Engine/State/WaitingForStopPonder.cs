@@ -22,10 +22,10 @@ namespace ShogiLibSharp.Engine.State
             this.tcs = tcs;
         }
 
-        public override void Bestmove(IEngineProcess process, string message, UsiEngine context)
+        public override void Bestmove(UsiEngine context,string message)
         {
             context.State = new WaitingForBestmoveOrStop(tcs);
-            Misc.SendGo(process, pos.SfenWithMoves(), limits);
+            context.SendGo(pos.SfenWithMoves(), limits);
         }
     }
 }

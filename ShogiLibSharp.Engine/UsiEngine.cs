@@ -8,10 +8,12 @@ namespace ShogiLibSharp.Engine
     {
         private IEngineProcess process;
         private object stateSyncObj = new();
+        private object sendLockObj = new();
         internal StateBase State { get; set; } = new Deactivated();
 
-        public event Action<string?>? StdOutReceived;
-        public event Action<string?>? StdErrReceived;
+        public event Action<string>? StdIn;
+        public event Action<string?>? StdOut;
+        public event Action<string?>? StdErr;
 
         public UsiEngine(string fileName, string workingDir, string arguments = "")
         {
@@ -50,8 +52,8 @@ namespace ShogiLibSharp.Engine
         {
             this.process.StdOutReceived += Process_StdOutReceived;
             this.process.Exited += Process_Exited;
-            this.process.StdOutReceived += s => StdOutReceived?.Invoke(s);
-            this.process.StdErrReceived += s => StdErrReceived?.Invoke(s);
+            this.process.StdOutReceived += s => StdOut?.Invoke(s);
+            this.process.StdErrReceived += s => StdErr?.Invoke(s);
         }
 
         private void Process_StdOutReceived(string? message)
@@ -76,7 +78,7 @@ namespace ShogiLibSharp.Engine
             {
                 lock (stateSyncObj)
                 {
-                    State.Bestmove(process, message, this);
+                    State.Bestmove(this, message);
                 }
             }
         }
@@ -89,12 +91,44 @@ namespace ShogiLibSharp.Engine
             }
         }
 
+        internal void BeginProcess()
+        {
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+        }
+
+        internal void SendGo(string sfenWithMoves, SearchLimit limits, bool ponder = false)
+        {
+            Send($"position {sfenWithMoves}");
+
+            var ponderFlag = ponder ? " ponder" : "";
+
+            if (limits.Binc == 0 && limits.Winc == 0)
+            {
+                Send($"go{ponderFlag} btime {limits.Btime} wtime {limits.Wtime} byoyomi {limits.Byoyomi}");
+            }
+            else
+            {
+                Send($"go{ponderFlag} btime {limits.Btime} wtime {limits.Wtime} binc {limits.Binc} winc {limits.Winc}");
+            }
+        }
+
+        public void Send(string command)
+        {
+            lock (sendLockObj)
+            {
+                this.process.SendLine(command);
+                this.StdIn?.Invoke(command);
+            }
+        }
+
         public async Task BeginAsync()
         {
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
-                State.Begin(process, tcs, this);
+                State.Begin(this, tcs);
             }
             await tcs.Task;
         }
@@ -103,7 +137,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.SetOption(process, this);
+                State.SetOption(this);
             }
         }
 
@@ -112,7 +146,7 @@ namespace ShogiLibSharp.Engine
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
-                State.IsReady(process, tcs, this);
+                State.IsReady(this, tcs);
             }
             await tcs.Task;
         }
@@ -121,7 +155,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.StartNewGame(process, this);
+                State.StartNewGame(this);
             }
         }
 
@@ -130,7 +164,7 @@ namespace ShogiLibSharp.Engine
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
-                State.Quit(process, tcs, this);
+                State.Quit(this, tcs);
             }
             await tcs.Task;
         }
@@ -140,14 +174,14 @@ namespace ShogiLibSharp.Engine
             var tcs = new TaskCompletionSource<(Move, Move)>();
             lock (stateSyncObj)
             {
-                State.Go(process, pos, limits, tcs, this);
+                State.Go(this, pos, limits, tcs);
             }
 
             using var registration = ct.Register(() =>
             {
                 lock (stateSyncObj)
                 {
-                    State.Cancel(process, this);
+                    State.Cancel(this);
                 }
             }); // この Go に対するキャンセルを解除
 
@@ -158,7 +192,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.GoPonder(process, pos, limits, this);
+                State.GoPonder(this, pos, limits);
             }
         }
 
@@ -167,7 +201,7 @@ namespace ShogiLibSharp.Engine
             var tcs = new TaskCompletionSource<(Move, Move)>();
             lock (stateSyncObj)
             {
-                State.StopPonder(process, tcs, this);
+                State.StopPonder(this, tcs);
             }
             return await tcs.Task;
         }
@@ -176,7 +210,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (stateSyncObj)
             {
-                State.Gameover(process, message, this);
+                State.Gameover(this, message);
             }
         }
 

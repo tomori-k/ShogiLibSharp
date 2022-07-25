@@ -12,21 +12,21 @@ namespace ShogiLibSharp.Engine.State
     {
         public override string Name => "プロセス起動中";
 
-        public override void SetOption(IEngineProcess process, UsiEngine context)
+        public override void SetOption(UsiEngine context)
         {
             throw new NotImplementedException();
         }
 
-        public override void IsReady(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
+        public override void IsReady(UsiEngine context, TaskCompletionSource tcs)
         {
             context.State = new WaitingForReadyOk(tcs);
-            process.SendLine("isready");
+            context.Send("isready");
         }
 
-        public override void Quit(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
+        public override void Quit(UsiEngine context, TaskCompletionSource tcs)
         {
             context.State = new Quiting(tcs);
-            process.SendLine("quit");
+            context.Send("quit");
         }
     }
 }

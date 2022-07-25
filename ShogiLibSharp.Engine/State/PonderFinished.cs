@@ -21,7 +21,7 @@ namespace ShogiLibSharp.Engine.State
         }
 
         public override void Go(
-            IEngineProcess process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
         {
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderedPos)
@@ -32,11 +32,11 @@ namespace ShogiLibSharp.Engine.State
             else
             {
                 context.State = new WaitingForBestmoveOrStop(tcs);
-                Misc.SendGo(process, sfen, limits);
+                context.SendGo(sfen, limits);
             }
         }
 
-        public override void StopPonder(IEngineProcess process, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+        public override void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
         {
             context.State = new PlayingGame();
             Misc.NotifyBestmoveReceived(tcs, bestmoveCmd);

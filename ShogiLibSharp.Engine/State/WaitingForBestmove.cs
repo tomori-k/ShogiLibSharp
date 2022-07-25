@@ -17,7 +17,7 @@ namespace ShogiLibSharp.Engine.State
 
         public override string Name => "bestmove 待ち";
 
-        public override void Bestmove(IEngineProcess process, string message, UsiEngine context)
+        public override void Bestmove(UsiEngine context,string message)
         {
             context.State = new PlayingGame();
             Misc.NotifyBestmoveReceived(tcs, message);

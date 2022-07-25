@@ -13,24 +13,24 @@ namespace ShogiLibSharp.Engine.State
         public override string Name => "go コマンド待機";
 
         public override void Go(
-            IEngineProcess process, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs, UsiEngine context)
+            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
         {
             context.State = new WaitingForBestmoveOrStop(tcs);
-            Misc.SendGo(process, pos.SfenWithMoves(), limits);
+            context.SendGo(pos.SfenWithMoves(), limits);
         }
 
-        public override void GoPonder(IEngineProcess process, Position pos, SearchLimit limits, UsiEngine context)
+        public override void GoPonder(UsiEngine context,Position pos, SearchLimit limits)
         {
             var sfen = pos.SfenWithMoves();
 
             context.State = new Pondering(sfen);
-            Misc.SendGo(process, sfen, limits, ponder: true);
+            context.SendGo(sfen, limits, ponder: true);
         }
 
-        public override void Gameover(IEngineProcess process, string message, UsiEngine context)
+        public override void Gameover(UsiEngine context,string message)
         {
             context.State = new Activated();
-            process.SendLine($"gameover {message}");
+            context.Send($"gameover {message}");
         }
     }
 }

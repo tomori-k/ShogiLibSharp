@@ -21,20 +21,6 @@ namespace ShogiLibSharp.Engine
                 : (Usi.ParseMove(sp[1]), Usi.ParseMove(sp[3]));
         }
 
-        public static void SendGo(IEngineProcess process, string sfenWithMoves, SearchLimit limits, bool ponder = false)
-        {
-            var ponderEnabled = ponder ? " ponder" : "";
-            process.SendLine($"position {sfenWithMoves}");
-            if (limits.Binc == 0 && limits.Winc == 0)
-            {
-                process.SendLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} byoyomi {limits.Byoyomi}");
-            }
-            else
-            {
-                process.SendLine($"go{ponderEnabled} btime {limits.Btime} wtime {limits.Wtime} binc {limits.Binc} winc {limits.Winc}");
-            }
-        }
-
         public static void NotifyBestmoveReceived(TaskCompletionSource<(Move, Move)> tcs, string command)
         {
             try

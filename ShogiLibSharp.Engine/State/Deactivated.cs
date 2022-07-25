@@ -10,13 +10,11 @@ namespace ShogiLibSharp.Engine.State
     {
         public override string Name => "プロセス未起動";
 
-        public override void Begin(IEngineProcess process, TaskCompletionSource tcs, UsiEngine context)
+        public override void Begin(UsiEngine context,TaskCompletionSource tcs)
         {
             context.State = new WaitingForUsiOk(tcs);
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.SendLine("usi");
+            context.BeginProcess();
+            context.Send("usi");
         }
     }
 }
