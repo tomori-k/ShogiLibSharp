@@ -32,5 +32,10 @@ namespace ShogiLibSharp.Engine.States
             context.State = new Activated();
             context.Send($"gameover {message}");
         }
+
+        public override void Bestmove(UsiEngine context, string message)
+        {
+            // 無視（たまたま bestmove がタイムアウトより遅れて返ってきたときにエラーが出てほしくない）
+        }
     }
 }

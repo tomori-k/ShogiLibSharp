@@ -16,6 +16,8 @@ namespace ShogiLibSharp.Engine
         public event Action<string?>? StdOut;
         public event Action<string?>? StdErr;
 
+        public TimeSpan BestmoveResponseTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
+
         public UsiEngine(string fileName, string workingDir, string arguments = "")
         {
             var si = new ProcessStartInfo(fileName, arguments)
@@ -119,8 +121,8 @@ namespace ShogiLibSharp.Engine
         {
             lock (procSyncObj)
             {
-                this.process.SendLine(command);
                 this.StdIn?.Invoke(command);
+                this.process.SendLine(command);
             }
         }
 
@@ -206,15 +208,26 @@ namespace ShogiLibSharp.Engine
                 State.Go(this, pos, limits, tcs);
             }
 
+            using var cts = new CancellationTokenSource();
             using var registration = ct.Register(() =>
             {
+                var task = Task.Delay(BestmoveResponseTimeout, cts.Token);
                 lock (stateSyncObj)
                 {
-                    State.Cancel(this);
+                    State.StopGo(this);
                 }
+                task.ContinueWith(x =>
+                {
+                    lock (stateSyncObj)
+                    {
+                        State.StopWaitingForBestmove(this);
+                    }
+                });
             }); // この Go に対するキャンセルを解除
 
-            return await tcs.Task;
+            var result = await tcs.Task;
+            cts.Cancel();
+            return result;
         }
 
         public void GoPonder(Position pos, SearchLimit limits)

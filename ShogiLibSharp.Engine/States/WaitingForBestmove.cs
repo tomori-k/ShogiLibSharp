@@ -1,4 +1,5 @@
 ﻿using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,7 @@ namespace ShogiLibSharp.Engine.States
 {
     internal class WaitingForBestmove : StateBase
     {
-        protected TaskCompletionSource<(Move, Move)> tcs;
+        private TaskCompletionSource<(Move, Move)> tcs;
         public WaitingForBestmove(TaskCompletionSource<(Move, Move)> tcs)
         {
             this.tcs = tcs;
@@ -21,6 +22,12 @@ namespace ShogiLibSharp.Engine.States
         {
             context.State = new PlayingGame();
             UsiCommand.NotifyBestmoveReceived(tcs, message);
+        }
+
+        public sealed override void StopWaitingForBestmove(UsiEngine context)
+        {
+            context.State = new PlayingGame();
+            tcs.SetException(new EngineException("タイムアウト時間を超えても bestmove が返ってきませんでした。"));
         }
     }
 }

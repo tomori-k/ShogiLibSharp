@@ -212,6 +212,41 @@ namespace ShogiLibSharp.Engine.Tests
             await engine.QuitAsync(cts.Token);
         }
 
+        [TestMethod(), Timeout(5000)]
+        public async Task BestmoveTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock3");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author3");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    mock.Raise(x => x.StdOutReceived += null, "readyok");
+                });
+
+            using var engine = new UsiEngine(mock.Object);
+            engine.StdIn += s => Trace.WriteLine($"< {s}");
+            engine.StdOut += s => Trace.WriteLine($"  > {s}");
+
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+            engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.3);
+            using var cts = new CancellationTokenSource(100);
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine.GoAsync(new Position(Position.Hirate), new SearchLimit(), cts.Token);
+            });
+        }
+
         private static (IEngineProcess, StringBuilder) CreateMockProcess()
         {
             // 固定値と any の共存はできないっぽい

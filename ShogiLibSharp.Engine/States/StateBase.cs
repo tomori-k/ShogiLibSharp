@@ -35,7 +35,7 @@ namespace ShogiLibSharp.Engine.States
         public virtual void GoPonder(UsiEngine context, Position pos, SearchLimit limits)
             => throw new InvalidOperationException($"状態：{Name} において、go ponder コマンドの送信は不正な操作です。");
 
-        public virtual void Cancel(UsiEngine context)
+        public virtual void StopGo(UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、探索のキャンセルは不正な操作です。");
 
         public virtual void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
@@ -56,6 +56,8 @@ namespace ShogiLibSharp.Engine.States
         public virtual void CancelUsiOk(UsiEngine context) { /* 何もしない */ }
 
         public virtual void CancelReadyOk(UsiEngine context) { /* 何もしない */ }
+
+        public virtual void StopWaitingForBestmove(UsiEngine context) { /* 何もしない */ }
 
         public virtual void Exited(UsiEngine context)
             => context.State = new Invalid();

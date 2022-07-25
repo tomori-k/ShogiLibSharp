@@ -8,15 +8,23 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine.States
 {
-    internal class WaitingForBestmoveOrStop : WaitingForBestmove
+    internal class WaitingForBestmoveOrStop : StateBase
     {
-        public WaitingForBestmoveOrStop(TaskCompletionSource<(Move, Move)> tcs) : base(tcs)
+        private TaskCompletionSource<(Move, Move)> tcs;
+        public WaitingForBestmoveOrStop(TaskCompletionSource<(Move, Move)> tcs)
         {
+            this.tcs = tcs;
         }
 
         public override string Name => "bestmove または stop 待ち";
 
-        public override void Cancel(UsiEngine context)
+        public override void Bestmove(UsiEngine context, string message)
+        {
+            context.State = new PlayingGame();
+            UsiCommand.NotifyBestmoveReceived(tcs, message);
+        }
+
+        public override void StopGo(UsiEngine context)
         {
             context.State = new WaitingForBestmove(this.tcs);
             context.Send("stop");
