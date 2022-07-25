@@ -21,5 +21,11 @@ namespace ShogiLibSharp.Engine.States
             context.State = new Activated();
             tcs.SetResult();
         }
+
+        public override void CancelUsiOk(UsiEngine context)
+        {
+            context.State = new Invalid();
+            tcs.SetException(new Exceptions.EngineException("タイムアウト時間を超えても、エンジンから usiok が返ってきませんでした。"));
+        }
     }
 }

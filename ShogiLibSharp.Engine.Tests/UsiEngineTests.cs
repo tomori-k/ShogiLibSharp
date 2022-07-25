@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Exceptions;
 using ShogiLibSharp.Engine.Process;
 using System;
 using System.Collections.Generic;
@@ -134,6 +135,28 @@ namespace ShogiLibSharp.Engine.Tests
                 cts.Cancel();
                 await task0;
             }
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task UsiOkTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author1");
+                    mock.Raise(x => x.StdOutReceived += null, "usook"); // typo
+                });
+
+            using var engine = new UsiEngine(mock.Object);
+
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                // タイムアウト: 1秒
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                await engine.BeginAsync(cts.Token);
+            });
         }
 
         private static (IEngineProcess, StringBuilder) CreateMockProcess()

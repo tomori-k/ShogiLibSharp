@@ -53,6 +53,8 @@ namespace ShogiLibSharp.Engine.States
         public virtual void Bestmove(UsiEngine context, string message)
             => throw new EngineException($"状態：{Name} において不正なコマンド {message} を受信しました。");
 
+        public virtual void CancelUsiOk(UsiEngine context) { /* 何もしない */ }
+
         public virtual void Exited(UsiEngine context)
             => context.State = new Invalid();
     }
