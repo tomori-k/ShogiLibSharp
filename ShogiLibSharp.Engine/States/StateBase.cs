@@ -5,8 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Exceptions;
 
-namespace ShogiLibSharp.Engine.State
+namespace ShogiLibSharp.Engine.States
 {
     internal abstract class StateBase
     {

@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ShogiLibSharp.Core;
 
-namespace ShogiLibSharp.Engine.State
+namespace ShogiLibSharp.Engine.States
 {
     internal class PlayingGame : StateBase
     {

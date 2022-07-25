@@ -1,7 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using ShogiLibSharp.Core;
-using ShogiLibSharp.Engine;
+using ShogiLibSharp.Engine.Process;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

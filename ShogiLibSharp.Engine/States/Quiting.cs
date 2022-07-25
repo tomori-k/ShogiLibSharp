@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp.Engine.State
+namespace ShogiLibSharp.Engine.States
 {
     internal class Quiting : StateBase
     {

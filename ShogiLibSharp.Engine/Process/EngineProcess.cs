@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ShogiLibSharp.Engine.Process
 {
     // IEngineProcess を噛ませたい
-    public class EngineProcess : Process, IEngineProcess
+    public class EngineProcess : System.Diagnostics.Process, IEngineProcess
     {
         public event Action<string?>? StdOutReceived;
         public event Action<string?>? StdErrReceived;

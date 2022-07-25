@@ -1,5 +1,6 @@
 ﻿using ShogiLibSharp.Core;
-using ShogiLibSharp.Engine.State;
+using ShogiLibSharp.Engine.Process;
+using ShogiLibSharp.Engine.States;
 using System.Diagnostics;
 
 namespace ShogiLibSharp.Engine
