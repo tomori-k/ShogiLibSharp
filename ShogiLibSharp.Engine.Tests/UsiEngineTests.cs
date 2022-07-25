@@ -159,6 +159,36 @@ namespace ShogiLibSharp.Engine.Tests
             });
         }
 
+        [TestMethod(), Timeout(5000)]
+        public async Task ReadyOkTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    // ...
+                });
+
+            using var engine = new UsiEngine(mock.Object);
+
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine.BeginAsync();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                await engine.IsReadyAsync(cts.Token);
+            });
+        }
+
         private static (IEngineProcess, StringBuilder) CreateMockProcess()
         {
             // 固定値と any の共存はできないっぽい

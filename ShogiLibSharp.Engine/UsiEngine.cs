@@ -149,13 +149,20 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        public async Task IsReadyAsync()
+        public async Task IsReadyAsync(CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
                 State.IsReady(this, tcs);
             }
+            using var registration = ct.Register(() =>
+            {
+                lock (stateSyncObj)
+                {
+                    State.CancelReadyOk(this);
+                }
+            });
             await tcs.Task;
         }
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ShogiLibSharp.Engine.Exceptions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,7 +20,13 @@ namespace ShogiLibSharp.Engine.States
         public override void ReadyOk(UsiEngine context)
         {
             context.State = new WaitingForNextGame();
-            this.tcs.SetResult();
+            tcs.SetResult();
+        }
+
+        public override void CancelReadyOk(UsiEngine context)
+        {
+            context.State = new Activated();
+            tcs.SetException(new EngineException("readyok 待ちがキャンセルされました。"));
         }
     }
 }

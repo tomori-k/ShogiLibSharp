@@ -55,6 +55,8 @@ namespace ShogiLibSharp.Engine.States
 
         public virtual void CancelUsiOk(UsiEngine context) { /* 何もしない */ }
 
+        public virtual void CancelReadyOk(UsiEngine context) { /* 何もしない */ }
+
         public virtual void Exited(UsiEngine context)
             => context.State = new Invalid();
     }
