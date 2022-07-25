@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Engine
 {
-    internal static class Misc
+    internal static class UsiCommand
     {
         public static (Move, Move) ParseBestmove(string command)
         {

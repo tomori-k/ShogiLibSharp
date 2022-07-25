@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp.Engine
+namespace ShogiLibSharp.Engine.Process
 {
     // IEngineProcess を噛ませたい
     public class EngineProcess : Process, IEngineProcess

@@ -20,7 +20,7 @@ namespace ShogiLibSharp.Engine.State
         public override void Bestmove(UsiEngine context,string message)
         {
             context.State = new PlayingGame();
-            Misc.NotifyBestmoveReceived(tcs, message);
+            UsiCommand.NotifyBestmoveReceived(tcs, message);
         }
     }
 }
