@@ -21,7 +21,7 @@ namespace ShogiLibSharp.Engine.States
         public override void Bestmove(UsiEngine context,string message)
         {
             context.State = new PlayingGame();
-            UsiCommand.NotifyBestmoveReceived(tcs, message);
+            SetBestmove(tcs, message);
         }
 
         public sealed override void StopWaitingForBestmove(UsiEngine context)

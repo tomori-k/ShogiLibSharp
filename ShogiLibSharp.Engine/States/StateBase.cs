@@ -61,5 +61,18 @@ namespace ShogiLibSharp.Engine.States
 
         public virtual void Exited(UsiEngine context)
             => context.State = new Invalid();
+
+        public static void SetBestmove(TaskCompletionSource<(Move, Move)> tcs, string command)
+        {
+            try
+            {
+                var (move, ponder) = UsiCommand.ParseBestmove(command);
+                tcs.SetResult((move, ponder));
+            }
+            catch (FormatException e)
+            {
+                tcs.SetException(e);
+            }
+        }
     }
 }

@@ -20,18 +20,5 @@ namespace ShogiLibSharp.Engine
                 ? (Usi.ParseMove(sp[1]), Move.None)
                 : (Usi.ParseMove(sp[1]), Usi.ParseMove(sp[3]));
         }
-
-        public static void NotifyBestmoveReceived(TaskCompletionSource<(Move, Move)> tcs, string command)
-        {
-            try
-            {
-                var (move, ponder) = ParseBestmove(command);
-                tcs.SetResult((move, ponder));
-            }
-            catch (FormatException e)
-            {
-                tcs.SetException(e);
-            }
-        }
     }
 }

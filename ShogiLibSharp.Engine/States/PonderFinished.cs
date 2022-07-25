@@ -27,7 +27,7 @@ namespace ShogiLibSharp.Engine.States
             if (sfen == ponderedPos)
             {
                 context.State = new PlayingGame();
-                UsiCommand.NotifyBestmoveReceived(tcs, bestmoveCmd);
+                SetBestmove(tcs, bestmoveCmd);
             }
             else
             {
@@ -39,7 +39,7 @@ namespace ShogiLibSharp.Engine.States
         public override void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
         {
             context.State = new PlayingGame();
-            UsiCommand.NotifyBestmoveReceived(tcs, bestmoveCmd);
+            SetBestmove(tcs, bestmoveCmd);
         }
     }
 }
