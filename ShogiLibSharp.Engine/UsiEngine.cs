@@ -13,7 +13,7 @@ namespace ShogiLibSharp.Engine
         public event Action<string?>? StdOutReceived;
         public event Action<string?>? StdErrReceived;
 
-        public UsiEngine(string fileName, string arguments = "")
+        public UsiEngine(string fileName, string workingDir, string arguments = "")
         {
             var si = new ProcessStartInfo(fileName, arguments)
             {
@@ -21,6 +21,7 @@ namespace ShogiLibSharp.Engine
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                WorkingDirectory = workingDir,
             };
             this.process = new EngineProcess()
             {
@@ -28,6 +29,11 @@ namespace ShogiLibSharp.Engine
                 EnableRaisingEvents = true,
             };
             SetEventCallback();
+        }
+
+        public UsiEngine(string fileName, string arguments = "")
+            : this(fileName, Path.GetDirectoryName(fileName) ?? "", arguments)
+        {
         }
 
         /// <summary>
