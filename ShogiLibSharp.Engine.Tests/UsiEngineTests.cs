@@ -153,8 +153,7 @@ namespace ShogiLibSharp.Engine.Tests
 
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
-                // タイムアウト: 1秒
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
                 await engine.BeginAsync(cts.Token);
             });
         }
@@ -184,9 +183,33 @@ namespace ShogiLibSharp.Engine.Tests
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
                 await engine.BeginAsync();
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
                 await engine.IsReadyAsync(cts.Token);
             });
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task QuitTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            // quit を送信しても終了しないエンジン
+
+            mock.Setup(m => m.Kill())
+                .Raises(x => x.Exited += null, new EventArgs());
+
+            using var engine = new UsiEngine(mock.Object);
+
+            await engine.BeginAsync();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
+            await engine.QuitAsync(cts.Token);
         }
 
         private static (IEngineProcess, StringBuilder) CreateMockProcess()

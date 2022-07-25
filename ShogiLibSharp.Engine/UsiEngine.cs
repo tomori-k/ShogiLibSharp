@@ -9,7 +9,7 @@ namespace ShogiLibSharp.Engine
     {
         private IEngineProcess process;
         private object stateSyncObj = new();
-        private object sendLockObj = new();
+        private object procSyncObj = new();
         internal StateBase State { get; set; } = new Deactivated();
 
         public event Action<string>? StdIn;
@@ -117,7 +117,7 @@ namespace ShogiLibSharp.Engine
 
         public void Send(string command)
         {
-            lock (sendLockObj)
+            lock (procSyncObj)
             {
                 this.process.SendLine(command);
                 this.StdIn?.Invoke(command);
@@ -174,13 +174,27 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        public async Task QuitAsync()
+        public async Task QuitAsync(CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
                 State.Quit(this, tcs);
             }
+            using var registration = ct.Register(() =>
+            {
+                lock (procSyncObj)
+                {
+                    try
+                    {
+                        process.Kill();
+                    }
+                    catch(Exception e)
+                    {
+                        tcs.SetException(e);
+                    }
+                }
+            });
             await tcs.Task;
         }
 

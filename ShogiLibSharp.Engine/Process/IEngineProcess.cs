@@ -16,5 +16,6 @@ namespace ShogiLibSharp.Engine.Process
         void BeginOutputReadLine();
         void BeginErrorReadLine();
         void SendLine(string message);
+        void Kill();
     }
 }
