@@ -10,6 +10,9 @@ namespace ShogiLibSharp.Engine
         private object stateSyncObj = new();
         internal StateBase State { get; set; } = new Deactivated();
 
+        public event Action<string?>? StdOutReceived;
+        public event Action<string?>? StdErrReceived;
+
         public UsiEngine(string fileName, string arguments = "")
         {
             var si = new ProcessStartInfo(fileName, arguments)
@@ -24,9 +27,7 @@ namespace ShogiLibSharp.Engine
                 StartInfo = si,
                 EnableRaisingEvents = true,
             };
-            this.process.StdOutReceived += Process_StdOutReceived;
-            this.process.StdErrReceived += Process_StdErrReceived;
-            this.process.Exited += Process_Exited;
+            SetEventCallback();
         }
 
         /// <summary>
@@ -36,9 +37,15 @@ namespace ShogiLibSharp.Engine
         public UsiEngine(IEngineProcess process)
         {
             this.process = process;
+            SetEventCallback();
+        }
+
+        private void SetEventCallback()
+        {
             this.process.StdOutReceived += Process_StdOutReceived;
-            this.process.StdErrReceived += Process_StdErrReceived;
             this.process.Exited += Process_Exited;
+            this.process.StdOutReceived += s => StdOutReceived?.Invoke(s);
+            this.process.StdErrReceived += s => StdErrReceived?.Invoke(s);
         }
 
         private void Process_StdOutReceived(string? message)
@@ -66,11 +73,6 @@ namespace ShogiLibSharp.Engine
                     State.Bestmove(process, message, this);
                 }
             }
-        }
-
-        private void Process_StdErrReceived(string? message)
-        {
-            throw new NotImplementedException();
         }
 
         private void Process_Exited(object? sender, EventArgs e)
