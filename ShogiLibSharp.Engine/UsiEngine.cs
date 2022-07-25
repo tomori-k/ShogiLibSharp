@@ -53,10 +53,10 @@ namespace ShogiLibSharp.Engine
 
         private void SetEventCallback()
         {
-            this.process.StdOutReceived += Process_StdOutReceived;
-            this.process.Exited += Process_Exited;
             this.process.StdOutReceived += s => StdOut?.Invoke(s);
             this.process.StdErrReceived += s => StdErr?.Invoke(s);
+            this.process.StdOutReceived += Process_StdOutReceived;
+            this.process.Exited += Process_Exited;
         }
 
         private void Process_StdOutReceived(string? message)
