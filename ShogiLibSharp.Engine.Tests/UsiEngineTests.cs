@@ -30,6 +30,9 @@ namespace ShogiLibSharp.Engine.Tests
             }
             catch (InvalidOperationException) { /* 成功 */ }
 
+            Assert.AreEqual("Mock0", engine.Name);
+            Assert.AreEqual("Author0", engine.Author);
+
             // isready
             await engine.IsReadyAsync();
 

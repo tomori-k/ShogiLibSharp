@@ -12,6 +12,9 @@ namespace ShogiLibSharp.Engine
         private object procSyncObj = new();
         internal StateBase State { get; set; } = new Deactivated();
 
+        public string Name { get; private set; } = "";
+        public string Author { get; private set; } = "";
+
         public event Action<string>? StdIn;
         public event Action<string?>? StdOut;
         public event Action<string?>? StdErr;
@@ -83,6 +86,13 @@ namespace ShogiLibSharp.Engine
                 {
                     State.Bestmove(this, message);
                 }
+            }
+            else if (message.StartsWith("id"))
+            {
+                var sp = message.Split();
+                if (sp.Length < 3) return;
+                else if (sp[1] == "name") this.Name = sp[2];
+                else if (sp[1] == "author") this.Author = sp[2];
             }
         }
 
