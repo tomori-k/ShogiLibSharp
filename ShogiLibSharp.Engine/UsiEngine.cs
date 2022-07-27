@@ -8,8 +8,7 @@ namespace ShogiLibSharp.Engine
     public class UsiEngine : IDisposable
     {
         private IEngineProcess process;
-        private object stateSyncObj = new();
-        private object procSyncObj = new();
+        private object syncObj = new();
         internal StateBase State { get; set; } = new Deactivated();
 
         public string Name { get; private set; } = "";
@@ -22,6 +21,7 @@ namespace ShogiLibSharp.Engine
         public TimeSpan UsiOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan ReadyOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan BestmoveResponseTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
+        public TimeSpan ExitWaitingTime { get; set; } = TimeSpan.FromSeconds(10.0);
 
         public UsiEngine(string fileName, string workingDir, string arguments = "")
         {
@@ -70,21 +70,21 @@ namespace ShogiLibSharp.Engine
 
             if (message == "usiok")
             {
-                lock (stateSyncObj)
+                lock (syncObj)
                 {
                     State.UsiOk(this);
                 }
             }
             else if (message == "readyok")
             {
-                lock (stateSyncObj)
+                lock (syncObj)
                 {
                     State.ReadyOk(this);
                 }
             }
             else if (message.StartsWith("bestmove"))
             {
-                lock (stateSyncObj)
+                lock (syncObj)
                 {
                     State.Bestmove(this, message);
                 }
@@ -100,7 +100,7 @@ namespace ShogiLibSharp.Engine
 
         private void Process_Exited(object? sender, EventArgs e)
         {
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.Exited(this);
             }
@@ -131,7 +131,7 @@ namespace ShogiLibSharp.Engine
 
         public void Send(string command)
         {
-            lock (procSyncObj)
+            lock (syncObj)
             {
                 this.StdIn?.Invoke(command);
                 this.process.SendLine(command);
@@ -162,13 +162,13 @@ namespace ShogiLibSharp.Engine
         private async Task BeginAsyncImpl(CancellationToken ct)
         {
             var tcs = new TaskCompletionSource();
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.Begin(this, tcs);
             }
             using var registration = ct.Register(() =>
             {
-                lock (stateSyncObj)
+                lock (syncObj)
                 {
                     State.CancelUsiOk(this);
                 }
@@ -179,7 +179,7 @@ namespace ShogiLibSharp.Engine
 
         public void SetOption()
         {
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.SetOption(this);
             }
@@ -209,13 +209,13 @@ namespace ShogiLibSharp.Engine
         private async Task IsReadyAsyncImpl(CancellationToken ct)
         {
             var tcs = new TaskCompletionSource();
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.IsReady(this, tcs);
             }
             using var registration = ct.Register(() =>
             {
-                lock (stateSyncObj)
+                lock (syncObj)
                 {
                     State.CancelReadyOk(this);
                 }
@@ -226,30 +226,31 @@ namespace ShogiLibSharp.Engine
 
         public void StartNewGame()
         {
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.StartNewGame(this);
             }
         }
 
-        public async Task QuitAsync(CancellationToken ct = default)
+        public async Task QuitAsync()
         {
             var tcs = new TaskCompletionSource();
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.Quit(this, tcs);
             }
-            using var registration = ct.Register(() =>
+            using var cts = new CancellationTokenSource(ExitWaitingTime);
+            using var registration = cts.Token.Register(() =>
             {
-                lock (procSyncObj)
+                lock (syncObj)
                 {
                     try
                     {
                         process.Kill();
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
-                        tcs.SetException(e);
+                        tcs.TrySetException(e);
                     }
                 }
             });
@@ -259,7 +260,7 @@ namespace ShogiLibSharp.Engine
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource<(Move, Move)>();
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.Go(this, pos, limits, tcs);
             }
@@ -268,13 +269,13 @@ namespace ShogiLibSharp.Engine
             using var registration = ct.Register(() =>
             {
                 var task = Task.Delay(BestmoveResponseTimeout, cts.Token);
-                lock (stateSyncObj)
+                lock (syncObj)
                 {
                     State.StopGo(this);
                 }
                 task.ContinueWith(x =>
                 {
-                    lock (stateSyncObj)
+                    lock (syncObj)
                     {
                         State.StopWaitingForBestmove(this);
                     }
@@ -288,7 +289,7 @@ namespace ShogiLibSharp.Engine
 
         public void GoPonder(Position pos, SearchLimit limits)
         {
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.GoPonder(this, pos, limits);
             }
@@ -297,7 +298,7 @@ namespace ShogiLibSharp.Engine
         public async Task<(Move, Move)> StopPonderAsync()
         {
             var tcs = new TaskCompletionSource<(Move, Move)>();
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.StopPonder(this, tcs);
             }
@@ -306,7 +307,7 @@ namespace ShogiLibSharp.Engine
 
         public void Gameover(string message)
         {
-            lock (stateSyncObj)
+            lock (syncObj)
             {
                 State.Gameover(this, message);
             }

@@ -197,10 +197,10 @@ namespace ShogiLibSharp.Engine.Tests
                 .Raises(x => x.Exited += null, new EventArgs());
 
             using var engine = new UsiEngine(mock.Object);
+            engine.ExitWaitingTime = TimeSpan.FromSeconds(0.1);
 
             await engine.BeginAsync();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
-            await engine.QuitAsync(cts.Token);
+            await engine.QuitAsync();
         }
 
         [TestMethod(), Timeout(5000)]

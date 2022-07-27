@@ -19,7 +19,7 @@ namespace ShogiLibSharp.Engine.States
         public override void Exited(UsiEngine context)
         {
             context.State = new Invalid();
-            tcs.SetResult();
+            tcs.TrySetResult();
         }
     }
 }
