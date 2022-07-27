@@ -26,7 +26,7 @@ namespace ShogiLibSharp.Engine.States
         public override void CancelReadyOk(UsiEngine context)
         {
             context.State = new Activated();
-            tcs.SetException(new EngineException("readyok 待ちがキャンセルされました。"));
+            tcs.SetResult();
         }
     }
 }

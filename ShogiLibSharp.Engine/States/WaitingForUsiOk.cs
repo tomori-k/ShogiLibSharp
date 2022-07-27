@@ -25,7 +25,7 @@ namespace ShogiLibSharp.Engine.States
         public override void CancelUsiOk(UsiEngine context)
         {
             context.State = new Invalid();
-            tcs.SetException(new Exceptions.EngineException("usiok 待ちがキャンセルされました。"));
+            tcs.SetResult();
         }
     }
 }

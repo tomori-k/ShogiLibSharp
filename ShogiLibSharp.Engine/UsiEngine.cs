@@ -19,6 +19,8 @@ namespace ShogiLibSharp.Engine
         public event Action<string?>? StdOut;
         public event Action<string?>? StdErr;
 
+        public TimeSpan UsiOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
+        public TimeSpan ReadyOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan BestmoveResponseTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
 
         public UsiEngine(string fileName, string workingDir, string arguments = "")
@@ -138,6 +140,27 @@ namespace ShogiLibSharp.Engine
 
         public async Task BeginAsync(CancellationToken ct = default)
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(UsiOkTimeout);
+            try
+            {
+                await BeginAsyncImpl(cts.Token);
+            }
+            catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(e.Message, e, ct);
+                }
+                else
+                {
+                    throw new TimeoutException($"usiok が {UsiOkTimeout.TotalSeconds} 秒待っても返ってきませんでした。");
+                }
+            }
+        }
+
+        private async Task BeginAsyncImpl(CancellationToken ct)
+        {
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
             {
@@ -151,6 +174,7 @@ namespace ShogiLibSharp.Engine
                 }
             });
             await tcs.Task;
+            ct.ThrowIfCancellationRequested();
         }
 
         public void SetOption()
@@ -162,6 +186,27 @@ namespace ShogiLibSharp.Engine
         }
 
         public async Task IsReadyAsync(CancellationToken ct = default)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(ReadyOkTimeout);
+            try
+            {
+                await IsReadyAsyncImpl(cts.Token);
+            }
+            catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(e.Message, e, ct);
+                }
+                else
+                {
+                    throw new TimeoutException($"readyok が {UsiOkTimeout.TotalSeconds} 秒待っても返ってきませんでした。");
+                }
+            }
+        }
+
+        private async Task IsReadyAsyncImpl(CancellationToken ct)
         {
             var tcs = new TaskCompletionSource();
             lock (stateSyncObj)
@@ -176,6 +221,7 @@ namespace ShogiLibSharp.Engine
                 }
             });
             await tcs.Task;
+            ct.ThrowIfCancellationRequested();
         }
 
         public void StartNewGame()

@@ -143,51 +143,39 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod(), Timeout(5000)]
         public async Task UsiOkTimeoutTest()
         {
-            var mock = new Mock<IEngineProcess>();
-            mock.Setup(m => m.SendLine("usi"))
-                .Callback(() =>
-                {
-                    mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
-                    mock.Raise(x => x.StdOutReceived += null, "id author Author1");
-                    mock.Raise(x => x.StdOutReceived += null, "usook"); // typo
-                });
+            using var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            engine1.UsiOkTimeout = TimeSpan.FromSeconds(0.1);
+            await Assert.ThrowsExceptionAsync<TimeoutException>(async () =>
+            {
+                await engine1.BeginAsync();
+            });
 
-            using var engine = new UsiEngine(mock.Object);
-
-            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            // 外部の cts のキャンセルは、OperationCanceled になる
+            using var engine2 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
-                await engine.BeginAsync(cts.Token);
+                await engine2.BeginAsync(cts.Token);
             });
         }
 
         [TestMethod(), Timeout(5000)]
         public async Task ReadyOkTimeoutTest()
         {
-            var mock = new Mock<IEngineProcess>();
-            mock.Setup(m => m.SendLine("usi"))
-                .Callback(() =>
-                {
-                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
-                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
-                    mock.Raise(x => x.StdOutReceived += null, "usiok");
-                });
-
-            mock.Setup(m => m.SendLine("isready"))
-                .Callback(() =>
-                {
-                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
-                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
-                    // ...
-                });
-
-            using var engine = new UsiEngine(mock.Object);
-
-            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            using var engine1 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
+            engine1.ReadyOkTimeout = TimeSpan.FromSeconds(0.1);
+            await Assert.ThrowsExceptionAsync<TimeoutException>(async () =>
             {
-                await engine.BeginAsync();
+                await engine1.BeginAsync();
+                await engine1.IsReadyAsync();
+            });
+
+            using var engine2 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
+            {
+                await engine2.BeginAsync();
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
-                await engine.IsReadyAsync(cts.Token);
+                await engine2.IsReadyAsync(cts.Token);
             });
         }
 
@@ -248,6 +236,40 @@ namespace ShogiLibSharp.Engine.Tests
             {
                 await engine.GoAsync(new Position(Position.Hirate), new SearchLimit(), cts.Token);
             });
+        }
+
+        private static IEngineProcess CreateMock_FailToReturnUsiOk()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author1");
+                    mock.Raise(x => x.StdOutReceived += null, "usook"); // typo
+                });
+            return mock.Object;
+        }
+
+        private static IEngineProcess CreateMock_ForgetToReturnReadyOk()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    // ...
+                });
+            return mock.Object;
         }
 
         private static (IEngineProcess, StringBuilder) CreateMockProcess()
