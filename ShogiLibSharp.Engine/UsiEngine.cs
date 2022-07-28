@@ -1,4 +1,6 @@
-﻿using ShogiLibSharp.Core;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using ShogiLibSharp.Core;
 using ShogiLibSharp.Engine.Process;
 using ShogiLibSharp.Engine.States;
 using System.Diagnostics;
@@ -10,6 +12,7 @@ namespace ShogiLibSharp.Engine
         private IEngineProcess process;
         private object syncObj = new();
         internal StateBase State { get; set; } = new Deactivated();
+        internal ILogger<UsiEngine> Logger { get; }
 
         public string Name { get; private set; } = "";
         public string Author { get; private set; } = "";
@@ -23,8 +26,9 @@ namespace ShogiLibSharp.Engine
         public TimeSpan BestmoveResponseTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan ExitWaitingTime { get; set; } = TimeSpan.FromSeconds(10.0);
 
-        public UsiEngine(string fileName, string workingDir, string arguments = "")
+        public UsiEngine(string fileName, string workingDir, ILogger<UsiEngine> logger, string arguments = "")
         {
+            this.Logger = logger;
             var si = new ProcessStartInfo(fileName, arguments)
             {
                 UseShellExecute = false,
@@ -41,8 +45,13 @@ namespace ShogiLibSharp.Engine
             SetEventCallback();
         }
 
+        public UsiEngine(string fileName, string workingDir, string arguments = "")
+            : this(fileName, workingDir, NullLogger<UsiEngine>.Instance, arguments)
+        {
+        }
+
         public UsiEngine(string fileName, string arguments = "")
-            : this(fileName, Path.GetDirectoryName(fileName) ?? "", arguments)
+            : this(fileName, Path.GetDirectoryName(fileName) ?? "", NullLogger<UsiEngine>.Instance, arguments)
         {
         }
 

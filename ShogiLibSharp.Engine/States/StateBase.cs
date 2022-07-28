@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using ShogiLibSharp.Core;
 using ShogiLibSharp.Engine.Exceptions;
 
@@ -45,13 +46,13 @@ namespace ShogiLibSharp.Engine.States
             => throw new InvalidOperationException($"状態：{Name} において、gameover コマンドの送信は不正な操作です。");
 
         public virtual void UsiOk(UsiEngine context)
-            => throw new EngineException($"状態：{Name} において不正なコマンド usiok を受信しました。");
+            => context.Logger.LogInformation("状態：{Name} において不正なコマンド usiok を受信しました。", Name);
 
         public virtual void ReadyOk(UsiEngine context)
-            => throw new EngineException($"状態：{Name} において不正なコマンド readyok を受信しました。");
+            => context.Logger.LogInformation("状態：{Name} において不正なコマンド readyok を受信しました。", Name);
 
         public virtual void Bestmove(UsiEngine context, string message)
-            => throw new EngineException($"状態：{Name} において不正なコマンド {message} を受信しました。");
+            => context.Logger.LogInformation("状態：{Name} において不正なコマンド {message} を受信しました。", Name, message);
 
         public virtual void CancelUsiOk(UsiEngine context) { /* 何もしない */ }
 
