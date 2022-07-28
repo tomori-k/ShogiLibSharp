@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Exceptions;
 using ShogiLibSharp.Engine.Options;
 using ShogiLibSharp.Engine.Process;
 using ShogiLibSharp.Engine.States;
@@ -169,7 +170,7 @@ namespace ShogiLibSharp.Engine
                 }
                 else
                 {
-                    throw new TimeoutException($"usiok が {UsiOkTimeout.TotalSeconds} 秒待っても返ってきませんでした。");
+                    throw new EngineException($"usiok が {UsiOkTimeout.TotalSeconds} 秒待っても返ってきませんでした。");
                 }
             }
         }
@@ -216,7 +217,7 @@ namespace ShogiLibSharp.Engine
                 }
                 else
                 {
-                    throw new TimeoutException($"readyok が {UsiOkTimeout.TotalSeconds} 秒待っても返ってきませんでした。");
+                    throw new EngineException($"readyok が {UsiOkTimeout.TotalSeconds} 秒待っても返ってきませんでした。");
                 }
             }
         }
