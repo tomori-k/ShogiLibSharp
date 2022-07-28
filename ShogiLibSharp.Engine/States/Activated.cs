@@ -20,6 +20,10 @@ namespace ShogiLibSharp.Engine.States
         public override void IsReady(UsiEngine context, TaskCompletionSource tcs)
         {
             context.State = new WaitingForReadyOk(tcs);
+            foreach (var (name, value) in context.Options)
+            {
+                context.Send($"setoption name {name} value {value}");
+            }
             context.Send("isready");
         }
 

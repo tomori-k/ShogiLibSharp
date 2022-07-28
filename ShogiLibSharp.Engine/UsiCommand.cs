@@ -1,4 +1,5 @@
 ﻿using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,51 @@ namespace ShogiLibSharp.Engine
             return sp.Length < 4
                 ? (Usi.ParseMove(sp[1]), Move.None)
                 : (Usi.ParseMove(sp[1]), Usi.ParseMove(sp[3]));
+        }
+
+        public static (string, IUsiOptionValue) ParseOption(string command)
+        {
+            var sp = command.Split();
+            if (sp.Length < 5)
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。：{command}");
+            }
+            var name = sp[2];
+            var typeName = sp[4];
+            return typeName switch
+            {
+                "spin" => ((string, IUsiOptionValue))(name, ParseSpinOption(command, sp)),
+                _ => throw new NotImplementedException(),
+            };
+        }
+
+        private static Spin ParseSpinOption(string command, string[] sp)
+        {
+            if (sp.Length < 11)
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。：{command}");
+            }
+
+            string defaultStr, minStr, maxStr;
+            try
+            {
+                defaultStr = sp.SkipWhile(x => x != "default").Skip(1).First();
+                minStr = sp.SkipWhile(x => x != "min").Skip(1).First();
+                maxStr = sp.SkipWhile(x => x != "max").Skip(1).First();
+            }
+            catch(InvalidOperationException e)
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。値が欠けています：{command}", e);
+            }
+
+            if (long.TryParse(defaultStr, out var defaultValue)
+                && long.TryParse(minStr, out var min)
+                && long.TryParse(maxStr, out var max))
+            {
+                return Spin.Create(defaultValue, min, max);
+            }
+            else
+                throw new FormatException($"USI 形式の option コマンドではありません。数値に変換できません：{command}");
         }
     }
 }

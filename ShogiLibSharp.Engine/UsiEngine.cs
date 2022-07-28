@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Options;
 using ShogiLibSharp.Engine.Process;
 using ShogiLibSharp.Engine.States;
 using System.Diagnostics;
@@ -16,6 +17,7 @@ namespace ShogiLibSharp.Engine
 
         public string Name { get; private set; } = "";
         public string Author { get; private set; } = "";
+        public Dictionary<string, IUsiOptionValue> Options { get; } = new();
 
         public event Action<string>? StdIn;
         public event Action<string?>? StdOut;
@@ -62,6 +64,7 @@ namespace ShogiLibSharp.Engine
         public UsiEngine(IEngineProcess process)
         {
             this.process = process;
+            this.Logger = NullLogger<UsiEngine>.Instance;
             SetEventCallback();
         }
 
@@ -104,6 +107,18 @@ namespace ShogiLibSharp.Engine
                 if (sp.Length < 3) return;
                 else if (sp[1] == "name") this.Name = sp[2];
                 else if (sp[1] == "author") this.Author = sp[2];
+            }
+            else if (message.StartsWith("option"))
+            {
+                try
+                {
+                    var (name, value) = UsiCommand.ParseOption(message);
+                    Options[name] = value;
+                }
+                catch (FormatException e)
+                {
+                    Logger.LogWarning(e, "エンジンオプションを解析できません");
+                }
             }
         }
 

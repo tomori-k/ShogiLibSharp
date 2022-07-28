@@ -2,6 +2,7 @@
 using Moq;
 using ShogiLibSharp.Core;
 using ShogiLibSharp.Engine.Exceptions;
+using ShogiLibSharp.Engine.Options;
 using ShogiLibSharp.Engine.Process;
 using System;
 using System.Collections.Generic;
@@ -260,6 +261,28 @@ namespace ShogiLibSharp.Engine.Tests
                 await engine1.IsReadyAsync();
             });
             // todo: 探索中に落ちるモック作る
+        }
+
+        [TestMethod]
+        public async Task UsiOptionTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author1");
+                    mock.Raise(x => x.StdOutReceived += null, "option name USI_Hash type spin default 1024 min 1 max 33554432");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                    //mock.Raise(x => x.StdOutReceived += null, "option name USI_Ponder type check default false");
+                });
+            var engine1 = new UsiEngine(mock.Object);
+            await engine1.BeginAsync();
+            Assert.AreEqual(1024L, ((Spin)engine1.Options["USI_Hash"]).Value);
+            Assert.AreEqual(1024L, ((Spin)engine1.Options["USI_Hash"]).Default);
+            Assert.AreEqual(1L, ((Spin)engine1.Options["USI_Hash"]).Min);
+            Assert.AreEqual(33554432L, ((Spin)engine1.Options["USI_Hash"]).Max);
+
         }
 
         private static IEngineProcess CreateMock_FailToReturnUsiOk()
