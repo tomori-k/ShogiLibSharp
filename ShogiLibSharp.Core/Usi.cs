@@ -68,6 +68,8 @@ namespace ShogiLibSharp.Core
         /// <exception cref="FormatException"></exception>
         public static Move ParseMove(string usiMove)
         {
+            if (usiMove == "resign") return Move.Resign;
+
             if (usiMove.Length < 4)
             {
                 throw new FormatException($"USI 形式ではありません：{usiMove}");

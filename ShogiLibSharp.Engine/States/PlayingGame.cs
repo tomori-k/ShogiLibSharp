@@ -37,5 +37,10 @@ namespace ShogiLibSharp.Engine.States
         {
             // 無視（たまたま bestmove がタイムアウトより遅れて返ってきたときにエラーが出てほしくない）
         }
+
+        public override void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
+        {
+            tcs.TrySetResult((Move.None, Move.None));
+        }
     }
 }

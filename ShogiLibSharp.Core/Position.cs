@@ -275,7 +275,7 @@ namespace ShogiLibSharp.Core
         {
             if (!IsLegalMove(m))
             {
-                throw new ArgumentException($"{m} は合法手ではありません、局面：{this}");
+                throw new ArgumentException($"{m.Usi()} は合法手ではありません、局面：{this}");
             }
             DoMove_PseudoLegal(m);
         }
@@ -648,9 +648,13 @@ namespace ShogiLibSharp.Core
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 開始局面 + そこからの指し手の sfen
+        /// </summary>
+        /// <returns></returns>
         public string SfenWithMoves()
         {
-            return $"sfen {initPos} moves {string.Join(' ', moves.Select(x => x.Move.Usi()))}";
+            return $"sfen {initPos} moves {string.Join(' ', moves.Reverse().Select(x => x.Move.Usi()))}";
         }
 
         /// <summary>
