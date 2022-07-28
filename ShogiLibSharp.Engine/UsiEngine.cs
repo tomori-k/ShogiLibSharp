@@ -9,6 +9,9 @@ using System.Diagnostics;
 
 namespace ShogiLibSharp.Engine
 {
+    /// <summary>
+    /// USI プロトコル対応エンジンを扱うクラス
+    /// </summary>
     public class UsiEngine : IDisposable
     {
         private IEngineProcess process;
@@ -145,6 +148,10 @@ namespace ShogiLibSharp.Engine
             Send($"go{ponderFlag} {limits}");
         }
 
+        /// <summary>
+        /// エンジンにコマンドを送信
+        /// </summary>
+        /// <param name="command"></param>
         public void Send(string command)
         {
             lock (syncObj)
@@ -154,6 +161,14 @@ namespace ShogiLibSharp.Engine
             }
         }
 
+        /// <summary>
+        /// プロセスを起動して usi コマンドを送信し、usiok が返ってくるまで待機
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="OperationCanceledException">CancellationToken により処理がキャンセルされたときにスロー。</exception>
+        /// <exception cref="EngineException">エンジンが落ちる、タイムアウト時間を超えても返事がないときなどにスロー。</exception>
+        /// <exception cref="ObjectDisposedException">起動中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task BeginAsync(CancellationToken ct = default)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -193,14 +208,14 @@ namespace ShogiLibSharp.Engine
             ct.ThrowIfCancellationRequested();
         }
 
-        public void SetOption()
-        {
-            lock (syncObj)
-            {
-                State.SetOption(this);
-            }
-        }
-
+        /// <summary>
+        /// isready コマンドを送信し、readyok が返ってくるまで待機
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="OperationCanceledException">CancellationToken により処理がキャンセルされたときにスロー。</exception>
+        /// <exception cref="EngineException">エンジンが落ちる、タイムアウト時間を超えても返事がないときなどにスロー。</exception>
+        /// <exception cref="ObjectDisposedException">待機中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task IsReadyAsync(CancellationToken ct = default)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -240,6 +255,9 @@ namespace ShogiLibSharp.Engine
             ct.ThrowIfCancellationRequested();
         }
 
+        /// <summary>
+        /// usinewgame
+        /// </summary>
         public void StartNewGame()
         {
             lock (syncObj)
@@ -248,6 +266,11 @@ namespace ShogiLibSharp.Engine
             }
         }
 
+        /// <summary>
+        /// quit コマンドを送信し、プロセスが終了するまで待機 <br/>
+        /// quit 送信後 ExitWaitingTime 経っても終了しない場合は強制的に Kill
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">終了待機中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task QuitAsync()
         {
             var tcs = new TaskCompletionSource();
@@ -273,6 +296,16 @@ namespace ShogiLibSharp.Engine
             await tcs.Task.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// go コマンドを送信し、bestmove が返ってくるまで待機
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <param name="limits"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="OperationCanceledException">CancellationToken により処理がキャンセルされたときにスロー。</exception>
+        /// <exception cref="EngineException">エンジンが落ちる、タイムアウト時間を超えても返事がないときなどにスロー。</exception>
+        /// <exception cref="ObjectDisposedException">探索中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource<(Move, Move)>();
@@ -303,6 +336,11 @@ namespace ShogiLibSharp.Engine
             return result;
         }
 
+        /// <summary>
+        /// go ponder コマンドを送信
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <param name="limits"></param>
         public void GoPonder(Position pos, SearchLimit limits)
         {
             lock (syncObj)
@@ -311,6 +349,10 @@ namespace ShogiLibSharp.Engine
             }
         }
 
+        /// <summary>
+        /// ponder の停止を行い、bestmove が返ってくるまで待つ
+        /// </summary>
+        /// <returns></returns>
         public async Task<(Move, Move)> StopPonderAsync()
         {
             var tcs = new TaskCompletionSource<(Move, Move)>();
@@ -321,6 +363,10 @@ namespace ShogiLibSharp.Engine
             return await tcs.Task.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// gameover コマンドを送信
+        /// </summary>
+        /// <param name="message"></param>
         public void Gameover(string message)
         {
             lock (syncObj)

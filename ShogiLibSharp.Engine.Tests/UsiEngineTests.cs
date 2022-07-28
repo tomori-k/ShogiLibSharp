@@ -146,7 +146,7 @@ namespace ShogiLibSharp.Engine.Tests
         {
             using var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
             engine1.UsiOkTimeout = TimeSpan.FromSeconds(0.1);
-            await Assert.ThrowsExceptionAsync<TimeoutException>(async () =>
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
                 await engine1.BeginAsync();
             });
@@ -165,7 +165,7 @@ namespace ShogiLibSharp.Engine.Tests
         {
             using var engine1 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
             engine1.ReadyOkTimeout = TimeSpan.FromSeconds(0.1);
-            await Assert.ThrowsExceptionAsync<TimeoutException>(async () =>
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
                 await engine1.BeginAsync();
                 await engine1.IsReadyAsync();
