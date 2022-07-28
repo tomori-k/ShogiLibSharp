@@ -355,12 +355,23 @@ namespace ShogiLibSharp.Engine
         /// <returns></returns>
         public async Task<(Move, Move)> StopPonderAsync()
         {
+            using var cts = new CancellationTokenSource();
+            var _ = Task.Delay(BestmoveResponseTimeout, cts.Token)
+                .ContinueWith(x =>
+                {
+                    lock (syncObj)
+                    {
+                        State.StopWaitingForBestmove(this);
+                    }
+                });
             var tcs = new TaskCompletionSource<(Move, Move)>();
             lock (syncObj)
             {
                 State.StopPonder(this, tcs);
             }
-            return await tcs.Task.ConfigureAwait(false);
+            var result = await tcs.Task.ConfigureAwait(false);
+            cts.Cancel();
+            return result;
         }
 
         /// <summary>

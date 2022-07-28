@@ -231,11 +231,45 @@ namespace ShogiLibSharp.Engine.Tests
             await engine.BeginAsync();
             await engine.IsReadyAsync();
             engine.StartNewGame();
-            engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.3);
+            engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.2);
             using var cts = new CancellationTokenSource(100);
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
                 await engine.GoAsync(new Position(Position.Hirate), new SearchLimit(), cts.Token);
+            });
+        }
+
+        [TestMethod, Timeout(5000)]
+        public async Task StopPonderTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock3");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author3");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    mock.Raise(x => x.StdOutReceived += null, "readyok");
+                });
+
+            using var engine = new UsiEngine(mock.Object);
+
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+            engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.1);
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                engine.GoPonder(new Position(Position.Hirate), new SearchLimit());
+                await Task.Delay(100);
+                await engine.StopPonderAsync();
             });
         }
 
@@ -273,16 +307,29 @@ namespace ShogiLibSharp.Engine.Tests
                     mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
                     mock.Raise(x => x.StdOutReceived += null, "id author Author1");
                     mock.Raise(x => x.StdOutReceived += null, "option name USI_Hash type spin default 1024 min 1 max 33554432");
+                    mock.Raise(x => x.StdOutReceived += null, "option name USI_Ponder type check default false");
+                    mock.Raise(x => x.StdOutReceived += null, "option name Style type combo default Normal var Solid var Normal var Risky");
+                    mock.Raise(x => x.StdOutReceived += null, "option name BookFile type string default public.bin");
+                    mock.Raise(x => x.StdOutReceived += null, "option name LearningFile type filename default <empty>");
                     mock.Raise(x => x.StdOutReceived += null, "usiok");
-                    //mock.Raise(x => x.StdOutReceived += null, "option name USI_Ponder type check default false");
                 });
+
             var engine1 = new UsiEngine(mock.Object);
             await engine1.BeginAsync();
+
             Assert.AreEqual(1024L, ((Spin)engine1.Options["USI_Hash"]).Value);
             Assert.AreEqual(1024L, ((Spin)engine1.Options["USI_Hash"]).Default);
             Assert.AreEqual(1L, ((Spin)engine1.Options["USI_Hash"]).Min);
             Assert.AreEqual(33554432L, ((Spin)engine1.Options["USI_Hash"]).Max);
-
+            Assert.AreEqual(false, ((Check)engine1.Options["USI_Ponder"]).Value);
+            Assert.AreEqual(false, ((Check)engine1.Options["USI_Ponder"]).Default);
+            Assert.AreEqual("Normal", ((Combo)engine1.Options["Style"]).Value);
+            Assert.AreEqual("Solid Normal Risky", string.Join(' ', ((Combo)engine1.Options["Style"]).Items));
+            Assert.AreEqual("Normal", ((Combo)engine1.Options["Style"]).Default);
+            Assert.AreEqual("public.bin", ((Options.String)engine1.Options["BookFile"]).Value);
+            Assert.AreEqual("public.bin", ((Options.String)engine1.Options["BookFile"]).Default);
+            Assert.AreEqual("", ((FileName)engine1.Options["LearningFile"]).Value);
+            Assert.AreEqual("", ((FileName)engine1.Options["LearningFile"]).Default);
         }
 
         private static IEngineProcess CreateMock_FailToReturnUsiOk()
