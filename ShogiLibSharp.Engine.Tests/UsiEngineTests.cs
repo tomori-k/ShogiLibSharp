@@ -250,6 +250,18 @@ namespace ShogiLibSharp.Engine.Tests
             });
         }
 
+        [TestMethod]
+        public async Task ExitTest()
+        {
+            using var engine1 = new UsiEngine(CreateMock_ExitWhileIsReady());
+            await engine1.BeginAsync();
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine1.IsReadyAsync();
+            });
+            // todo: 探索中に落ちるモック作る
+        }
+
         private static IEngineProcess CreateMock_FailToReturnUsiOk()
         {
             var mock = new Mock<IEngineProcess>();
@@ -280,6 +292,27 @@ namespace ShogiLibSharp.Engine.Tests
                     mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
                     mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
                     // ...
+                });
+            return mock.Object;
+        }
+
+        private static IEngineProcess CreateMock_ExitWhileIsReady()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    mock.Raise(x => x.Exited += null, new EventArgs());
                 });
             return mock.Object;
         }
