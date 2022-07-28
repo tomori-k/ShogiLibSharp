@@ -153,7 +153,7 @@ namespace ShogiLibSharp.Engine
             cts.CancelAfter(UsiOkTimeout);
             try
             {
-                await BeginAsyncImpl(cts.Token);
+                await BeginAsyncImpl(cts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
             {
@@ -182,7 +182,7 @@ namespace ShogiLibSharp.Engine
                     State.CancelUsiOk(this);
                 }
             });
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
         }
 
@@ -200,7 +200,7 @@ namespace ShogiLibSharp.Engine
             cts.CancelAfter(ReadyOkTimeout);
             try
             {
-                await IsReadyAsyncImpl(cts.Token);
+                await IsReadyAsyncImpl(cts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
             {
@@ -229,7 +229,7 @@ namespace ShogiLibSharp.Engine
                     State.CancelReadyOk(this);
                 }
             });
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
         }
 
@@ -263,7 +263,7 @@ namespace ShogiLibSharp.Engine
                     }
                 }
             });
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
         }
 
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
@@ -291,7 +291,7 @@ namespace ShogiLibSharp.Engine
                 });
             }); // この Go に対するキャンセルを解除
 
-            var result = await tcs.Task;
+            var result = await tcs.Task.ConfigureAwait(false);
             cts.Cancel();
             return result;
         }
@@ -311,7 +311,7 @@ namespace ShogiLibSharp.Engine
             {
                 State.StopPonder(this, tcs);
             }
-            return await tcs.Task;
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         public void Gameover(string message)
