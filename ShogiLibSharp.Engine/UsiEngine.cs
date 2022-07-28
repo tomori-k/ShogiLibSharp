@@ -139,18 +139,9 @@ namespace ShogiLibSharp.Engine
 
         internal void SendGo(string sfenWithMoves, SearchLimit limits, bool ponder = false)
         {
-            Send($"position {sfenWithMoves}");
-
             var ponderFlag = ponder ? " ponder" : "";
-
-            if (limits.Binc == 0 && limits.Winc == 0)
-            {
-                Send($"go{ponderFlag} btime {limits.Btime} wtime {limits.Wtime} byoyomi {limits.Byoyomi}");
-            }
-            else
-            {
-                Send($"go{ponderFlag} btime {limits.Btime} wtime {limits.Wtime} binc {limits.Binc} winc {limits.Winc}");
-            }
+            Send($"position {sfenWithMoves}");
+            Send($"go{ponderFlag} {limits}");
         }
 
         public void Send(string command)
