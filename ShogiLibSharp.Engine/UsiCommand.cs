@@ -33,9 +33,64 @@ namespace ShogiLibSharp.Engine
             var typeName = sp[4];
             return typeName switch
             {
-                "spin" => ((string, IUsiOptionValue))(name, ParseSpinOption(command, sp)),
+                "check" => (name, ParseCheckOption(command, sp)),
+                "spin" => (name, ParseSpinOption(command, sp)),
+                "combo" => (name, ParseComboOption(command, sp)),
+                "string" => (name, ParseStringOption(command, sp)),
+                "filename" => (name, ParseFileNameOption(command, sp)),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        private static FileName ParseFileNameOption(string command, string[] sp)
+        {
+            if(sp.Length < 7)
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。：{command}");
+            }
+            return FileName.Create(sp[6] == "<empty>" ? "" : sp[6]);
+        }
+
+        private static Options.String ParseStringOption(string command, string[] sp)
+        {
+            if (sp.Length < 7)
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。：{command}");
+            }
+            return Options.String.Create(sp[6] == "<empty>" ? "" : sp[6]);
+        }
+
+        private static Combo ParseComboOption(string command, string[] sp)
+        {
+            var defaultValue = sp.SkipWhile(x => x != "default").Skip(1).FirstOrDefault();
+            var items = sp.Zip(sp.Skip(1))
+                .Where(x => x.First == "var")
+                .Select(x => x.Second)
+                .ToList();
+            if (items.Contains(defaultValue))
+            {
+                return Combo.Create(defaultValue, items);
+            }
+            else
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。：{command}");
+            }
+        }
+
+        private static IUsiOptionValue ParseCheckOption(string command, string[] sp)
+        {
+            if (sp.Length < 7)
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。：{command}");
+            }
+            if (bool.TryParse(sp[6], out var value))
+            {
+                return Check.Create(value);
+            }
+            else
+            {
+                throw new FormatException($"USI 形式の option コマンドではありません。bool 値に変換できません：{command}");
+            }
         }
 
         private static Spin ParseSpinOption(string command, string[] sp)

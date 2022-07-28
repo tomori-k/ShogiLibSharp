@@ -22,7 +22,7 @@ namespace ShogiLibSharp.Engine.States
             context.State = new WaitingForReadyOk(tcs);
             foreach (var (name, value) in context.Options)
             {
-                context.Send($"setoption name {name} value {value}");
+                context.Send($"setoption name {name} value {value.Value}");
             }
             context.Send("isready");
         }
