@@ -238,6 +238,18 @@ namespace ShogiLibSharp.Engine.Tests
             });
         }
 
+        [TestMethod]
+        public async Task DisposeTest()
+        {
+            var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            var task = engine1.BeginAsync();
+            engine1.Dispose(); // 間違えて Begin 中に Dispose
+            await Assert.ThrowsExceptionAsync<ObjectDisposedException>(async () =>
+            {
+                await task;
+            });
+        }
+
         private static IEngineProcess CreateMock_FailToReturnUsiOk()
         {
             var mock = new Mock<IEngineProcess>();

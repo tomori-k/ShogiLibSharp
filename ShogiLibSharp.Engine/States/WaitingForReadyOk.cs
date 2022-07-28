@@ -20,13 +20,19 @@ namespace ShogiLibSharp.Engine.States
         public override void ReadyOk(UsiEngine context)
         {
             context.State = new WaitingForNextGame();
-            tcs.SetResult();
+            tcs.TrySetResult();
         }
 
         public override void CancelReadyOk(UsiEngine context)
         {
             context.State = new Activated();
-            tcs.SetResult();
+            tcs.TrySetResult();
+        }
+
+        public override void Dispose(UsiEngine context)
+        {
+            context.State = new Invalid();
+            tcs.TrySetException(new ObjectDisposedException(nameof(context), "UsiEngine が Dispose されました。"));
         }
     }
 }

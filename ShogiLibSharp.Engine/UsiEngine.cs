@@ -315,7 +315,11 @@ namespace ShogiLibSharp.Engine
 
         public void Dispose()
         {
-            this.process.Dispose();
+            lock (syncObj)
+            {
+                State.Dispose(this);
+                this.process.Dispose();
+            }
         }
     }
 }

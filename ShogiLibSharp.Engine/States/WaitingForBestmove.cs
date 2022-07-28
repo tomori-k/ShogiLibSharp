@@ -24,10 +24,16 @@ namespace ShogiLibSharp.Engine.States
             SetBestmove(tcs, message);
         }
 
-        public sealed override void StopWaitingForBestmove(UsiEngine context)
+        public override void StopWaitingForBestmove(UsiEngine context)
         {
             context.State = new PlayingGame();
-            tcs.SetException(new EngineException("タイムアウト時間を超えても bestmove が返ってきませんでした。"));
+            tcs.TrySetException(new EngineException("タイムアウト時間を超えても bestmove が返ってきませんでした。"));
+        }
+
+        public override void Dispose(UsiEngine context)
+        {
+            context.State = new Invalid();
+            tcs.TrySetException(new ObjectDisposedException(nameof(context), "UsiEngine が Dispose されました。"));
         }
     }
 }

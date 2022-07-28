@@ -29,5 +29,11 @@ namespace ShogiLibSharp.Engine.States
             context.State = new WaitingForBestmove(this.tcs);
             context.Send("stop");
         }
+
+        public override void Dispose(UsiEngine context)
+        {
+            context.State = new Invalid();
+            tcs.TrySetException(new ObjectDisposedException(nameof(context), "UsiEngine が Dispose されました。"));
+        }
     }
 }
