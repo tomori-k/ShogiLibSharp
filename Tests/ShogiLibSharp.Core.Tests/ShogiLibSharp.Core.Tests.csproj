@@ -16,8 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj" />
-    <ProjectReference Include="..\ShogiLibSharp.Core\ShogiLibSharp.Core.csproj" />
+    <ProjectReference Include="..\..\ShogiLibSharp.Core\ShogiLibSharp.Core.csproj" />
+    <ProjectReference Include="..\..\ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj" />
   </ItemGroup>
 
   <ItemGroup>

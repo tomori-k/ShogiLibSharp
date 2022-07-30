@@ -1,0 +1,372 @@
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
+using ShogiLibSharp.Core;
+using ShogiLibSharp.Engine.Exceptions;
+using ShogiLibSharp.Engine.Options;
+using ShogiLibSharp.Engine.Process;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ShogiLibSharp.Engine.Tests
+{
+    [TestClass()]
+    public class UsiEngineTests
+    {
+        [TestMethod(), Timeout(10000)]
+        public async Task UsiEngineTest()
+        {
+            using var engine1 = new UsiEngine(new RandomPlayer());
+            using var engine2 = new UsiEngine(new RandomPlayer());
+
+            //engine1.StdIn += s => Trace.WriteLine($"< {s}");
+            //engine1.StdOut += s => Trace.WriteLine($"  > {s}");
+
+            await Task.WhenAll(engine1.BeginAsync(), engine2.BeginAsync());
+            await Task.WhenAll(engine1.IsReadyAsync(), engine2.IsReadyAsync());
+            engine1.StartNewGame();
+            engine2.StartNewGame();
+
+            var pos = new Position(Position.Hirate);
+            var limits = SearchLimit.Create(TimeSpan.Zero);
+            var (p, o) = (engine1, engine2);
+
+            while (!pos.IsMated()
+                && pos.CheckRepetition() == Repetition.None)
+            {
+                var (bestmove, ponder) = await p.GoAsync(pos, limits);
+                pos.DoMove(bestmove);
+                if (pos.IsLegalMove(ponder))
+                {
+                    pos.DoMove(ponder);
+                    p.GoPonder(pos, limits);
+                    pos.UndoMove();
+                }
+                (p, o) = (o, p);
+            }
+
+            await Task.WhenAll(p.StopPonderAsync(), o.StopPonderAsync());
+
+            if (pos.CheckRepetition() == Repetition.None)
+            {
+                p.Gameover("lose");
+                o.Gameover("win");
+            }
+            else
+            {
+                p.Gameover("draw");
+                o.Gameover("draw");
+            }
+
+            await Task.WhenAll(engine1.QuitAsync(), engine2.QuitAsync());
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task CancelGoTest()
+        {
+            var process = new RandomPlayer();
+            using var engine = new UsiEngine(process);
+
+            await engine.BeginAsync();
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+            {
+                await engine.BeginAsync();
+            });
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+
+            var pos = new Position(Position.Hirate);
+            using var cts = new CancellationTokenSource(100);
+            await engine.GoAsync(pos, SearchLimit.Create(TimeSpan.FromSeconds(1000000.0)), cts.Token);
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task GoAsyncTest()
+        {
+            var process = new RandomPlayer();
+            process.StdOutReceived += s => Trace.WriteLine($"> {s}");
+
+            using var engine = new UsiEngine(process);
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+
+            var pos = new Position(Position.Hirate);
+
+            // 1つ前の CancellationTokenSource のキャンセルに反応しないかテスト
+            {
+                using var cts1 = new CancellationTokenSource();
+                await engine.GoAsync(pos, SearchLimit.Create(TimeSpan.FromSeconds(0.1)), cts1.Token);
+                using var cts2 = new CancellationTokenSource();
+                var task1 = engine.GoAsync(pos, SearchLimit.Create(TimeSpan.FromSeconds(10000.0)), cts2.Token);
+                cts1.Cancel();
+                await Task.Delay(100);
+                Assert.IsFalse(task1.IsCompleted);
+                cts2.Cancel();
+                await task1;
+            }
+            // !task0.IsCompleted の間は 、次の Go はできない
+            {
+                using var cts = new CancellationTokenSource();
+                var task0 = engine.GoAsync(pos, SearchLimit.Create(TimeSpan.FromSeconds(1000000.0)), cts.Token);
+                await Task.Delay(100);
+                Assert.IsFalse(task0.IsCompleted);
+                await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+                {
+                    await engine.GoAsync(pos, SearchLimit.Create(TimeSpan.Zero)); // error!
+                });
+                cts.Cancel();
+                await task0;
+            }
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task UsiOkTimeoutTest()
+        {
+            using var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            engine1.UsiOkTimeout = TimeSpan.FromSeconds(0.1);
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine1.BeginAsync();
+            });
+
+            // 外部の cts のキャンセルは、OperationCanceled になる
+            using var engine2 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
+                await engine2.BeginAsync(cts.Token);
+            });
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task ReadyOkTimeoutTest()
+        {
+            using var engine1 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
+            engine1.ReadyOkTimeout = TimeSpan.FromSeconds(0.1);
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine1.BeginAsync();
+                await engine1.IsReadyAsync();
+            });
+
+            using var engine2 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
+            await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
+            {
+                await engine2.BeginAsync();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
+                await engine2.IsReadyAsync(cts.Token);
+            });
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task QuitTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            // quit を送信しても終了しないエンジン
+
+            mock.Setup(m => m.Kill())
+                .Raises(x => x.Exited += null, new EventArgs());
+
+            using var engine = new UsiEngine(mock.Object);
+            engine.ExitWaitingTime = TimeSpan.FromSeconds(0.1);
+
+            await engine.BeginAsync();
+            await engine.QuitAsync();
+        }
+
+        [TestMethod(), Timeout(5000)]
+        public async Task BestmoveTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock3");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author3");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    mock.Raise(x => x.StdOutReceived += null, "readyok");
+                });
+
+            using var engine = new UsiEngine(mock.Object);
+            engine.StdIn += s => Trace.WriteLine($"< {s}");
+            engine.StdOut += s => Trace.WriteLine($"  > {s}");
+
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+            engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.2);
+            using var cts = new CancellationTokenSource(100);
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine.GoAsync(new Position(Position.Hirate), new SearchLimit(), cts.Token);
+            });
+        }
+
+        [TestMethod, Timeout(5000)]
+        public async Task StopPonderTimeoutTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock3");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author3");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    mock.Raise(x => x.StdOutReceived += null, "readyok");
+                });
+
+            using var engine = new UsiEngine(mock.Object);
+
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+            engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.1);
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                engine.GoPonder(new Position(Position.Hirate), new SearchLimit());
+                await Task.Delay(100);
+                await engine.StopPonderAsync();
+            });
+        }
+
+        [TestMethod]
+        public async Task DisposeTest()
+        {
+            var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            var task = engine1.BeginAsync();
+            engine1.Dispose(); // 間違えて Begin 中に Dispose
+            await Assert.ThrowsExceptionAsync<ObjectDisposedException>(async () =>
+            {
+                await task;
+            });
+        }
+
+        [TestMethod]
+        public async Task ExitTest()
+        {
+            using var engine1 = new UsiEngine(CreateMock_ExitWhileIsReady());
+            await engine1.BeginAsync();
+            await Assert.ThrowsExceptionAsync<EngineException>(async () =>
+            {
+                await engine1.IsReadyAsync();
+            });
+            // todo: 探索中に落ちるモック作る
+        }
+
+        [TestMethod]
+        public async Task UsiOptionTest()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author1");
+                    mock.Raise(x => x.StdOutReceived += null, "option name USI_Hash type spin default 1024 min 1 max 33554432");
+                    mock.Raise(x => x.StdOutReceived += null, "option name USI_Ponder type check default false");
+                    mock.Raise(x => x.StdOutReceived += null, "option name Style type combo default Normal var Solid var Normal var Risky");
+                    mock.Raise(x => x.StdOutReceived += null, "option name BookFile type string default public.bin");
+                    mock.Raise(x => x.StdOutReceived += null, "option name LearningFile type filename default <empty>");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            var engine1 = new UsiEngine(mock.Object);
+            await engine1.BeginAsync();
+
+            Assert.AreEqual(1024L, ((Spin)engine1.Options["USI_Hash"]).Value);
+            Assert.AreEqual(1024L, ((Spin)engine1.Options["USI_Hash"]).Default);
+            Assert.AreEqual(1L, ((Spin)engine1.Options["USI_Hash"]).Min);
+            Assert.AreEqual(33554432L, ((Spin)engine1.Options["USI_Hash"]).Max);
+            Assert.AreEqual(false, ((Check)engine1.Options["USI_Ponder"]).Value);
+            Assert.AreEqual(false, ((Check)engine1.Options["USI_Ponder"]).Default);
+            Assert.AreEqual("Normal", ((Combo)engine1.Options["Style"]).Value);
+            Assert.AreEqual("Solid Normal Risky", string.Join(' ', ((Combo)engine1.Options["Style"]).Items));
+            Assert.AreEqual("Normal", ((Combo)engine1.Options["Style"]).Default);
+            Assert.AreEqual("public.bin", ((Options.String)engine1.Options["BookFile"]).Value);
+            Assert.AreEqual("public.bin", ((Options.String)engine1.Options["BookFile"]).Default);
+            Assert.AreEqual("", ((FileName)engine1.Options["LearningFile"]).Value);
+            Assert.AreEqual("", ((FileName)engine1.Options["LearningFile"]).Default);
+        }
+
+        private static IEngineProcess CreateMock_FailToReturnUsiOk()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock1");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author1");
+                    mock.Raise(x => x.StdOutReceived += null, "usook"); // typo
+                });
+            return mock.Object;
+        }
+
+        private static IEngineProcess CreateMock_ForgetToReturnReadyOk()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    // ...
+                });
+            return mock.Object;
+        }
+
+        private static IEngineProcess CreateMock_ExitWhileIsReady()
+        {
+            var mock = new Mock<IEngineProcess>();
+            mock.Setup(m => m.SendLine("usi"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "id name Mock2");
+                    mock.Raise(x => x.StdOutReceived += null, "id author Author2");
+                    mock.Raise(x => x.StdOutReceived += null, "usiok");
+                });
+
+            mock.Setup(m => m.SendLine("isready"))
+                .Callback(() =>
+                {
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation0...");
+                    mock.Raise(x => x.StdOutReceived += null, "info string preparation1...");
+                    mock.Raise(x => x.Exited += null, new EventArgs());
+                });
+            return mock.Object;
+        }
+    }
+}

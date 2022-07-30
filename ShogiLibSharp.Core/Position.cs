@@ -14,6 +14,7 @@ namespace ShogiLibSharp.Core
 
         #region 内部状態
 
+        private string initPos;
         private Board board = new Board();
         private Bitboard[] colorBB = new Bitboard[2];
         private Bitboard[,] pieceBB = new Bitboard[2, 16];
@@ -50,7 +51,7 @@ namespace ShogiLibSharp.Core
         /// <summary>
         /// 手数
         /// </summary>
-        public int GamePly { get; private set; }
+        public int GamePly { get; private set; } = 1;
 
         /// <summary>
         /// 最後の指し手の移動先にもとからあった駒
@@ -74,18 +75,20 @@ namespace ShogiLibSharp.Core
 
         public Position ()
         {
+            this.initPos = Sfen();
         }
 
         public Position(string sfen)
         {
+            this.initPos = sfen;
             this.Set(sfen);
         }
 
         public Position(Board board)
         {
             this.board = board.Clone();
-            this.GamePly = 1;
             SetInternalStates();
+            this.initPos = Sfen();
         }
 
         #endregion
@@ -272,7 +275,7 @@ namespace ShogiLibSharp.Core
         {
             if (!IsLegalMove(m))
             {
-                throw new ArgumentException($"{m} は合法手ではありません、局面：{this}");
+                throw new ArgumentException($"{m.Usi()} は合法手ではありません、局面：{this}");
             }
             DoMove_PseudoLegal(m);
         }
@@ -562,6 +565,7 @@ namespace ShogiLibSharp.Core
             else
                 throw new FormatException($"手数を変換できません：{sfen}");
 
+            initPos = sfen;
             SetInternalStates();
         }
 
@@ -642,6 +646,15 @@ namespace ShogiLibSharp.Core
             sb.Append($" {GamePly}");
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// 開始局面 + そこからの指し手の sfen
+        /// </summary>
+        /// <returns></returns>
+        public string SfenWithMoves()
+        {
+            return $"sfen {initPos} moves {string.Join(' ', moves.Reverse().Select(x => x.Move.Usi()))}";
         }
 
         /// <summary>
