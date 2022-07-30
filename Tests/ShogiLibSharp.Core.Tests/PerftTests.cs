@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ShogiLibSharp.Tests
+namespace ShogiLibSharp.Core.Tests
 {
     [TestClass()]
     public class PerftTests

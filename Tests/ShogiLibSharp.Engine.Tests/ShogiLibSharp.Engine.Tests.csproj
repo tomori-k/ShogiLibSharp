@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ShogiLibSharp.Engine\ShogiLibSharp.Engine.csproj" />
+    <ProjectReference Include="..\..\ShogiLibSharp.Engine\ShogiLibSharp.Engine.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,17 +5,15 @@ VisualStudioVersion = 17.2.32526.322
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Core", "ShogiLibSharp.Core\ShogiLibSharp.Core.csproj", "{76AF184D-48C8-4C33-91F1-A4FDFC38123A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Tests", "ShogiLibSharp.Tests\ShogiLibSharp.Tests.csproj", "{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.MovegenGenerator", "ShogiLibSharp.MovegenGenerator\ShogiLibSharp.MovegenGenerator.csproj", "{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Kifu", "ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj", "{8A58EBCB-F319-4999-8F23-45E732BDC165}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Engine", "ShogiLibSharp.Engine\ShogiLibSharp.Engine.csproj", "{279C6478-B62A-44A4-B9C1-8EF158CCC807}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Engine.Tests", "ShogiLibSharp.Engine.Tests\ShogiLibSharp.Engine.Tests.csproj", "{F8B04749-193B-4B44-90F9-52087EA9ABC5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ShogiLibSharp.Engine.Tests", "Tests\ShogiLibSharp.Engine.Tests\ShogiLibSharp.Engine.Tests.csproj", "{F8B04749-193B-4B44-90F9-52087EA9ABC5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharp.Core.Tests", "ShogiLibSharp.Core.Tests\ShogiLibSharp.Core.Tests.csproj", "{5926AB5B-F654-48A4-B45D-DEC019AFA05F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShogiLibSharp.Core.Tests", "Tests\ShogiLibSharp.Core.Tests\ShogiLibSharp.Core.Tests.csproj", "{5926AB5B-F654-48A4-B45D-DEC019AFA05F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,10 +25,6 @@ Global
 		{76AF184D-48C8-4C33-91F1-A4FDFC38123A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{76AF184D-48C8-4C33-91F1-A4FDFC38123A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{76AF184D-48C8-4C33-91F1-A4FDFC38123A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DE77CCA3-38FB-4EC9-93F7-EC0A8A407717}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F65ABB93-EB30-47F4-AB2D-DBE2C26B56E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
