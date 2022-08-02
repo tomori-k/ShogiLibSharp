@@ -34,6 +34,11 @@ namespace ShogiLibSharp.Core
             return c == Color.Black ? "b" : "w";
         }
 
+        public static string Csa(this Color c)
+        {
+            return c == Color.Black ? "+" : "-";
+        }
+
         public enum PrettyType
         {
             /// <summary>

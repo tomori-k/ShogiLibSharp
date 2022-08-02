@@ -87,6 +87,31 @@ namespace ShogiLibSharp.Core
         }
 
         /// <summary>
+        /// CSA 形式の指し手文字列に変換
+        /// </summary>
+        /// <param name="m"></param>
+        /// <param name="pos"></param>
+        /// <returns></returns>
+        /// <exception cref="FormatException"></exception>
+        public static string Csa(this Move m, Position pos)
+        {
+            var to = Core.Csa.Square(m.To());
+            if (m.IsDrop())
+            {
+                var after = m.Dropped().Colored(pos.Player);
+                return $"{pos.Player.Csa()}00{to}{after.Csa()}";
+            }
+            else
+            {
+                var from = Core.Csa.Square(m.From());
+                var after = m.IsPromote()
+                    ? pos.PieceAt(m.From()).Promoted()
+                    : pos.PieceAt(m.From());
+                return $"{pos.Player.Csa()}{from}{to}{after.Csa()}";
+            }
+        }
+
+        /// <summary>
         /// from から to に動かす指し手を生成
         /// </summary>
         /// <param name="from"></param>
