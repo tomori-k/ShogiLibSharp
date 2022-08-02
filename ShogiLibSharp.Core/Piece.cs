@@ -138,6 +138,24 @@ namespace ShogiLibSharp.Core
                 { Piece.W_King  , 'k' },
             };
 
+        static readonly Dictionary<Piece, string> PieceToCsaNoColor = new Dictionary<Piece, string>
+        {
+            { Piece.Pawn     , "FU" },
+            { Piece.Lance    , "KY" },
+            { Piece.Knight   , "KE" },
+            { Piece.Silver   , "GI" },
+            { Piece.Gold     , "KI" },
+            { Piece.Bishop   , "KA" },
+            { Piece.Rook     , "HI" },
+            { Piece.King     , "OU" },
+            { Piece.ProPawn  , "TO" },
+            { Piece.ProLance , "NY" },
+            { Piece.ProKnight, "NK" },
+            { Piece.ProSilver, "NG" },
+            { Piece.ProBishop, "UM" },
+            { Piece.ProRook  , "RY" },
+        };
+
         static readonly Dictionary<Piece, string> PieceToCsa = new Dictionary<Piece, string>
         {
             { Piece.B_Pawn     , "+FU" },
@@ -202,6 +220,22 @@ namespace ShogiLibSharp.Core
                 throw new FormatException($"Piece: {p} が有効な値ではありません");
             }
             return PieceToCsa[p];
+        }
+
+        /// <summary>
+        /// CSA 形式の文字列（符号なし）に変換
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        /// <exception cref="FormatException"></exception>
+        public static string CsaNoColor(this Piece p)
+        {
+            p = p.Colorless();
+            if (!PieceToCsaNoColor.ContainsKey(p))
+            {
+                throw new FormatException($"Piece: {p} が有効な値ではありません");
+            }
+            return PieceToCsaNoColor[p];
         }
 
         /// <summary>

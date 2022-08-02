@@ -1,5 +1,6 @@
 ﻿using ShogiLibSharp.Core;
 using ShogiLibSharp.Csa.Exceptions;
+using System.Diagnostics;
 using System.Net.Sockets;
 
 namespace ShogiLibSharp.Csa
@@ -18,54 +19,54 @@ namespace ShogiLibSharp.Csa
         {
             using var tcp = new TcpClient();
 
-            await tcp.ConnectAsync(Options.HostName, Options.Port, ct);
+            await tcp.ConnectAsync(Options.HostName, Options.Port, ct).ConfigureAwait(false);
 
             using var stream = tcp.GetStream();
             using var reader = new AsyncAsciiStreamReader(stream);
 
-            await LoginAsync(stream, reader, ct);
+            await LoginAsync(stream, reader, ct).ConfigureAwait(false);
 
             while (true)
             {
                 GameSummary? summary;
                 try
                 {
-                    summary = await ReceiveGameSummaryAsync(reader, ct);
+                    summary = await ReceiveGameSummaryAsync(reader, ct).ConfigureAwait(false);
                     if (summary is null) continue;
                 }
                 catch (OperationCanceledException)
                 {
                     // ログアウト
-                    await stream.WriteLineLFAsync("LOGOUT", ct);
-                    await WaitingForMessage(reader, "LOGOUT:completed", ct);
+                    await stream.WriteLineLFAsync("LOGOUT", ct).ConfigureAwait(false);
+                    await WaitingForMessage(reader, "LOGOUT:completed", ct).ConfigureAwait(false);
                     break;
                 }
 
                 // Agree or Reject
                 // AgreeWith の結果が null なら Reject
-                if (await playerFactory.AgreeWith(summary, ct) is not { } player)
+                if (await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false) is not { } player)
                 {
-                    await stream.WriteLineLFAsync($"REJECT", ct);
+                    await stream.WriteLineLFAsync($"REJECT", ct).ConfigureAwait(false);
                     continue;
                 }
-                await stream.WriteLineLFAsync($"AGREE", ct);
+                await stream.WriteLineLFAsync($"AGREE", ct).ConfigureAwait(false);
 
                 // 相手側の Reject
-                if (!await ReceiveGameStartAsync(reader, summary, ct))
+                if (!await ReceiveGameStartAsync(reader, summary, ct).ConfigureAwait(false))
                 {
                     continue;
                 }
 
-                await new GameLoop(stream, reader, summary, player).StartAsync(ct);
+                await new GameLoop(stream, reader, summary, player).StartAsync(ct).ConfigureAwait(false);
             }
         }
 
         async Task LoginAsync(Stream stream, AsyncAsciiStreamReader reader, CancellationToken ct)
         {
-            await stream.WriteLineLFAsync($"LOGIN {Options.UserName} {Options.Password}", ct);
+            await stream.WriteLineLFAsync($"LOGIN {Options.UserName} {Options.Password}", ct).ConfigureAwait(false);
             while (true)
             {
-                var message = await reader.ReadLineAsync(ct);
+                var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == $"LOGIN:{Options.UserName} OK")
                 {
                     return;
@@ -81,7 +82,7 @@ namespace ShogiLibSharp.Csa
         {
             while (true)
             {
-                var message = await reader.ReadLineAsync(ct);
+                var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == expected) break;
             }
         }
@@ -90,7 +91,7 @@ namespace ShogiLibSharp.Csa
         {
             while (true)
             {
-                var message = await reader.ReadLineAsync(ct);
+                var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message is null) return false;
                 else if (message == $"START:{summary.GameId}") return true;
                 else if (message == $"REJECT:{summary.GameId}") return false;
@@ -140,16 +141,14 @@ namespace ShogiLibSharp.Csa
                 {
                     while (true)
                     {
-                        var message = await reader.ReadLineAsync(ct);
+                        var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                         ThrowIfNullLine(message);
 
                         // 指し手
                         if (message!.StartsWith("+") || message!.StartsWith("-"))
                         {
-                            if (!thinkTask.IsCompleted)
-                            {
-                                throw new CsaServerException("サーバの指し手送信タイミングが間違っています。");
-                            }
+                            await thinkTask.ConfigureAwait(false);
+
                             var (move, time) = Core.Csa.ParseMoveWithTime(message, pos);
                             if (!pos.IsLegalMove(move))
                             {
@@ -190,7 +189,7 @@ namespace ShogiLibSharp.Csa
                         thinkCanceler.Cancel();
                         try
                         {
-                            await thinkTask;
+                            await thinkTask.ConfigureAwait(false);
                         }
                         // キャンセル例外は無視
                         catch (OperationCanceledException e) when (e.CancellationToken == thinkCanceler.Token) { }
@@ -201,8 +200,11 @@ namespace ShogiLibSharp.Csa
 
             async Task ThinkAndSendAsync(CancellationToken ct)
             {
-                var bestmove = await player.ThinkAsync(pos.Clone(), remainingTime.Clone(), ct);
-                await stream.WriteLineLFAsync(bestmove.Csa(pos), ct);
+                var bestmove = await player.ThinkAsync(pos.Clone(), remainingTime.Clone(), ct).ConfigureAwait(false);
+                var csa = bestmove == Move.Resign ? "%TORYO"
+                    : bestmove == Move.Win ? "%KACHI"
+                    : bestmove.Csa(pos);
+                await stream.WriteLineLFAsync(csa, ct).ConfigureAwait(false);
             }
 
             void NewMove(Move move, TimeSpan time)
@@ -234,9 +236,9 @@ namespace ShogiLibSharp.Csa
             };
         }
 
-        async Task<GameSummary?> ReceiveGameSummaryAsync(AsyncAsciiStreamReader reader, CancellationToken ct)
+        static async Task<GameSummary?> ReceiveGameSummaryAsync(AsyncAsciiStreamReader reader, CancellationToken ct)
         {
-            await WaitingForMessage(reader, "BEGIN Game_Summary", ct);
+            await WaitingForMessage(reader, "BEGIN Game_Summary", ct).ConfigureAwait(false);
 
             string? protocolVersion = null;
             string protocolMode = "Server";
@@ -252,7 +254,7 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                var message = await reader.ReadLineAsync(ct);
+                var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                 ThrowIfNullLine(message);
                 if (message == "BEGIN Time") break;
 
@@ -314,7 +316,7 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                var message = await reader.ReadLineAsync(ct);
+                var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                 ThrowIfNullLine(message);
                 if (message == "END Time") break;
 
@@ -361,12 +363,12 @@ namespace ShogiLibSharp.Csa
                 }
             }
 
-            await WaitingForMessage(reader, "BEGIN Position", ct);
+            await WaitingForMessage(reader, "BEGIN Position", ct).ConfigureAwait(false);
 
             var lines = new Queue<string>();
             while (true)
             {
-                var message = await reader.ReadLineAsync(ct);
+                var message = await reader.ReadLineAsync(ct).ConfigureAwait(false);
                 ThrowIfNullLine(message);
                 if (message == "END Position") break;
                 lines.Enqueue(message!);
@@ -375,7 +377,7 @@ namespace ShogiLibSharp.Csa
             var startpos = Core.Csa.ParseStartPosition(lines);
             var movesWithTime = Core.Csa.ParseMovesWithTime(lines, startpos);
 
-            await WaitingForMessage(reader, "END Game_Summary", ct);
+            await WaitingForMessage(reader, "END Game_Summary", ct).ConfigureAwait(false);
 
             if (!(protocolVersion == "1.1" || protocolVersion == "1.2")
                 || format != "Shogi 1.0"

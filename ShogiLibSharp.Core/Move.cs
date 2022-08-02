@@ -99,7 +99,7 @@ namespace ShogiLibSharp.Core
             if (m.IsDrop())
             {
                 var after = m.Dropped().Colored(pos.Player);
-                return $"{pos.Player.Csa()}00{to}{after.Csa()}";
+                return $"{pos.Player.Csa()}00{to}{after.CsaNoColor()}";
             }
             else
             {
@@ -107,7 +107,7 @@ namespace ShogiLibSharp.Core
                 var after = m.IsPromote()
                     ? pos.PieceAt(m.From()).Promoted()
                     : pos.PieceAt(m.From());
-                return $"{pos.Player.Csa()}{from}{to}{after.Csa()}";
+                return $"{pos.Player.Csa()}{from}{to}{after.CsaNoColor()}";
             }
         }
 
