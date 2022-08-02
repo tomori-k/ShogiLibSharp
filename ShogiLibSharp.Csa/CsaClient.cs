@@ -9,8 +9,8 @@ namespace ShogiLibSharp.Csa
     {
         TcpClient tcp = new();
         WrapperStream? stream = null;
-        bool disposed = false;
         ConnectOptions Options;
+        bool disposed = false;
 
         public CsaClient(ConnectOptions options) { Options = options; }
 
@@ -117,7 +117,7 @@ namespace ShogiLibSharp.Csa
                 this.summary = summary;
                 this.player = player;
                 this.pos = summary.StartPos.Clone();
-                this.remainingTime = new RemainingTime();
+                this.remainingTime = new RemainingTime(summary.TimeRule.TotalTime);
 
                 foreach (var (move, time) in summary.Moves)
                 {

@@ -9,7 +9,7 @@ namespace ShogiLibSharp.Csa
 {
     public class RemainingTime
     {
-        private TimeSpan[] time = new TimeSpan[2];
+        TimeSpan[] time;
 
         public TimeSpan this[Color c]
         {
@@ -17,7 +17,17 @@ namespace ShogiLibSharp.Csa
             set => time[(int)c] = value;
         }
 
-        public RemainingTime() { }
+        public RemainingTime() { this.time = new TimeSpan[2]; }
+
+        public RemainingTime(TimeSpan totalTime)
+        {
+            this.time = new[] { totalTime, totalTime };
+        }
+
+        public RemainingTime(TimeSpan btime, TimeSpan wtime)
+        {
+            this.time = new[] { btime, wtime };
+        }
 
         public RemainingTime(RemainingTime remTime)
         {
