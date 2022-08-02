@@ -8,7 +8,11 @@ namespace ShogiLibSharp.Csa
 {
     // .NET 7 から StreamReader の ReadLineAsync が キャンセルできるらしい（corefx のソースコードを見る限り）
 
-    internal class AsyncAsciiStreamReader : IDisposable
+    /// <summary>
+    /// CsaClient で送受信に使う NetworkStream をラップするクラス
+    /// ASCII 限定で ReadLineAsync と WriteLineLFAsync のキャンセルが可能
+    /// </summary>
+    internal class WrapperStream : IDisposable
     {
         private const int BufferSize = 1024;
 
@@ -19,7 +23,7 @@ namespace ShogiLibSharp.Csa
         private int charLen = 0;
         private bool disposed = false;
 
-        public AsyncAsciiStreamReader(Stream stream)
+        public WrapperStream(Stream stream)
         {
             this.stream = stream;
         }
@@ -33,6 +37,12 @@ namespace ShogiLibSharp.Csa
             stream.Close();
         }
 
+        /// <summary>
+        /// Stream から1行読み取る <br/>
+        /// Stream のデータは ASCII と仮定
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<string?> ReadLineAsync(CancellationToken ct)
         {
             if (charPos == charLen)
@@ -75,6 +85,21 @@ namespace ShogiLibSharp.Csa
             var byteLen = await stream.ReadAsync(buffer, 0, BufferSize, ct);
             charLen = Encoding.ASCII.GetChars(buffer, 0, byteLen, charBuffer, 0);
             return charLen;
+        }
+
+        /// <summary>
+        /// Stream に1行書き込む <br/>
+        /// 改行文字はLFを使用する<br/>
+        /// 書き込む文字列は ASCII に変換できると仮定
+        /// </summary>
+        /// <param name="s"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        public async Task WriteLineLFAsync(string s, CancellationToken ct)
+        {
+            var bytes = Encoding.ASCII.GetBytes(s + '\n');
+            await stream.WriteAsync(bytes, ct);
+            await stream.FlushAsync(ct);
         }
     }
 }
