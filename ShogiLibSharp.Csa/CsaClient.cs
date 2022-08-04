@@ -40,9 +40,7 @@ namespace ShogiLibSharp.Csa
                 }
                 catch (OperationCanceledException)
                 {
-                    // ログアウト
-                    await stream.WriteLineLFAsync("LOGOUT", ct).ConfigureAwait(false);
-                    await WaitingForMessage("LOGOUT:completed", ct).ConfigureAwait(false);
+                    await LogoutAsync();
                     break;
                 }
 
@@ -80,6 +78,17 @@ namespace ShogiLibSharp.Csa
                     throw new LoginFailedException("ログインできませんでした。");
                 }
             }
+        }
+
+        async Task LogoutAsync()
+        {
+            using var logoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10.0)); // 10 秒待ってログアウト出来なかったら強制的に切る
+            try
+            {
+                await stream!.WriteLineLFAsync("LOGOUT", logoutCts.Token).ConfigureAwait(false);
+                await WaitingForMessage("LOGOUT:completed", logoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (ex.CancellationToken == logoutCts.Token) { }
         }
 
         async Task WaitingForMessage(string expected, CancellationToken ct)
