@@ -17,8 +17,8 @@ namespace ShogiLibSharp.Csa
         public void Dispose()
         {
             if (disposed) return;
+            stream!?.Dispose();
             tcp.Dispose();
-            stream?.Dispose();
             disposed = true;
         }
 
