@@ -11,18 +11,41 @@ namespace ShogiLibSharp.Csa
         WrapperStream? stream = null;
         ConnectOptions Options;
         bool disposed = false;
+        CancellationTokenSource lifetime = new();
 
         public CsaClient(ConnectOptions options) { Options = options; }
 
         public void Dispose()
         {
             if (disposed) return;
+            lifetime.Cancel();
+            lifetime.Dispose();
             stream!?.Dispose();
             tcp.Dispose();
             disposed = true;
         }
 
         public async Task ConnectAsync(IPlayerFactory playerFactory, CancellationToken ct = default)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, ct);
+            try
+            {
+                await ConnectAsyncImpl(playerFactory, cts.Token);
+            }
+            catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+            {
+                if (lifetime.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException("CsaClient が Dispose() されました。", e, lifetime.Token);
+                }
+                else
+                {
+                    throw new OperationCanceledException(e.Message, e, ct);
+                }
+            }
+        }
+
+        async Task ConnectAsyncImpl(IPlayerFactory playerFactory, CancellationToken ct)
         {
             await tcp.ConnectAsync(Options.HostName, Options.Port, ct).ConfigureAwait(false);
 
@@ -40,10 +63,12 @@ namespace ShogiLibSharp.Csa
                 }
                 catch (OperationCanceledException)
                 {
+                    // Dispose() されたのでなければ、ログアウト処理
+                    if (lifetime.IsCancellationRequested) throw;
                     await LogoutAsync();
                     break;
                 }
-
+            
                 // Agree or Reject
                 // AgreeWith の結果が null なら Reject
                 if (await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false) is not { } player)
@@ -82,16 +107,28 @@ namespace ShogiLibSharp.Csa
 
         async Task LogoutAsync()
         {
-            using var logoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10.0)); // 10 秒待ってログアウト出来なかったら強制的に切る
+            using var logoutCts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+            logoutCts.CancelAfter(TimeSpan.FromSeconds(10.0)); // 10 秒待ってログアウト出来なかったら強制的に切る
+
             try
             {
                 await stream!.WriteLineLFAsync("LOGOUT", logoutCts.Token).ConfigureAwait(false);
-                await WaitingForMessage("LOGOUT:completed", logoutCts.Token).ConfigureAwait(false);
+                await WaitingForMessageAsync("LOGOUT:completed", logoutCts.Token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException ex) when (ex.CancellationToken == logoutCts.Token) { }
+            catch (OperationCanceledException e) when (e.CancellationToken == logoutCts.Token)
+            {
+                if (lifetime.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException("CsaClient が Dispose() されました。", e, lifetime.Token);
+                }
+                else
+                {
+                    throw new OperationCanceledException("LOGOUT 処理が一定時間内に終了しなかったため、強制的に切断しました。");
+                }
+            }
         }
 
-        async Task WaitingForMessage(string expected, CancellationToken ct)
+        async Task WaitingForMessageAsync(string expected, CancellationToken ct)
         {
             while (true)
             {
@@ -249,7 +286,7 @@ namespace ShogiLibSharp.Csa
 
         async Task<GameSummary?> ReceiveGameSummaryAsync(CancellationToken ct)
         {
-            await WaitingForMessage("BEGIN Game_Summary", ct).ConfigureAwait(false);
+            await WaitingForMessageAsync("BEGIN Game_Summary", ct).ConfigureAwait(false);
 
             string? protocolVersion = null;
             string protocolMode = "Server";
@@ -374,7 +411,7 @@ namespace ShogiLibSharp.Csa
                 }
             }
 
-            await WaitingForMessage("BEGIN Position", ct).ConfigureAwait(false);
+            await WaitingForMessageAsync("BEGIN Position", ct).ConfigureAwait(false);
 
             var lines = new Queue<string>();
             while (true)
@@ -388,7 +425,7 @@ namespace ShogiLibSharp.Csa
             var startpos = Core.Csa.ParseStartPosition(lines);
             var movesWithTime = Core.Csa.ParseMovesWithTime(lines, startpos);
 
-            await WaitingForMessage("END Game_Summary", ct).ConfigureAwait(false);
+            await WaitingForMessageAsync("END Game_Summary", ct).ConfigureAwait(false);
 
             if (!(protocolVersion == "1.1" || protocolVersion == "1.2")
                 || format != "Shogi 1.0"
