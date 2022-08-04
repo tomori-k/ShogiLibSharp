@@ -69,6 +69,7 @@ namespace ShogiLibSharp.Core
         public static Move ParseMove(string usiMove)
         {
             if (usiMove == "resign") return Move.Resign;
+            else if (usiMove == "win") return Move.Win;
 
             if (usiMove.Length < 4)
             {

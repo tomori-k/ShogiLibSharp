@@ -162,10 +162,10 @@ namespace ShogiLibSharp.Csa
                 this.stream = stream;
                 this.summary = summary;
                 this.player = player;
-                this.pos = summary.StartPos.Clone();
-                this.remainingTime = new RemainingTime(summary.TimeRule.TotalTime);
+                this.pos = summary.StartPos!.Clone();
+                this.remainingTime = new RemainingTime(summary.TimeRule!.TotalTime);
 
-                foreach (var (move, time) in summary.Moves)
+                foreach (var (move, time) in summary.Moves!)
                 {
                     NewMove(move, time);
                 }
@@ -258,7 +258,7 @@ namespace ShogiLibSharp.Csa
             void NewMove(Move move, TimeSpan time)
             {
                 // 思考可能時間=持ち時間+秒読み+inc としておき、手番交代のときに増加分を足すことにする
-                remainingTime[pos.Player] += summary.TimeRule.Increment;
+                remainingTime[pos.Player] += summary.TimeRule!.Increment;
                 remainingTime[pos.Player] -= time;
                 pos.DoMove(move);
                 player.NewMove(move, time);

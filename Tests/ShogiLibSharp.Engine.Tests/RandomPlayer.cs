@@ -18,7 +18,7 @@ namespace ShogiLibSharp.Engine.Tests
 
         public event Action<string?>? StdOutReceived;
         public event Action<string?>? StdErrReceived;
-        public event EventHandler Exited;
+        public event EventHandler? Exited;
 
         public void BeginErrorReadLine() {}
         public void BeginOutputReadLine() {}
@@ -49,9 +49,9 @@ namespace ShogiLibSharp.Engine.Tests
 
         private void SendRandomMove()
         {
-            var moves = Movegen.GenerateMoves(pos);
+            var moves = Movegen.GenerateMoves(pos!);
             var select = moves[rnd.Next(moves.Count)];
-            pos.DoMove(select);
+            pos!.DoMove(select);
             if (pos.IsMated())
             {
                 StdOutReceived?.Invoke($"bestmove {select.Usi()}");
