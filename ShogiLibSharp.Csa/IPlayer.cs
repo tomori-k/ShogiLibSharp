@@ -18,6 +18,6 @@ namespace ShogiLibSharp.Csa
         void GameStart();
         void NewMove(Move move, TimeSpan elapsed);
         void GameEnd(EndGameState endState, GameResult result);
-        Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct);
+        Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct); // 思考可能時間: time[us] + summary.Increment + summary.Byoyomi
     }
 }

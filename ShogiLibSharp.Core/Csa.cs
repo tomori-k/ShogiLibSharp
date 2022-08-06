@@ -54,7 +54,7 @@
                     var pc = next.StartsWith("P+")
                         ? Color.Black : Color.White;
 
-                    for (int i = 2; i + 4 < next.Length; i += 4)
+                    for (int i = 2; i + 3 < next.Length; i += 4)
                     {
                         var squareStr = next.Substring(i, 2);
                         var pieceStr = next.Substring(i + 2, 2);

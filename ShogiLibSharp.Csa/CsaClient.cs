@@ -56,27 +56,27 @@ namespace ShogiLibSharp.Csa
             while (true)
             {
                 GameSummary? summary;
-                try
-                {
+                //try
+                //{
                     summary = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
                     if (summary is null) continue;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Dispose() されたのでなければ、ログアウト処理
-                    if (lifetime.IsCancellationRequested) throw;
-                    await LogoutAsync();
-                    break;
-                }
+                //}
+                //catch (OperationCanceledException)
+                //{
+                //    // Dispose() されたのでなければ、ログアウト処理
+                //    if (lifetime.IsCancellationRequested) throw;
+                //    await LogoutAsync();
+                //    break;
+                //}
             
                 // Agree or Reject
                 // AgreeWith の結果が null なら Reject
                 if (await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false) is not { } player)
                 {
-                    await stream.WriteLineLFAsync($"REJECT", ct).ConfigureAwait(false);
+                    await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false);
                     continue;
                 }
-                await stream.WriteLineLFAsync($"AGREE", ct).ConfigureAwait(false);
+                await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
 
                 // 相手側の Reject
                 if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
@@ -90,10 +90,10 @@ namespace ShogiLibSharp.Csa
 
         async Task LoginAsync(CancellationToken ct)
         {
-            await stream!.WriteLineLFAsync($"LOGIN {Options.UserName} {Options.Password}", ct).ConfigureAwait(false);
+            await WriteLineAsync(stream!, $"LOGIN {Options.UserName} {Options.Password}", ct).ConfigureAwait(false);
             while (true)
             {
-                var message = await stream.ReadLineAsync(ct).ConfigureAwait(false);
+                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
                 if (message == $"LOGIN:{Options.UserName} OK")
                 {
                     return;
@@ -105,34 +105,34 @@ namespace ShogiLibSharp.Csa
             }
         }
 
-        async Task LogoutAsync()
-        {
-            using var logoutCts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-            logoutCts.CancelAfter(TimeSpan.FromSeconds(10.0)); // 10 秒待ってログアウト出来なかったら強制的に切る
+        //async Task LogoutAsync()
+        //{
+        //    using var logoutCts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        //    logoutCts.CancelAfter(TimeSpan.FromSeconds(10.0)); // 10 秒待ってログアウト出来なかったら強制的に切る
 
-            try
-            {
-                await stream!.WriteLineLFAsync("LOGOUT", logoutCts.Token).ConfigureAwait(false);
-                await WaitingForMessageAsync("LOGOUT:completed", logoutCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException e) when (e.CancellationToken == logoutCts.Token)
-            {
-                if (lifetime.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException("CsaClient が Dispose() されました。", e, lifetime.Token);
-                }
-                else
-                {
-                    throw new OperationCanceledException("LOGOUT 処理が一定時間内に終了しなかったため、強制的に切断しました。");
-                }
-            }
-        }
+        //    try
+        //    {
+        //        await stream!.WriteLineLFAsync("LOGOUT", logoutCts.Token).ConfigureAwait(false);
+        //        await WaitingForMessageAsync("LOGOUT:completed", logoutCts.Token).ConfigureAwait(false);
+        //    }
+        //    catch (OperationCanceledException e) when (e.CancellationToken == logoutCts.Token)
+        //    {
+        //        if (lifetime.IsCancellationRequested)
+        //        {
+        //            throw new OperationCanceledException("CsaClient が Dispose() されました。", e, lifetime.Token);
+        //        }
+        //        else
+        //        {
+        //            throw new OperationCanceledException("LOGOUT 処理が一定時間内に終了しなかったため、強制的に切断しました。");
+        //        }
+        //    }
+        //}
 
         async Task WaitingForMessageAsync(string expected, CancellationToken ct)
         {
             while (true)
             {
-                var message = await stream!.ReadLineAsync(ct).ConfigureAwait(false);
+                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
                 if (message == expected) break;
             }
         }
@@ -141,11 +141,47 @@ namespace ShogiLibSharp.Csa
         {
             while (true)
             {
-                var message = await stream!.ReadLineAsync(ct).ConfigureAwait(false);
-                if (message is null) return false;
-                else if (message == $"START:{summary.GameId}") return true;
+                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                if (message == $"START:{summary.GameId}") return true;
                 else if (message == $"REJECT:{summary.GameId}") return false;
             }
+        }
+
+        static async Task WriteLineAsync(WrapperStream stream, string message, CancellationToken ct)
+        {
+            try
+            {
+                await stream.WriteLineLFAsync(message, ct).ConfigureAwait(false);
+            }
+            // OperationCanceledException 以外は CsaServerException で包む
+            catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
+            {
+                throw new CsaServerException("サーバからのメッセージ待機中に例外が発生しました。", e);
+            }
+        }
+
+        /// <summary>
+        /// キャンセル例外はそのまま、それ以外の例外を CsaServerException で包む
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="CsaServerException"></exception>
+        /// <exception cref="OperationCanceledException"></exception>
+        static async Task<string> ReadLineAsync(WrapperStream stream, CancellationToken ct)
+        {
+            string? message;
+            try
+            {
+                message = await stream.ReadLineAsync(ct).ConfigureAwait(false);
+            }
+            // OperationCanceledException 以外は CsaServerException で包む
+            catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
+            {
+                throw new CsaServerException("サーバからのメッセージ待機中に例外が発生しました。", e);
+            }
+            if (message is null) throw new CsaServerException("サーバとの接続が切れました。");
+            return message;
         }
 
         class GameLoop
@@ -175,7 +211,6 @@ namespace ShogiLibSharp.Csa
             {
                 var endState = EndGameState.None;
                 var result = GameResult.Censored;
-                var readlineTask = stream.ReadLineAsync(ct);
                 var thinkTask = Task.CompletedTask;
                 using var thinkCanceler = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -188,6 +223,8 @@ namespace ShogiLibSharp.Csa
                         thinkTask = SendMoveAsync(thinkCanceler.Token);
                     }
 
+                    var readlineTask = ReadLineAsync(stream, ct);
+
                     while (true)
                     {
                         var finished = await Task
@@ -197,11 +234,22 @@ namespace ShogiLibSharp.Csa
                         if (finished == readlineTask)
                         {
                             var message = await readlineTask;
-                            ThrowIfNullLine(message);
-                            readlineTask = stream.ReadLineAsync(ct);
+
+                            if (GameResultTable.ContainsKey(message))
+                            {
+                                result = GameResultTable[message];
+                                break;
+                            }
+                            else if (message == "#CHUDAN")
+                            {
+                                endState = EndGameState.Chudan;
+                                break;
+                            }
+
+                            readlineTask = ReadLineAsync(stream, ct);
 
                             // 指し手
-                            if (message!.StartsWith("+") || message!.StartsWith("-"))
+                            if (message.StartsWith("+") || message.StartsWith("-"))
                             {
                                 await thinkTask.ConfigureAwait(false);
 
@@ -225,38 +273,33 @@ namespace ShogiLibSharp.Csa
                             {
                                 endState = EndGameStateTable[message];
                             }
-                            else if (GameResultTable.ContainsKey(message))
-                            {
-                                result = GameResultTable[message];
-                                break;
-                            }
-                            else if (message == "#CHUDAN")
-                            {
-                                endState = EndGameState.Chudan;
-                                break;
-                            }
                             // これ以外は無視
                         }
-                        // サーバへの指し手送信が完了 or 例外発生
+                        // finished == thinkTask
                         else
                         {
-                            // 何らかの例外が発生していた場合はここでスロー
-                            if (!thinkTask.IsCompletedSuccessfully)
-                                await thinkTask;
+                            // 例外をスロー
+                            if (!thinkTask.IsCompletedSuccessfully) await thinkTask;
                         }
                     }
+                    player.GameEnd(endState, result);
                 }
-                catch (OperationCanceledException e) when (e.CancellationToken == ct)
+                catch (Exception e) when (e is CsaServerException
+                    || (e is OperationCanceledException ex && ex.CancellationToken == ct))
                 {
-                    if (!thinkTask.IsCompleted)
+                    if (!thinkTask.IsCompleted && !ct.IsCancellationRequested)
                     {
                         thinkCanceler.Cancel();
-                        try
-                        {
-                            await thinkTask.ConfigureAwait(false);
-                        }
-                        // キャンセル例外は無視
-                        catch (OperationCanceledException ex) when (ex.CancellationToken == thinkCanceler.Token) { }
+                    }
+                    try
+                    {
+                        await thinkTask.ConfigureAwait(false);
+                    }
+                    // キャンセル例外は無視
+                    catch (Exception e1) when (e1 is CsaServerException
+                        || (e1 is OperationCanceledException oe1
+                            && (oe1.CancellationToken == ct || oe1.CancellationToken == thinkCanceler.Token)))
+                    {
                     }
                     player.GameEnd(endState, result);
                     throw;
@@ -269,7 +312,7 @@ namespace ShogiLibSharp.Csa
                 var csa = bestmove == Move.Resign ? "%TORYO"
                     : bestmove == Move.Win ? "%KACHI"
                     : bestmove.Csa(pos);
-                await stream.WriteLineLFAsync(csa, ct).ConfigureAwait(false);
+                await WriteLineAsync(stream, csa, ct).ConfigureAwait(false);
             }
 
             void NewMove(Move move, TimeSpan time)
@@ -297,6 +340,7 @@ namespace ShogiLibSharp.Csa
                 { "#TIME_UP", EndGameState.TimeUp },
                 { "#RESIGN", EndGameState.Resign },
                 { "#JISHOGI", EndGameState.Jishogi },
+                { "#MAX_MOVES", EndGameState.MaxMoves },
                 { "#ILLEGAL_ACTION", EndGameState.IllegalAction },
             };
         }
@@ -319,8 +363,7 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                var message = await stream!.ReadLineAsync(ct).ConfigureAwait(false);
-                ThrowIfNullLine(message);
+                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
                 if (message == "BEGIN Time") break;
 
                 var sp = message!.Split(':');
@@ -381,8 +424,7 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                var message = await stream.ReadLineAsync(ct).ConfigureAwait(false);
-                ThrowIfNullLine(message);
+                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
                 if (message == "END Time") break;
 
                 var sp = message!.Split(':');
@@ -433,8 +475,7 @@ namespace ShogiLibSharp.Csa
             var lines = new Queue<string>();
             while (true)
             {
-                var message = await stream.ReadLineAsync(ct).ConfigureAwait(false);
-                ThrowIfNullLine(message);
+                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
                 if (message == "END Position") break;
                 lines.Enqueue(message!);
             }
@@ -477,11 +518,6 @@ namespace ShogiLibSharp.Csa
                 StartPos = startpos,
                 Moves = movesWithTime,
             };
-        }
-
-        static void ThrowIfNullLine(string? message)
-        {
-            if (message is null) throw new CsaServerException("サーバとの接続が切れました。");
         }
     }
 }

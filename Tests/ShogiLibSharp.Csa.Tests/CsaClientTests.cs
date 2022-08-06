@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ShogiLibSharp.Core;
 using ShogiLibSharp.Csa;
+using ShogiLibSharp.Csa.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -71,15 +72,18 @@ namespace ShogiLibSharp.Csa.Tests
             }
             catch (Exception)
             {
-                foreach (var ex in all.Exception!.InnerExceptions)
+                if (all.Exception is AggregateException e)
                 {
-                    if (ex is OperationCanceledException || ex is IOException) continue;
-                    Trace.WriteLine(ex);
-                }
+                    foreach (var ex in e.InnerExceptions)
+                    {
+                        if (ex is OperationCanceledException || ex is CsaServerException) continue;
+                        Trace.WriteLine(ex);
+                    }
 
-                if (!all.Exception.InnerExceptions
-                    .All(x => x is OperationCanceledException || x is IOException))
-                    throw;
+                    if (!e.InnerExceptions
+                        .All(x => x is OperationCanceledException || x is CsaServerException))
+                        throw;
+                }
             }
         }
 
@@ -100,7 +104,7 @@ namespace ShogiLibSharp.Csa.Tests
                 Assert.AreEqual(testSummary.StartPos!.SfenWithMoves(), summary.StartPos!.SfenWithMoves());
                 Assert.IsTrue(testSummary.Moves!.SequenceEqual(summary.Moves!));
 
-                return Task.FromResult<IPlayer?>(new Player(testcase));
+                return Task.FromResult<IPlayer?>(new Player(testcase, summary));
             }
         }
 
@@ -110,20 +114,22 @@ namespace ShogiLibSharp.Csa.Tests
             List<(Move, TimeSpan)> moves;
             Testcase testcase;
             Position position;
+            GameSummary summary;
 
-            public Player(Testcase testcase)
+            public Player(Testcase testcase, GameSummary summary)
             {
                 this.testcase = testcase;
-                this.position = testcase.Summary!.StartPos!.Clone();
-                this.moves = testcase.Summary.Moves!
+                this.position = summary.StartPos!.Clone();
+                this.moves = summary.Moves!
                     .Concat(testcase.Moves!)
                     .ToList();
+                this.summary = summary;
             }
 
             public void GameEnd(EndGameState endState, GameResult result)
             {
                 Assert.AreEqual(testcase.EndState, endState);
-                Assert.AreEqual(testcase.Results![(int)testcase.Summary!.Color], result);
+                Assert.AreEqual(testcase.Results![(int)summary.Color], result);
             }
 
             public void GameStart()
@@ -140,7 +146,7 @@ namespace ShogiLibSharp.Csa.Tests
 
             public Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
             {
-                var expectedTime = testcase.Times![moveCount - testcase.Summary!.Moves!.Count];
+                var expectedTime = testcase.Times![moveCount - summary.Moves!.Count];
                 Assert.AreEqual(expectedTime[Color.Black], time[Color.Black]);
                 Assert.AreEqual(expectedTime[Color.White], time[Color.White]);
                 Assert.AreEqual(position.SfenWithMoves(), pos.SfenWithMoves());
@@ -232,6 +238,159 @@ END Game_Summary
                     new RemainingTime(TimeSpan.FromSeconds(558.0), TimeSpan.FromSeconds(533.0)),
                     new RemainingTime(TimeSpan.FromSeconds(557.0), TimeSpan.FromSeconds(533.0)),
                     new RemainingTime(TimeSpan.FromSeconds(557.0), TimeSpan.FromSeconds(532.0)),
+                }
+            },
+
+            new Testcase
+            {
+                SummaryStr = @"
+BEGIN Game_Summary
+Protocol_Version:1.2
+Protocol_Mode:Server
+Format:Shogi 1.0
+Declaration:Jishogi 1.1
+Game_ID:20220805-Test-2
+Name+:{0}
+Name-:{1}
+Your_Turn:{2}
+Rematch_On_Draw:NO
+To_Move:-
+Max_Moves:100
+BEGIN Time
+Time_Unit:1min
+Total_Time:60
+Byoyomi:0
+Least_Time_Per_Move:0
+Increment:5
+Delay: 3
+Time_Roundup:YES
+END Time
+BEGIN Position
+P1-KY *  *  *  *  *  * -KE-KY
+P2 *  *  *  *  * +TO * -KI-OU
+P3 *  * -KE-FU * +GI *  *  * 
+P4-FU * -FU *  *  *  * +FU-FU
+P5 *  *  * +FU *  * +GI-FU * 
+P6 * +FU+FU-KA *  * +FU * +FU
+P7+FU *  *  *  *  * +KI+GI * 
+P8+HI *  *  *  *  *  *  *  * 
+P9+KY+KE *  *  *  * -KA+OU+KY
+P+00HI00KI
+P-00KI00GI00KE00FU00FU00FU00FU00FU
+-
+END Position
+END Game_Summary
+",
+                Summary = new GameSummary
+                {
+                    GameId = "20220805-Test-2",
+                    StartColor = Color.White,
+                    MaxMoves = 100,
+                    TimeRule = new TimeRule
+                    {
+                        TimeUnit = TimeSpan.FromMinutes(1.0),
+                        LeastTimePerMove = TimeSpan.Zero,
+                        TotalTime = TimeSpan.FromMinutes(60.0),
+                        Byoyomi = TimeSpan.Zero,
+                        Delay = TimeSpan.FromMinutes(3.0),
+                        Increment = TimeSpan.FromMinutes(5.0),
+                        IsRoundUp = true,
+                    },
+                    StartPos = new Position("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1"),
+                    Moves = new List<(Move, TimeSpan)>(),
+                },
+
+                Moves = new List<(Move, TimeSpan)>
+                {
+                    (Usi.ParseMove("N*4d"), TimeSpan.FromMinutes(35.0)),
+                    (Usi.ParseMove("2d2c+"), TimeSpan.Zero),
+                    (Usi.ParseMove("2b2c"), TimeSpan.FromMinutes(35.0)),
+                    (Usi.ParseMove("R*1c"), TimeSpan.Zero),
+                    (Usi.ParseMove("4d3f"), TimeSpan.FromMinutes(5.0)),
+                },
+
+                ResultStrs = new[] { "#WIN", "#LOSE" },
+                Results = new[] { GameResult.Win, GameResult.Lose },
+                EndStateStr = "#ILLEGAL_MOVE",
+                EndState = EndGameState.IllegalMove,
+                Times = new[]
+                {
+                    new RemainingTime(TimeSpan.FromMinutes(60.0), TimeSpan.FromMinutes(60.0)),
+                    new RemainingTime(TimeSpan.FromMinutes(60.0), TimeSpan.FromMinutes(30.0)),
+                    new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.FromMinutes(30.0)),
+                    new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.Zero),
+                    new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
+                }
+            },
+
+            new Testcase
+            {
+                SummaryStr = @"
+BEGIN Game_Summary
+Protocol_Version:1.2
+Protocol_Mode:Server
+Format:Shogi 1.0
+Declaration:Jishogi 1.1
+Game_ID:20220805-Test-3
+Name+:{0}
+Name-:{1}
+Your_Turn:{2}
+Rematch_On_Draw:NO
+To_Move:+
+Max_Moves:2
+BEGIN Time
+Time_Unit:200msec
+Total_Time:60000
+END Time
+BEGIN Position
+P1-KY-KE-GI-KI-OU-KI-GI-KE-KY
+P2 * -HI *  *  *  *  * -KA * 
+P3-FU-FU-FU-FU-FU-FU-FU-FU-FU
+P4 *  *  *  *  *  *  *  *  * 
+P5 *  *  *  *  *  *  *  *  * 
+P6 *  *  *  *  *  *  *  *  * 
+P7+FU+FU+FU+FU+FU+FU+FU+FU+FU
+P8 * +KA *  *  *  *  * +HI * 
+P9+KY+KE+GI+KI+OU+KI+GI+KE+KY
+P+
+P-
++
+END Position
+END Game_Summary
+",
+                Summary = new GameSummary
+                {
+                    GameId = "20220805-Test-3",
+                    StartColor = Color.Black,
+                    MaxMoves = 2,
+                    TimeRule = new TimeRule
+                    {
+                        TimeUnit = TimeSpan.FromMilliseconds(200.0),
+                        LeastTimePerMove = TimeSpan.Zero,
+                        TotalTime = TimeSpan.FromMilliseconds(60000.0 * 200.0),
+                        Byoyomi = TimeSpan.Zero,
+                        Delay = TimeSpan.Zero,
+                        Increment = TimeSpan.Zero,
+                        IsRoundUp = false,
+                    },
+                    StartPos = new Position(Position.Hirate),
+                    Moves = new List<(Move, TimeSpan)>(),
+                },
+
+                Moves = new List<(Move, TimeSpan)>
+                {
+                    (Usi.ParseMove("5i5h"), TimeSpan.FromMilliseconds(100.0 * 200.0)),
+                    (Usi.ParseMove("5a5b"), TimeSpan.FromMilliseconds(400.0 * 200.0)),
+                },
+
+                ResultStrs = new[] { "#CENSORED", "#CENSORED" },
+                Results = new[] { GameResult.Censored, GameResult.Censored },
+                EndStateStr = "#MAX_MOVES",
+                EndState = EndGameState.MaxMoves,
+                Times = new[]
+                {
+                    new RemainingTime(TimeSpan.FromMilliseconds(60000.0 * 200.0), TimeSpan.FromMilliseconds(60000.0 * 200.0)),
+                    new RemainingTime(TimeSpan.FromMilliseconds(59900.0 * 200.0), TimeSpan.FromMilliseconds(60000.0 * 200.0)),
                 }
             },
         };
@@ -331,12 +490,13 @@ END Game_Summary
                         {
                             var message = await connections[(int)pos.Player].Stream.ReadLineAsync(ct);
                             if (message is null) return;
-                            if (move != Move.Resign && move != Move.Win)
+                            if (pos.IsLegalMove(move))
                             {
                                 Assert.AreEqual(move.Csa(pos), message);
                                 pos.DoMove(move);
                             }
                             var response = message.Length < 7 ? message : message[0..7];
+
                             foreach (var con in connections)
                                 await con.Stream.WriteLineLFAsync($"{response},T{time.TotalSeconds}", ct);
                         }
@@ -345,7 +505,6 @@ END Game_Summary
                             await con.Stream.WriteLineLFAsync(testcase.EndStateStr!, ct);
                         for (int i = 0; i < 2; ++i)
                             await connections[i].Stream.WriteLineLFAsync(testcase.ResultStrs![i], ct);
-
                     }
                 }
                 finally

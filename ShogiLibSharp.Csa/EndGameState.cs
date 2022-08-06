@@ -15,6 +15,7 @@ namespace ShogiLibSharp.Csa
         TimeUp,
         Resign,
         Jishogi,
+        MaxMoves,
         Chudan,
         IllegalAction,
     }
