@@ -48,9 +48,10 @@ namespace ShogiLibSharp.Csa.Tests
                 {
                     await c1.ConnectAsync(new PlayerFactory(), ctsAll.Token);
                 }
-                finally
+                catch (Exception)
                 {
                     cts1.Cancel();
+                    throw;
                 }
             });
             var clientTask2 = Task.Run(async () =>
@@ -59,9 +60,10 @@ namespace ShogiLibSharp.Csa.Tests
                 {
                     await c2.ConnectAsync(new PlayerFactory(), ctsAll.Token);
                 }
-                finally
+                catch (Exception)
                 {
                     cts2.Cancel();
+                    throw;
                 }
             });
 
