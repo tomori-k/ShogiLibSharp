@@ -80,6 +80,8 @@ namespace ShogiLibSharp.Core
             if (usiMove[1] == '*')
             {
                 var dropped = FromUsi(usiMove[0]);
+                if (dropped.Color() != Color.Black)
+                    throw new FormatException($"USI 形式ではありません：{usiMove}");
                 return MoveExtensions.MakeDrop(dropped, to);
             }
             // 駒移動

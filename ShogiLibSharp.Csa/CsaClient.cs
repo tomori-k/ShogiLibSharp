@@ -175,62 +175,78 @@ namespace ShogiLibSharp.Csa
             {
                 var endState = EndGameState.None;
                 var result = GameResult.Censored;
+                var readlineTask = stream.ReadLineAsync(ct);
                 var thinkTask = Task.CompletedTask;
                 using var thinkCanceler = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-                player.GameStart();
-
-                if (pos.Player == summary.Color)
-                {
-                    thinkTask = ThinkAndSendAsync(thinkCanceler.Token);
-                }
-
                 try
                 {
+                    player.GameStart();
+
+                    if (pos.Player == summary.Color)
+                    {
+                        thinkTask = SendMoveAsync(thinkCanceler.Token);
+                    }
+
                     while (true)
                     {
-                        var message = await stream.ReadLineAsync(ct).ConfigureAwait(false);
-                        ThrowIfNullLine(message);
+                        var finished = await Task
+                            .WhenAny(readlineTask, thinkTask)
+                            .ConfigureAwait(false);
 
-                        // 指し手
-                        if (message!.StartsWith("+") || message!.StartsWith("-"))
+                        if (finished == readlineTask)
                         {
-                            await thinkTask.ConfigureAwait(false);
+                            var message = await readlineTask;
+                            ThrowIfNullLine(message);
+                            readlineTask = stream.ReadLineAsync(ct);
 
-                            var (move, time) = Core.Csa.ParseMoveWithTime(message, pos);
-                            if (!pos.IsLegalMove(move))
+                            // 指し手
+                            if (message!.StartsWith("+") || message!.StartsWith("-"))
                             {
-                                continue;
+                                await thinkTask.ConfigureAwait(false);
+
+                                var (move, time) = Core.Csa.ParseMoveWithTime(message, pos);
+                                if (!pos.IsLegalMove(move))
+                                {
+                                    continue;
+                                }
+                                NewMove(move, time);
+                                if (pos.Player == summary.Color)
+                                {
+                                    thinkTask = SendMoveAsync(thinkCanceler.Token);
+                                }
                             }
-                            NewMove(move, time);
-                            if (pos.Player == summary.Color)
+                            // 投了、入玉宣言
+                            else if (message.StartsWith("%"))
                             {
-                                thinkTask = ThinkAndSendAsync(thinkCanceler.Token);
+                                // throw new NotImplementedException();
                             }
+                            else if (EndGameStateTable.ContainsKey(message))
+                            {
+                                endState = EndGameStateTable[message];
+                            }
+                            else if (GameResultTable.ContainsKey(message))
+                            {
+                                result = GameResultTable[message];
+                                break;
+                            }
+                            else if (message == "#CHUDAN")
+                            {
+                                endState = EndGameState.Chudan;
+                                break;
+                            }
+                            // これ以外は無視
                         }
-                        // 投了、入玉宣言
-                        else if (message.StartsWith("%"))
+                        // サーバへの指し手送信が完了 or 例外発生
+                        else
                         {
-                            // throw new NotImplementedException();
+                            // 何らかの例外が発生していた場合はここでスロー
+                            if (!thinkTask.IsCompletedSuccessfully)
+                                await thinkTask;
                         }
-                        else if (EndGameStateTable.ContainsKey(message))
-                        {
-                            endState = EndGameStateTable[message];
-                        }
-                        else if (GameResultTable.ContainsKey(message))
-                        {
-                            result = GameResultTable[message];
-                            break;
-                        }
-                        else if (message == "#CHUDAN")
-                        {
-                            endState = EndGameState.Chudan;
-                            break;
-                        }
-                        // これ以外は無視
                     }
                 }
-                finally
+                catch (OperationCanceledException e) when (e.CancellationToken == ct)
                 {
                     if (!thinkTask.IsCompleted)
                     {
@@ -240,13 +256,14 @@ namespace ShogiLibSharp.Csa
                             await thinkTask.ConfigureAwait(false);
                         }
                         // キャンセル例外は無視
-                        catch (OperationCanceledException e) when (e.CancellationToken == thinkCanceler.Token) { }
+                        catch (OperationCanceledException ex) when (ex.CancellationToken == thinkCanceler.Token) { }
                     }
                     player.GameEnd(endState, result);
+                    throw;
                 }
             }
 
-            async Task ThinkAndSendAsync(CancellationToken ct)
+            async Task SendMoveAsync(CancellationToken ct)
             {
                 var bestmove = await player.ThinkAsync(pos.Clone(), remainingTime.Clone(), ct).ConfigureAwait(false);
                 var csa = bestmove == Move.Resign ? "%TORYO"
