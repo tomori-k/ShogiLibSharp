@@ -5,6 +5,8 @@ using System.Net.Sockets;
 
 namespace ShogiLibSharp.Csa
 {
+    // http://www2.computer-shogi.org/protocol/tcp_ip_server_121.html
+
     public class CsaClient
     {
         WrapperStream? stream = null;

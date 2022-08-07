@@ -52,9 +52,12 @@ namespace ShogiLibSharp.Csa.Tests
                 await serverTask;
             }
             catch (OperationCanceledException) { }
+
+            await RejectTest();
+            await LogoutTest();
         }
 
-        [TestMethod, Timeout(5000)]
+        //[TestMethod, Timeout(5000)]
         public async Task RejectTest()
         {
             var options1 = new ConnectOptions
@@ -98,7 +101,7 @@ namespace ShogiLibSharp.Csa.Tests
             Assert.AreEqual(Testcases.Length, testFactory2.RejectedCount);
         }
 
-        [TestMethod, Timeout(5000)]
+        //[TestMethod, Timeout(5000)]
         public async Task LogoutTest()
         {
             var options1 = new ConnectOptions
