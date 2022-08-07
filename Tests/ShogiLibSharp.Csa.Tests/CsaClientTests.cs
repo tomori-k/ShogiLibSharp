@@ -32,66 +32,53 @@ namespace ShogiLibSharp.Csa.Tests
                 UserName = "b-c-d",
                 Password = "testteste"
             };
+
             using var c1 = new CsaClient(options1);
             using var c2 = new CsaClient(options2);
             var server = new TestServer();
 
-            using var cts0 = new CancellationTokenSource();
-            using var cts1 = new CancellationTokenSource();
-            using var cts2 = new CancellationTokenSource();
-            using var ctsAll = CancellationTokenSource.CreateLinkedTokenSource(cts0.Token, cts1.Token, cts2.Token);
+            using var cts = new CancellationTokenSource();
 
-            var serverTask = server.ListenAsync(cts0, ctsAll.Token);
-            var clientTask1 = Task.Run(async () =>
-            {
-                try
-                {
-                    await c1.ConnectAsync(new PlayerFactory(), ctsAll.Token);
-                }
-                catch (Exception)
-                {
-                    cts1.Cancel();
-                    throw;
-                }
-            });
-            var clientTask2 = Task.Run(async () =>
-            {
-                try
-                {
-                    await c2.ConnectAsync(new PlayerFactory(), ctsAll.Token);
-                }
-                catch (Exception)
-                {
-                    cts2.Cancel();
-                    throw;
-                }
-            });
+            var serverTask = server.ListenAsync(cts.Token);
+            var clientTask1 = ConnectAsync(c1, cts, cts.Token);
+            var clientTask2 = ConnectAsync(c2, cts, cts.Token);
 
-            var all = Task.WhenAll(serverTask, clientTask1, clientTask2);
+            var first = await Task.WhenAny(serverTask, clientTask1, clientTask2);
+            if (!first.IsCompletedSuccessfully) await first; // 例外スロー
+
+            if (clientTask1.IsCompleted) await clientTask2;
+            else await clientTask1;
+
+            cts.Cancel();
+
             try
             {
-                await all;
+                await serverTask;
+            }
+            catch (OperationCanceledException) { }
+        }
+
+        static async Task ConnectAsync(CsaClient client, CancellationTokenSource cts, CancellationToken ct)
+        {
+            try
+            {
+                await client.ConnectAsync(new PlayerFactory(), ct);
             }
             catch (Exception)
             {
-                if (all.Exception is AggregateException e)
-                {
-                    foreach (var ex in e.InnerExceptions)
-                    {
-                        if (ex is OperationCanceledException || ex is CsaServerException) continue;
-                        Trace.WriteLine(ex);
-                    }
-
-                    if (!e.InnerExceptions
-                        .All(x => x is OperationCanceledException || x is CsaServerException))
-                        throw;
-                }
+                cts.Cancel();
+                throw;
             }
         }
 
         class PlayerFactory : IPlayerFactory
         {
             int index = 0;
+
+            public bool ContinueLogin()
+            {
+                return index < testcases.Length;
+            }
 
             public Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct)
             {
@@ -431,7 +418,7 @@ END Game_Summary
                 }
             }
 
-            public async Task ListenAsync(CancellationTokenSource cts, CancellationToken ct)
+            public async Task ListenAsync(CancellationToken ct)
             {
                 List<Connection>? connections = null;
                 try
@@ -508,6 +495,9 @@ END Game_Summary
                         for (int i = 0; i < 2; ++i)
                             await connections[i].Stream.WriteLineLFAsync(testcase.ResultStrs![i], ct);
                     }
+
+                    // キャンセルが来るまで待つ
+                    await Task.Delay(-1, ct);
                 }
                 finally
                 {
@@ -516,7 +506,6 @@ END Game_Summary
                         foreach (var c in connections) c.Dispose();
                     }
                     server.Stop();
-                    cts.Cancel(); // クライアントも全部キャンセル
                 }
             }
         }

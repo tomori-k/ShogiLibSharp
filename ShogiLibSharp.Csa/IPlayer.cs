@@ -10,6 +10,7 @@ namespace ShogiLibSharp.Csa
     // todo: 名前再考
     public interface IPlayerFactory
     {
+        bool ContinueLogin();
         Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct); // 対局するならIPlayer を返し、そうでないなら null を返す
     }
 

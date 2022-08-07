@@ -55,6 +55,10 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
+                if (!playerFactory.ContinueLogin())
+                {
+                    break; // todo: ログアウト処理
+                }
                 GameSummary? summary;
                 //try
                 //{
