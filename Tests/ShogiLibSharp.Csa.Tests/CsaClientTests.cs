@@ -255,6 +255,7 @@ namespace ShogiLibSharp.Csa.Tests
 
             public Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
             {
+                Trace.WriteLine($"{testcase.Times!.Length}, {moveCount}");
                 var expectedTime = testcase.Times![moveCount];
                 Assert.IsTrue(started);
                 Assert.IsFalse(ended);
