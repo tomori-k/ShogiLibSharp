@@ -216,6 +216,7 @@ namespace ShogiLibSharp.Csa
                 var result = GameResult.Censored;
                 var thinkTask = Task.CompletedTask;
                 using var thinkCanceler = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                Exception? canceledException = null;
 
                 try
                 {
@@ -285,28 +286,28 @@ namespace ShogiLibSharp.Csa
                             if (!thinkTask.IsCompletedSuccessfully) await thinkTask;
                         }
                     }
-                    player.GameEnd(endState, result);
                 }
                 catch (Exception e) when (e is CsaServerException
                     || (e is OperationCanceledException ex && ex.CancellationToken == ct))
                 {
-                    if (!thinkTask.IsCompleted && !ct.IsCancellationRequested)
-                    {
-                        thinkCanceler.Cancel();
-                    }
-                    try
-                    {
-                        await thinkTask.ConfigureAwait(false);
-                    }
-                    // キャンセル例外は無視
-                    catch (Exception e1) when (e1 is CsaServerException
-                        || (e1 is OperationCanceledException oe1
-                            && (oe1.CancellationToken == ct || oe1.CancellationToken == thinkCanceler.Token)))
-                    {
-                    }
-                    player.GameEnd(endState, result);
-                    throw;
+                    canceledException = e;
                 }
+
+                if (!thinkTask.IsCompleted && !ct.IsCancellationRequested)
+                    thinkCanceler.Cancel();
+                try
+                {
+                    await thinkTask.ConfigureAwait(false);
+                }
+                // キャンセル例外は無視
+                catch (Exception e) when (e is CsaServerException
+                    || (e is OperationCanceledException ex
+                        && (ex.CancellationToken == ct || ex.CancellationToken == thinkCanceler.Token)))
+                {
+                }
+                player.GameEnd(endState, result);
+
+                if (canceledException is { } exception) throw exception;
             }
 
             async Task SendMoveAsync(CancellationToken ct)

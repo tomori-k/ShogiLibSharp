@@ -240,6 +240,8 @@ namespace ShogiLibSharp.Csa.Tests
 
             public void GameStart()
             {
+                Assert.IsFalse(started);
+                Assert.IsFalse(ended);
                 started = true;
             }
 
@@ -253,16 +255,16 @@ namespace ShogiLibSharp.Csa.Tests
                 position.DoMove(m);
             }
 
-            public Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
+            public async Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
             {
-                Trace.WriteLine($"{testcase.Times!.Length}, {moveCount}");
+                if (moveCount >= testcase.Times!.Length) await Task.Delay(-1, ct);
                 var expectedTime = testcase.Times![moveCount];
                 Assert.IsTrue(started);
                 Assert.IsFalse(ended);
                 Assert.AreEqual(expectedTime[Color.Black], time[Color.Black]);
                 Assert.AreEqual(expectedTime[Color.White], time[Color.White]);
                 Assert.AreEqual(position.SfenWithMoves(), pos.SfenWithMoves());
-                return Task.FromResult(moves[moveCount].Item1);
+                return moves[moveCount].Item1;
             }
         }
 
