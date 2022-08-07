@@ -85,21 +85,22 @@ namespace ShogiLibSharp.Csa
                         break;
                     }
 
+                    if (summary is null) continue;
+
                     // Agree or Reject
                     // AgreeWith の結果が null なら Reject
-                    if (summary is null
-                        || await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false) is not { } player)
-                    {
-                        await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false);
-                        continue;
-                    }
-                    await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
+                    var player = await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false);
+                    if (player is null) await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false); 
+                    else await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
 
-                    // 相手側の Reject
+                    // Start or Reject が来るのを待つ
                     if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
                     {
+                        playerFactory.Rejected(summary);
                         continue;
                     }
+
+                    if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
 
                     await new GameLoop(stream, summary, player).StartAsync(ct).ConfigureAwait(false);
                 }
@@ -142,7 +143,7 @@ namespace ShogiLibSharp.Csa
             {
                 var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
                 if (message == $"START:{summary.GameId}") return true;
-                else if (message == $"REJECT:{summary.GameId}") return false;
+                else if (message.StartsWith($"REJECT:{summary.GameId}")) return false;
             }
         }
 
@@ -203,7 +204,9 @@ namespace ShogiLibSharp.Csa
 
                 foreach (var (move, time) in summary.Moves!)
                 {
-                    NewMove(move, time);
+                    remainingTime[pos.Player] += summary.TimeRule!.Increment;
+                    remainingTime[pos.Player] -= time;
+                    pos.DoMove(move);
                 }
             }
 

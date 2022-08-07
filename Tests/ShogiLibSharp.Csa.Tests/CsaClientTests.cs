@@ -15,7 +15,7 @@ namespace ShogiLibSharp.Csa.Tests
     [TestClass()]
     public class CsaClientTests
     {
-        [TestMethod(), Timeout(10000)]
+        [TestMethod(), Timeout(5000)]
         public async Task ConnectAsyncTest()
         {
             var options1 = new ConnectOptions
@@ -33,12 +33,11 @@ namespace ShogiLibSharp.Csa.Tests
                 Password = "testteste"
             };
 
-            var server = new TestServer();
-
             using var cts = new CancellationTokenSource();
 
-            var c1 = new CsaClient(new PlayerFactory(), options1, cts.Token);
-            var c2 = new CsaClient(new PlayerFactory(), options2, cts.Token);
+            var server = new TestServer(Testcases);
+            var c1 = new CsaClient(new PlayerFactory(Testcases), options1, cts.Token);
+            var c2 = new CsaClient(new PlayerFactory(Testcases), options2, cts.Token);
             var serverTask = server.ListenAsync(cts.Token);
 
             var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
@@ -48,7 +47,90 @@ namespace ShogiLibSharp.Csa.Tests
             else await c1.ConnectionTask;
 
             cts.Cancel();
+            try
+            {
+                await serverTask;
+            }
+            catch (OperationCanceledException) { }
+        }
 
+        [TestMethod, Timeout(5000)]
+        public async Task RejectTest()
+        {
+            var options1 = new ConnectOptions
+            {
+                HostName = "localhost",
+                Port = 4081,
+                UserName = "AbcDefGHjkLmnKpqrsTUvwxyz012345",
+                Password = "sakura999",
+            };
+            var options2 = new ConnectOptions
+            {
+                HostName = "localhost",
+                Port = 4081,
+                UserName = "--__________AAAAAAAAAAAAAAAAAAA",
+                Password = "qawsedrftgyhujikolp",
+            };
+
+            using var cts = new CancellationTokenSource();
+            var testFactory1 = new RejectPlayer(Testcases.Length);
+            var testFactory2 = new PlayerFactory(Testcases);
+
+            var server = new TestServer(Testcases);
+            var c1 = new CsaClient(testFactory1, options1, cts.Token);
+            var c2 = new CsaClient(testFactory2, options2, cts.Token);
+            var serverTask = server.ListenAsync(cts.Token);
+
+            var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
+            if (!first.IsCompletedSuccessfully) await first; // 例外スロー
+
+            if (c1.ConnectionTask.IsCompleted) await c2.ConnectionTask;
+            else await c1.ConnectionTask;
+
+            cts.Cancel();
+            try
+            {
+                await serverTask;
+            }
+            catch (OperationCanceledException) { }
+
+            Assert.AreEqual(Testcases.Length, testFactory1.RejectedCount);
+            Assert.AreEqual(Testcases.Length, testFactory2.RejectedCount);
+        }
+
+        [TestMethod, Timeout(5000)]
+        public async Task LogoutTest()
+        {
+            var options1 = new ConnectOptions
+            {
+                HostName = "localhost",
+                Port = 4081,
+                UserName = "011101110111",
+                Password = "a",
+            };
+            var options2 = new ConnectOptions
+            {
+                HostName = "localhost",
+                Port = 4081,
+                UserName = "_______________",
+                Password = "b",
+            };
+
+            using var cts = new CancellationTokenSource();
+
+            var server = new TestServer(new Testcase[0]);
+            var c1 = new CsaClient(new PlayerFactory(Testcases), options1, cts.Token);
+            var c2 = new CsaClient(new PlayerFactory(Testcases), options2, cts.Token);
+            var serverTask = server.ListenAsync(cts.Token);
+
+            await Task.Delay(1000);
+
+            Assert.IsFalse(c1.ConnectionTask.IsCompleted);
+            Assert.IsFalse(c2.ConnectionTask.IsCompleted);
+
+            await Task.WhenAll(c1.LogoutAsync(), c2.LogoutAsync());
+
+            cts.Cancel();
             try
             {
                 await serverTask;
@@ -59,10 +141,23 @@ namespace ShogiLibSharp.Csa.Tests
         class PlayerFactory : IPlayerFactory
         {
             int index = 0;
+            Testcase[] testcases;
+
+            public int RejectedCount { get; private set; }
+
+            public PlayerFactory(Testcase[] testcases)
+            {
+                this.testcases = testcases;
+            }
 
             public bool ContinueLogin()
             {
                 return index < testcases.Length;
+            }
+
+            public void Rejected(GameSummary summary)
+            {
+                ++RejectedCount;
             }
 
             public Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct)
@@ -82,6 +177,35 @@ namespace ShogiLibSharp.Csa.Tests
             }
         }
 
+        class RejectPlayer : IPlayerFactory
+        {
+            int summaryCount = 0;
+            int rejectCount;
+
+            public int RejectedCount { get; private set; }
+
+            public RejectPlayer(int rejectCount)
+            {
+                this.rejectCount = rejectCount;
+            }
+
+            public Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct)
+            {
+                ++summaryCount;
+                return Task.FromResult<IPlayer?>(null);
+            }
+
+            public bool ContinueLogin()
+            {
+                return summaryCount < rejectCount;
+            }
+
+            public void Rejected(GameSummary summary)
+            {
+                ++RejectedCount;
+            }
+        }
+
         class Player : IPlayer
         {
             int moveCount = 0;
@@ -89,30 +213,41 @@ namespace ShogiLibSharp.Csa.Tests
             Testcase testcase;
             Position position;
             GameSummary summary;
+            bool started = false;
+            bool ended = false;
 
             public Player(Testcase testcase, GameSummary summary)
             {
                 this.testcase = testcase;
                 this.position = summary.StartPos!.Clone();
-                this.moves = summary.Moves!
-                    .Concat(testcase.Moves!)
-                    .ToList();
+                this.moves = testcase.Moves!;
                 this.summary = summary;
+
+                foreach (var (m, _) in summary.Moves!)
+                {
+                    position.DoMove(m);
+                }
             }
 
             public void GameEnd(EndGameState endState, GameResult result)
             {
+                Assert.IsTrue(started);
+                Assert.IsFalse(ended);
                 Assert.AreEqual(testcase.EndState, endState);
                 Assert.AreEqual(testcase.Results![(int)summary.Color], result);
+                ended = true;
             }
 
             public void GameStart()
             {
+                started = true;
             }
 
             public void NewMove(Move move, TimeSpan elapsed)
             {
                 var (m, t) = moves[moveCount++];
+                Assert.IsTrue(started);
+                Assert.IsFalse(ended);
                 Assert.AreEqual(m, move);
                 Assert.AreEqual(t, elapsed);
                 position.DoMove(m);
@@ -120,7 +255,9 @@ namespace ShogiLibSharp.Csa.Tests
 
             public Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
             {
-                var expectedTime = testcase.Times![moveCount - summary.Moves!.Count];
+                var expectedTime = testcase.Times![moveCount];
+                Assert.IsTrue(started);
+                Assert.IsFalse(ended);
                 Assert.AreEqual(expectedTime[Color.Black], time[Color.Black]);
                 Assert.AreEqual(expectedTime[Color.White], time[Color.White]);
                 Assert.AreEqual(position.SfenWithMoves(), pos.SfenWithMoves());
@@ -128,7 +265,7 @@ namespace ShogiLibSharp.Csa.Tests
             }
         }
 
-        static readonly Testcase[] testcases = new[]
+        static readonly Testcase[] Testcases = new[]
         {
             new Testcase
             {
@@ -384,6 +521,12 @@ END Game_Summary
         class TestServer
         {
             TcpListener server = new TcpListener(System.Net.IPAddress.Loopback, 4081);
+            Testcase[] testcases;
+
+            public TestServer(Testcase[] testcases)
+            {
+                this.testcases = testcases;
+            }
 
             static async Task<bool> LoginAsync(Connection con, CancellationToken ct)
             {

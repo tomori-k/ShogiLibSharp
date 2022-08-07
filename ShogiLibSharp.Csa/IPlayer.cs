@@ -11,7 +11,8 @@ namespace ShogiLibSharp.Csa
     public interface IPlayerFactory
     {
         bool ContinueLogin();
-        Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct); // 対局するならIPlayer を返し、そうでないなら null を返す
+        void Rejected(GameSummary summary);
+        Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct); // 対局するなら IPlayer を返し、そうでないなら null を返す
     }
 
     public interface IPlayer
