@@ -138,6 +138,73 @@ namespace ShogiLibSharp.Csa.Tests
             catch (OperationCanceledException) { }
         }
 
+        [TestMethod]
+        public void ArgumentCheckTest()
+        {
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "abcd~",
+                    Password = ""
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "あ",
+                    Password = ""
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "\t\r\n",
+                    Password = ""
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    Password = ""
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "",
+                    Password = "a"
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "a",
+                    Password = "あ"
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "a",
+                    Password = "\t\r\n"
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "bb",
+                    Password = "abcdefghijklmnopqrstuvwxyz0123456"
+                }));
+
+            Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
+                new ConnectOptions
+                {
+                    UserName = "abc",
+                    Password = ""
+                }));
+        }
+
         class PlayerFactory : IPlayerFactory
         {
             int index = 0;
