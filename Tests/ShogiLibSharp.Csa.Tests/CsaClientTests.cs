@@ -33,21 +33,19 @@ namespace ShogiLibSharp.Csa.Tests
                 Password = "testteste"
             };
 
-            using var c1 = new CsaClient(options1);
-            using var c2 = new CsaClient(options2);
             var server = new TestServer();
 
             using var cts = new CancellationTokenSource();
 
+            var c1 = new CsaClient(new PlayerFactory(), options1, cts.Token);
+            var c2 = new CsaClient(new PlayerFactory(), options2, cts.Token);
             var serverTask = server.ListenAsync(cts.Token);
-            var clientTask1 = ConnectAsync(c1, cts, cts.Token);
-            var clientTask2 = ConnectAsync(c2, cts, cts.Token);
 
-            var first = await Task.WhenAny(serverTask, clientTask1, clientTask2);
+            var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
             if (!first.IsCompletedSuccessfully) await first; // 例外スロー
 
-            if (clientTask1.IsCompleted) await clientTask2;
-            else await clientTask1;
+            if (c1.ConnectionTask.IsCompleted) await c2.ConnectionTask;
+            else await c1.ConnectionTask;
 
             cts.Cancel();
 
@@ -56,19 +54,6 @@ namespace ShogiLibSharp.Csa.Tests
                 await serverTask;
             }
             catch (OperationCanceledException) { }
-        }
-
-        static async Task ConnectAsync(CsaClient client, CancellationTokenSource cts, CancellationToken ct)
-        {
-            try
-            {
-                await client.ConnectAsync(new PlayerFactory(), ct);
-            }
-            catch (Exception)
-            {
-                cts.Cancel();
-                throw;
-            }
         }
 
         class PlayerFactory : IPlayerFactory
@@ -494,6 +479,19 @@ END Game_Summary
                             await con.Stream.WriteLineLFAsync(testcase.EndStateStr!, ct);
                         for (int i = 0; i < 2; ++i)
                             await connections[i].Stream.WriteLineLFAsync(testcase.ResultStrs![i], ct);
+                    }
+
+                    foreach (var con in connections)
+                    {
+                        while (true)
+                        {
+                            var message = await con.Stream.ReadLineAsync(ct);
+                            if (message == "LOGOUT")
+                            {
+                                await con.Stream.WriteLineLFAsync("LOGOUT:completed", ct);
+                                break;
+                            }
+                        }
                     }
 
                     // キャンセルが来るまで待つ

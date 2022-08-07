@@ -5,100 +5,118 @@ using System.Net.Sockets;
 
 namespace ShogiLibSharp.Csa
 {
-    public class CsaClient : IDisposable
+    public class CsaClient
     {
-        TcpClient tcp = new();
         WrapperStream? stream = null;
-        ConnectOptions Options;
-        bool disposed = false;
-        CancellationTokenSource lifetime = new();
+        ConnectOptions options;
+        SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        bool logoutSent = false;
+        bool isWaitingForNextGame = false;
+        
+        public Task ConnectionTask { get; }
 
-        public CsaClient(ConnectOptions options) { Options = options; }
-
-        public void Dispose()
+        public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, CancellationToken ct = default)
         {
-            if (disposed) return;
-            lifetime.Cancel();
-            lifetime.Dispose();
-            stream!?.Dispose();
-            tcp.Dispose();
-            disposed = true;
+            this.options = options;
+            this.ConnectionTask = ConnectAsyncImpl(playerFactory, ct);
         }
 
-        public async Task ConnectAsync(IPlayerFactory playerFactory, CancellationToken ct = default)
+        public async Task LogoutAsync(CancellationToken ct = default)
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, ct);
+            if (ConnectionTask.IsCompleted) return;
+
+            await semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await ConnectAsyncImpl(playerFactory, cts.Token);
+                if (stream is null || !isWaitingForNextGame) return;
+                await SendLogout(ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+            finally
             {
-                if (lifetime.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException("CsaClient が Dispose() されました。", e, lifetime.Token);
-                }
-                else
-                {
-                    throw new OperationCanceledException(e.Message, e, ct);
-                }
+                semaphore.Release();
+            }
+
+            await ConnectionTask.ConfigureAwait(false);
+        }
+
+        async Task SendLogout(CancellationToken ct)
+        {
+            if (!logoutSent)
+            {
+                await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
+                logoutSent = true;
             }
         }
 
         async Task ConnectAsyncImpl(IPlayerFactory playerFactory, CancellationToken ct)
         {
-            await tcp.ConnectAsync(Options.HostName, Options.Port, ct).ConfigureAwait(false);
+            using var tcp = new TcpClient();
 
+            await tcp.ConnectAsync(options.HostName, options.Port, ct).ConfigureAwait(false);
             stream = new WrapperStream(tcp.GetStream());
 
-            await LoginAsync(ct).ConfigureAwait(false);
-
-            while (true)
+            try
             {
-                if (!playerFactory.ContinueLogin())
-                {
-                    break; // todo: ログアウト処理
-                }
-                GameSummary? summary;
-                //try
-                //{
-                    summary = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
-                    if (summary is null) continue;
-                //}
-                //catch (OperationCanceledException)
-                //{
-                //    // Dispose() されたのでなければ、ログアウト処理
-                //    if (lifetime.IsCancellationRequested) throw;
-                //    await LogoutAsync();
-                //    break;
-                //}
-            
-                // Agree or Reject
-                // AgreeWith の結果が null なら Reject
-                if (await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false) is not { } player)
-                {
-                    await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false);
-                    continue;
-                }
-                await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
+                await LoginAsync(ct).ConfigureAwait(false);
 
-                // 相手側の Reject
-                if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
+                while (true)
                 {
-                    continue;
-                }
+                    if (!playerFactory.ContinueLogin())
+                    {
+                        // ログアウト
+                        await semaphore.WaitAsync(ct).ConfigureAwait(false);
+                        try
+                        {
+                            await SendLogout(ct).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    }
 
-                await new GameLoop(stream, summary, player).StartAsync(ct).ConfigureAwait(false);
+                    GameSummary? summary;
+                    try
+                    {
+                        summary = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (LogoutException)
+                    {
+                        break;
+                    }
+
+                    // Agree or Reject
+                    // AgreeWith の結果が null なら Reject
+                    if (summary is null
+                        || await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false) is not { } player)
+                    {
+                        await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false);
+                        continue;
+                    }
+                    await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
+
+                    // 相手側の Reject
+                    if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+
+                    await new GameLoop(stream, summary, player).StartAsync(ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                stream.Dispose();
             }
         }
 
         async Task LoginAsync(CancellationToken ct)
         {
-            await WriteLineAsync(stream!, $"LOGIN {Options.UserName} {Options.Password}", ct).ConfigureAwait(false);
+            await WriteLineAsync(stream!, $"LOGIN {options.UserName} {options.Password}", ct).ConfigureAwait(false);
             while (true)
             {
                 var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
-                if (message == $"LOGIN:{Options.UserName} OK")
+                if (message == $"LOGIN:{options.UserName} OK")
                 {
                     return;
                 }
@@ -108,29 +126,6 @@ namespace ShogiLibSharp.Csa
                 }
             }
         }
-
-        //async Task LogoutAsync()
-        //{
-        //    using var logoutCts = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        //    logoutCts.CancelAfter(TimeSpan.FromSeconds(10.0)); // 10 秒待ってログアウト出来なかったら強制的に切る
-
-        //    try
-        //    {
-        //        await stream!.WriteLineLFAsync("LOGOUT", logoutCts.Token).ConfigureAwait(false);
-        //        await WaitingForMessageAsync("LOGOUT:completed", logoutCts.Token).ConfigureAwait(false);
-        //    }
-        //    catch (OperationCanceledException e) when (e.CancellationToken == logoutCts.Token)
-        //    {
-        //        if (lifetime.IsCancellationRequested)
-        //        {
-        //            throw new OperationCanceledException("CsaClient が Dispose() されました。", e, lifetime.Token);
-        //        }
-        //        else
-        //        {
-        //            throw new OperationCanceledException("LOGOUT 処理が一定時間内に終了しなかったため、強制的に切断しました。");
-        //        }
-        //    }
-        //}
 
         async Task WaitingForMessageAsync(string expected, CancellationToken ct)
         {
@@ -165,7 +160,7 @@ namespace ShogiLibSharp.Csa
         }
 
         /// <summary>
-        /// キャンセル例外はそのまま、それ以外の例外を CsaServerException で包む
+        /// キャンセル例外はそのまま、それ以外の例外を CsaServerException で包む <br/>
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="ct"></param>
@@ -185,6 +180,7 @@ namespace ShogiLibSharp.Csa
                 throw new CsaServerException("サーバからのメッセージ待機中に例外が発生しました。", e);
             }
             if (message is null) throw new CsaServerException("サーバとの接続が切れました。");
+            if (message.StartsWith("LOGOUT")) throw new LogoutException("ログアウトしました。");
             return message;
         }
 
@@ -351,7 +347,15 @@ namespace ShogiLibSharp.Csa
 
         async Task<GameSummary?> ReceiveGameSummaryAsync(CancellationToken ct)
         {
+            await semaphore.WaitAsync(ct);
+            try { isWaitingForNextGame = true; }
+            finally { semaphore.Release(); }
+
             await WaitingForMessageAsync("BEGIN Game_Summary", ct).ConfigureAwait(false);
+
+            await semaphore.WaitAsync(ct);
+            try { isWaitingForNextGame = false; }
+            finally { semaphore.Release(); }
 
             string? protocolVersion = null;
             string protocolMode = "Server";
