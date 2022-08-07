@@ -12,7 +12,7 @@ namespace ShogiLibSharp.Kifu
         /// <param name="csaKifu"></param>
         /// <returns></returns>
         /// <exception cref="FormatException"></exception>
-        public static (string, List<Move>) ParseKifu(string csaKifu)
+        public static (string, List<(Move, TimeSpan?)>) ParseKifu(string csaKifu)
         {
             var lines = new Queue<string>(csaKifu
                 .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
@@ -31,7 +31,7 @@ namespace ShogiLibSharp.Kifu
             var startpos = Core.Csa.ParseStartPosition(lines);
             var moves = Core.Csa.ParseMoves(lines, startpos);
             // ParseResult(lines);
-            return (startpos.Sfen(), moves.Select(x => x.Item1).ToList());
+            return (startpos.Sfen(), moves);
         }
 
         /// <summary>
