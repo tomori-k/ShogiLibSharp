@@ -36,9 +36,9 @@ namespace ShogiLibSharp.Csa.Tests
             using var cts = new CancellationTokenSource();
 
             var server = new TestServer(Testcases);
+            var serverTask = server.ListenAsync(cts.Token);
             var c1 = new CsaClient(new PlayerFactory(Testcases), options1, cts.Token);
             var c2 = new CsaClient(new PlayerFactory(Testcases), options2, cts.Token);
-            var serverTask = server.ListenAsync(cts.Token);
 
             var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
             if (!first.IsCompletedSuccessfully) await first; // 例外スロー
@@ -77,9 +77,9 @@ namespace ShogiLibSharp.Csa.Tests
             var testFactory2 = new PlayerFactory(Testcases);
 
             var server = new TestServer(Testcases);
+            var serverTask = server.ListenAsync(cts.Token);
             var c1 = new CsaClient(testFactory1, options1, cts.Token);
             var c2 = new CsaClient(testFactory2, options2, cts.Token);
-            var serverTask = server.ListenAsync(cts.Token);
 
             var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
             if (!first.IsCompletedSuccessfully) await first; // 例外スロー
@@ -119,9 +119,9 @@ namespace ShogiLibSharp.Csa.Tests
             using var cts = new CancellationTokenSource();
 
             var server = new TestServer(new Testcase[0]);
+            var serverTask = server.ListenAsync(cts.Token);
             var c1 = new CsaClient(new PlayerFactory(Testcases), options1, cts.Token);
             var c2 = new CsaClient(new PlayerFactory(Testcases), options2, cts.Token);
-            var serverTask = server.ListenAsync(cts.Token);
 
             await Task.Delay(1000);
 
