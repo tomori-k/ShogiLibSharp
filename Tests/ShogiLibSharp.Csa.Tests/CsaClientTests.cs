@@ -15,7 +15,7 @@ namespace ShogiLibSharp.Csa.Tests
     [TestClass()]
     public class CsaClientTests
     {
-        [TestMethod(), Timeout(10000)]
+        [TestMethod(), Timeout(20000)]
         public async Task ConnectAsyncTest()
         {
             var options1 = new ConnectOptions
@@ -37,8 +37,8 @@ namespace ShogiLibSharp.Csa.Tests
 
             var server = new TestServer(Testcases);
             var serverTask = server.ListenAsync(cts.Token);
-            var c1 = new CsaClient(new PlayerFactory(Testcases), options1, cts.Token);
-            var c2 = new CsaClient(new PlayerFactory(Testcases), options2, cts.Token);
+            var c1 = new CsaClient(new PlayerFactory(Testcases), options1, TimeSpan.FromMilliseconds(1.0), cts.Token);
+            var c2 = new CsaClient(new PlayerFactory(Testcases), options2, TimeSpan.FromMilliseconds(1.0), cts.Token);
 
             var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
             if (!first.IsCompletedSuccessfully) await first; // 例外スロー
@@ -331,6 +331,7 @@ namespace ShogiLibSharp.Csa.Tests
                 Assert.AreEqual(expectedTime[Color.Black], time[Color.Black]);
                 Assert.AreEqual(expectedTime[Color.White], time[Color.White]);
                 Assert.AreEqual(position.SfenWithMoves(), pos.SfenWithMoves());
+                await Task.Delay(5);
                 return moves[moveCount].Item1;
             }
         }
@@ -1427,17 +1428,25 @@ END Game_Summary
 
                         foreach (var (move, time) in testcase.Moves!)
                         {
-                            var message = await connections[(int)pos.Player].Stream.ReadLineAsync(ct);
-                            if (message is null) return;
-                            if (pos.IsLegalMove(move))
+                            while (true)
                             {
-                                Assert.AreEqual(move.Csa(pos), message);
-                                pos.DoMove(move);
-                            }
-                            var response = message.Length < 7 ? message : message[0..7];
+                                var message = await connections[(int)pos.Player].Stream.ReadLineAsync(ct);
+                                if (message is null) return;
+                                if (message.Length > 0)
+                                {
+                                    if (pos.IsLegalMove(move))
+                                    {
+                                        Assert.AreEqual(move.Csa(pos), message);
+                                        pos.DoMove(move);
+                                    }
+                                    var response = message.Length < 7 ? message : message[0..7];
 
-                            foreach (var con in connections)
-                                await con.Stream.WriteLineLFAsync($"{response},T{time.TotalSeconds}", ct);
+                                    foreach (var con in connections)
+                                        await con.Stream.WriteLineLFAsync($"{response},T{time.TotalSeconds}", ct);
+
+                                    break;
+                                }
+                            }
                         }
 
                         foreach (var con in connections)

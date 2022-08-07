@@ -12,12 +12,19 @@ namespace ShogiLibSharp.Csa
         SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
         bool logoutSent = false;
         bool isWaitingForNextGame = false;
+        readonly TimeSpan keepAliveInterval;
         
         public Task ConnectionTask { get; }
 
         public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, CancellationToken ct = default)
+            : this(playerFactory, options, TimeSpan.FromSeconds(30.0), ct)
+        {
+        }
+
+        public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, TimeSpan keepAliveInterval, CancellationToken ct = default)
         {
             this.options = options;
+            this.keepAliveInterval = keepAliveInterval;
             this.ConnectionTask = ConnectAsyncImpl(playerFactory, ct);
 
             var invalidName = options.UserName.Length == 0 || options.UserName.Length > 32 || options.UserName.Any(c =>
@@ -112,7 +119,7 @@ namespace ShogiLibSharp.Csa
 
                     if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
 
-                    await new GameLoop(stream, summary, player).StartAsync(ct).ConfigureAwait(false);
+                    await new GameLoop(stream, summary, keepAliveInterval, player).StartAsync(ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -202,15 +209,19 @@ namespace ShogiLibSharp.Csa
             IPlayer player;
             Position pos;
             RemainingTime remainingTime;
+            TimeSpan keepAliveInterval;
+            DateTime lastWrite = DateTime.Now;
+            SemaphoreSlim writeSem = new(1, 1); 
 
             public GameLoop(
-                WrapperStream stream, GameSummary summary, IPlayer player)
+                WrapperStream stream, GameSummary summary, TimeSpan keepAliveInterval, IPlayer player)
             {
                 this.stream = stream;
                 this.summary = summary;
                 this.player = player;
                 this.pos = summary.StartPos!.Clone();
                 this.remainingTime = new RemainingTime(summary.TimeRule!.TotalTime);
+                this.keepAliveInterval = keepAliveInterval;
 
                 foreach (var (move, time) in summary.Moves!)
                 {
@@ -242,7 +253,7 @@ namespace ShogiLibSharp.Csa
                     while (true)
                     {
                         var finished = await Task
-                            .WhenAny(readlineTask, thinkTask)
+                            .WhenAny(readlineTask, thinkTask, Task.Delay(keepAliveInterval))
                             .ConfigureAwait(false);
 
                         if (finished == readlineTask)
@@ -290,10 +301,28 @@ namespace ShogiLibSharp.Csa
                             // これ以外は無視
                         }
                         // finished == thinkTask
-                        else
+                        else if (finished == thinkTask)
                         {
                             // 例外をスロー
                             if (!thinkTask.IsCompletedSuccessfully) await thinkTask;
+                        }
+                        // KeepAliveInterval 経っても何も起きていないとき
+                        else
+                        {
+                            await writeSem.WaitAsync().ConfigureAwait(false);
+                            try
+                            {
+                                //　ちゃんと 30 秒以上経っているか確認
+                                if ((DateTime.Now - lastWrite) >= keepAliveInterval)
+                                {
+                                    await WriteLineAsync(stream, "", ct).ConfigureAwait(false);
+                                    lastWrite = DateTime.Now;
+                                }
+                            }
+                            finally
+                            {
+                                writeSem.Release();
+                            }
                         }
                     }
                 }
@@ -326,7 +355,17 @@ namespace ShogiLibSharp.Csa
                 var csa = bestmove == Move.Resign ? "%TORYO"
                     : bestmove == Move.Win ? "%KACHI"
                     : bestmove.Csa(pos);
-                await WriteLineAsync(stream, csa, ct).ConfigureAwait(false);
+
+                await writeSem.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    await WriteLineAsync(stream, csa, ct).ConfigureAwait(false);
+                    lastWrite = DateTime.Now;
+                }
+                finally
+                {
+                    writeSem.Release();
+                }
             }
 
             void NewMove(Move move, TimeSpan time)
