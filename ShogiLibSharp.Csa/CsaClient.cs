@@ -25,17 +25,32 @@ namespace ShogiLibSharp.Csa
         {
             this.options = options;
             this.keepAliveInterval = keepAliveInterval;
+
+            var invalidName = options.UserName.Length == 0
+                || options.UserName.Length > 32
+                || options.UserName.Any(c =>
+                    !(('0' <= c && c <= '9')
+                    || ('a' <= c && c <= 'z')
+                    || ('A' <= c && c <= 'Z')
+                    || c == '_' || c == '-'));
+
+            if (invalidName)
+            {
+                throw new ArgumentException(
+                    $"ユーザ名は32文字以下で、英数字、ハイフン、アンダースコアのいずれかのみ使用可能です。: {options.UserName}");
+            }
+
+            var invalidPassword = options.Password.Length == 0
+                || options.Password.Length > 32
+                || options.Password.Any(c => char.IsWhiteSpace(c) || !char.IsAscii(c));
+
+            if (invalidPassword)
+            {
+                throw new ArgumentException(
+                    $"パスワードは32文字以下で、非ASCII文字、空白文字は使用できません。: {options.Password}");
+            }
+
             this.ConnectionTask = ConnectAsyncImpl(playerFactory, ct);
-
-            var invalidName = options.UserName.Length == 0 || options.UserName.Length > 32 || options.UserName.Any(c =>
-                !(('0' <= c && c <= '9')
-                || ('a' <= c && c <= 'z')
-                || ('A' <= c && c <= 'Z')
-                || c == '_' || c == '-'));
-            if (invalidName) throw new ArgumentException($"ユーザ名は32文字以下で、英数字、ハイフン、アンダースコアのいずれかのみ使用可能です。: {options.UserName}");
-
-            var invalidPassword = options.Password.Length == 0 || options.Password.Length > 32 || options.Password.Any(c => char.IsWhiteSpace(c) || !char.IsAscii(c));
-            if (invalidPassword) throw new ArgumentException($"パスワードは32文字以下で、非ASCII文字、空白文字は使用できません。: {options.Password}");
         }
 
         public async Task LogoutAsync(CancellationToken ct = default)
