@@ -225,8 +225,7 @@ namespace ShogiLibSharp.Csa
 
                 foreach (var (move, time) in summary.Moves!)
                 {
-                    remainingTime[pos.Player] += summary.TimeRule!.Increment;
-                    remainingTime[pos.Player] -= time;
+                    UpdateRemainingTime(pos.Player, remainingTime, time, summary);
                     pos.DoMove(move);
                 }
             }
@@ -370,11 +369,19 @@ namespace ShogiLibSharp.Csa
 
             void NewMove(Move move, TimeSpan time)
             {
-                // 思考可能時間=持ち時間+秒読み+inc としておき、手番交代のときに増加分を足すことにする
-                remainingTime[pos.Player] += summary.TimeRule!.Increment;
-                remainingTime[pos.Player] -= time;
+                UpdateRemainingTime(pos.Player, remainingTime, time, summary);
                 pos.DoMove(move);
                 player.NewMove(move, time);
+            }
+
+            static void UpdateRemainingTime(Color c, RemainingTime rem, TimeSpan elapsed, GameSummary summary)
+            {
+                rem[c] += summary.TimeRule!.Increment - elapsed;
+                if (rem[c] < TimeSpan.Zero)
+                {
+                    rem[c] += summary.TimeRule.Byoyomi;
+                    if (rem[c] > TimeSpan.Zero) rem[c] = TimeSpan.Zero;
+                }
             }
 
             static readonly Dictionary<string, GameResult> GameResultTable = new Dictionary<string, GameResult>

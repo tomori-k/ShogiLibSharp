@@ -324,14 +324,16 @@ namespace ShogiLibSharp.Csa.Tests
 
             public async Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
             {
-                if (moveCount >= testcase.Times!.Length) await Task.Delay(-1, ct);
                 var expectedTime = testcase.Times![moveCount];
                 Assert.IsTrue(started);
                 Assert.IsFalse(ended);
                 Assert.AreEqual(expectedTime[Color.Black], time[Color.Black]);
                 Assert.AreEqual(expectedTime[Color.White], time[Color.White]);
                 Assert.AreEqual(position.SfenWithMoves(), pos.SfenWithMoves());
-                await Task.Delay(5);
+                if (moveCount >= moves.Count)
+                    await Task.Delay(-1, ct);
+                else
+                    await Task.Delay(5);
                 return moves[moveCount].Item1;
             }
         }
@@ -502,6 +504,8 @@ END Game_Summary
                     new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.FromMinutes(30.0)),
                     new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.Zero),
                     new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
+                    new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
+
                 }
             },
 
@@ -573,6 +577,8 @@ END Game_Summary
                 {
                     new RemainingTime(TimeSpan.FromMilliseconds(60000.0 * 200.0), TimeSpan.FromMilliseconds(60000.0 * 200.0)),
                     new RemainingTime(TimeSpan.FromMilliseconds(59900.0 * 200.0), TimeSpan.FromMilliseconds(60000.0 * 200.0)),
+                    new RemainingTime(TimeSpan.FromMilliseconds(59900.0 * 200.0), TimeSpan.FromMilliseconds(59600.0 * 200.0)),
+
                 }
             },
 
@@ -750,6 +756,7 @@ END Game_Summary
                     new RemainingTime(TimeSpan.FromSeconds(244.0), TimeSpan.FromSeconds(290.0)),
                     new RemainingTime(TimeSpan.FromSeconds(244.0), TimeSpan.FromSeconds(282.0)),
                     new RemainingTime(TimeSpan.FromSeconds(244.0), TimeSpan.FromSeconds(282.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(244.0), TimeSpan.FromSeconds(281.0)),
                 }
             },
 
@@ -1264,6 +1271,7 @@ END Game_Summary
                     new RemainingTime(TimeSpan.FromSeconds(31.0), TimeSpan.FromSeconds(54.0)),
                     new RemainingTime(TimeSpan.FromSeconds(31.0), TimeSpan.FromSeconds(56.0)),
                     new RemainingTime(TimeSpan.FromSeconds(33.0), TimeSpan.FromSeconds(56.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(33.0), TimeSpan.FromSeconds(58.0)),
                 }
             },
 
@@ -1325,7 +1333,95 @@ END Game_Summary
                 Results = new[] { GameResult.Lose, GameResult.Win },
                 EndStateStr = "#TIME_UP",
                 EndState = EndGameState.TimeUp,
-                Times = new RemainingTime[0],
+                Times = new []
+                {
+                    new RemainingTime(TimeSpan.FromSeconds(10.0), TimeSpan.FromSeconds(10.0)),
+                },
+            },
+
+            new Testcase
+            {
+                SummaryStr = @"
+BEGIN Game_Summary
+Protocol_Version:1.2
+Protocol_Mode:Server
+Format:Shogi 1.0
+Declaration:Jishogi 1.1
+Game_ID:20220808-Test-1
+Name+:{0}
+Name-:{1}
+Your_Turn:{2}
+Rematch_On_Draw:NO
+To_Move:+
+Max_Moves:100
+BEGIN Time
+Time_Unit:1sec
+Total_Time:6
+Byoyomi:5
+Increment:1
+Least_Time_Per_Move:0
+END Time
+BEGIN Position
+P1-KY-KE-GI-KI-OU-KI-GI-KE-KY
+P2 * -HI *  *  *  *  * -KA * 
+P3-FU-FU-FU-FU-FU-FU-FU-FU-FU
+P4 *  *  *  *  *  *  *  *  * 
+P5 *  *  *  *  *  *  *  *  * 
+P6 *  *  *  *  *  *  *  *  * 
+P7+FU+FU+FU+FU+FU+FU+FU+FU+FU
+P8 * +KA *  *  *  *  * +HI * 
+P9+KY+KE+GI+KI+OU+KI+GI+KE+KY
++
++2726FU,T12
+-3334FU,T6
+END Position
+END Game_Summary
+",
+                Summary = new GameSummary
+                {
+                    GameId = "20220808-Test-1",
+                    StartColor = Color.Black,
+                    MaxMoves = 100,
+                    TimeRule = new TimeRule
+                    {
+                        TimeUnit = TimeSpan.FromSeconds(1.0),
+                        LeastTimePerMove = TimeSpan.Zero,
+                        TotalTime = TimeSpan.FromSeconds(6.0),
+                        Byoyomi = TimeSpan.FromSeconds(5.0),
+                        Delay = TimeSpan.Zero,
+                        Increment = TimeSpan.FromSeconds(1.0),
+                        IsRoundUp = false,
+                    },
+                    StartPos = new Position(Position.Hirate),
+                    Moves = new List<(Move, TimeSpan)>
+                    {
+                        (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
+                        (Usi.ParseMove("3c3d"), TimeSpan.FromSeconds(6.0)),
+                    },
+                },
+
+                Moves = new List<(Move, TimeSpan)>
+                {
+                    (Usi.ParseMove("7g7f"), TimeSpan.FromSeconds(2.0)),
+                    (Usi.ParseMove("4c4d"), TimeSpan.FromSeconds(1.0)),
+                    (Usi.ParseMove("4g4f"), TimeSpan.FromSeconds(0.0)),
+                    (Usi.ParseMove("4a3b"), TimeSpan.FromSeconds(7.0)),
+                    (Usi.ParseMove("6i7h"), TimeSpan.FromSeconds(8.0)),
+                },
+
+                ResultStrs = new[] { "#LOSE", "#WIN" },
+                Results = new[] { GameResult.Lose, GameResult.Win },
+                EndStateStr = "#TIME_UP",
+                EndState = EndGameState.TimeUp,
+                Times = new[]
+                {
+                    new RemainingTime(TimeSpan.FromSeconds(0.0), TimeSpan.FromSeconds(1.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(0.0), TimeSpan.FromSeconds(1.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(0.0), TimeSpan.FromSeconds(1.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(0.0)),
+                    new RemainingTime(TimeSpan.FromSeconds(-1.0), TimeSpan.FromSeconds(0.0)),
+                }
             },
         };
 
