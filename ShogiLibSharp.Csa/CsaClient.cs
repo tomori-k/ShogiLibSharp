@@ -7,11 +7,12 @@ namespace ShogiLibSharp.Csa
 {
     public class CsaClient
     {
-        WrapperStream? stream = null;
-        ConnectOptions options;
-        SemaphoreSlim stateSem = new(1, 1);
-        bool isWaitingForNextGame = false;
-        readonly TimeSpan keepAliveInterval;
+        private protected WrapperStream? stream = null;
+        private protected IPlayerFactory playerFactory;
+        private protected ConnectOptions options;
+        private protected bool isWaitingForNextGame = false;
+        private protected SemaphoreSlim stateSem = new(1, 1);
+        private protected readonly TimeSpan keepAliveInterval;
         
         public Task ConnectionTask { get; }
 
@@ -22,9 +23,15 @@ namespace ShogiLibSharp.Csa
 
         public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, TimeSpan keepAliveInterval, CancellationToken ct = default)
         {
+            this.playerFactory = playerFactory;
             this.options = options;
             this.keepAliveInterval = keepAliveInterval;
+            ValidateOptions();
+            this.ConnectionTask = ConnectAsync(ct);
+        }
 
+        private protected virtual void ValidateOptions()
+        {
             var invalidName = options.UserName.Length == 0
                 || options.UserName.Length > 32
                 || options.UserName.Any(c =>
@@ -48,8 +55,6 @@ namespace ShogiLibSharp.Csa
                 throw new ArgumentException(
                     $"パスワードは32文字以下で、非ASCII文字、空白文字は使用できません。: {options.Password}");
             }
-
-            this.ConnectionTask = ConnectAsyncImpl(playerFactory, ct);
         }
 
         public async Task LogoutAsync(CancellationToken ct = default)
@@ -70,7 +75,7 @@ namespace ShogiLibSharp.Csa
             await ConnectionTask.ConfigureAwait(false);
         }
 
-        async Task ConnectAsyncImpl(IPlayerFactory playerFactory, CancellationToken ct)
+        async Task ConnectAsync(CancellationToken ct)
         {
             using var tcp = new TcpClient();
 
@@ -79,59 +84,64 @@ namespace ShogiLibSharp.Csa
 
             try
             {
-                await LoginAsync(ct).ConfigureAwait(false);
-
-                while (true)
-                {
-                    if (!playerFactory.ContinueLogin())
-                    {
-                        Debug.Assert(!isWaitingForNextGame);
-                        // ログアウト
-                        await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
-                    }
-
-                    bool accept;
-                    GameSummary? summary;
-                    try
-                    {
-                        (summary, accept) = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (LogoutException)
-                    {
-                        break;
-                    }
-
-                    // summary が null のときは、おかしな summary が送られてきたということなので、無視
-                    if (summary is null) continue;
-
-                    var player = accept
-                        ? await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false)
-                        : null;
-
-                    if (player is null)
-                    {
-                        await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
-                    }
-
-                    // Start or Reject が来るのを待つ
-                    if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
-                    {
-                        playerFactory.Rejected(summary);
-                        continue;
-                    }
-
-                    if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
-
-                    await new GameLoop(stream, summary, keepAliveInterval, player).StartAsync(ct).ConfigureAwait(false);
-                }
+                await CommunicateWithServerAsync(ct).ConfigureAwait(false);
             }
             finally
             {
                 stream.Dispose();
+            }
+        }
+
+        private protected virtual async Task CommunicateWithServerAsync(CancellationToken ct)
+        {
+            await LoginAsync(ct).ConfigureAwait(false);
+
+            while (true)
+            {
+                if (!playerFactory.ContinueLogin())
+                {
+                    Debug.Assert(!isWaitingForNextGame);
+                    // ログアウト
+                    await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
+                }
+
+                bool accept;
+                GameSummary? summary;
+                try
+                {
+                    (summary, accept) = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
+                }
+                catch (LogoutException)
+                {
+                    break;
+                }
+
+                // summary が null のときは、おかしな summary が送られてきたということなので、無視
+                if (summary is null) continue;
+
+                var player = accept
+                    ? await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false)
+                    : null;
+
+                if (player is null)
+                {
+                    await WriteLineAsync(stream!, $"REJECT", ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await WriteLineAsync(stream!, $"AGREE", ct).ConfigureAwait(false);
+                }
+
+                // Start or Reject が来るのを待つ
+                if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
+                {
+                    playerFactory.Rejected(summary);
+                    continue;
+                }
+
+                if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
+
+                await new GameLoop(stream!, summary, keepAliveInterval, player).StartAsync(ct).ConfigureAwait(false);
             }
         }
 
@@ -152,7 +162,9 @@ namespace ShogiLibSharp.Csa
             }
         }
 
-        async Task WaitingForMessageAsync(string expected, CancellationToken ct)
+        // 以下共通処理
+
+        private protected async Task WaitingForMessageAsync(string expected, CancellationToken ct)
         {
             while (true)
             {
@@ -161,7 +173,7 @@ namespace ShogiLibSharp.Csa
             }
         }
 
-        async Task<bool> ReceiveGameStartAsync(GameSummary summary, CancellationToken ct)
+        private protected async Task<bool> ReceiveGameStartAsync(GameSummary summary, CancellationToken ct)
         {
             while (true)
             {
@@ -171,7 +183,7 @@ namespace ShogiLibSharp.Csa
             }
         }
 
-        static async Task WriteLineAsync(WrapperStream stream, string message, CancellationToken ct)
+        private protected static async Task WriteLineAsync(WrapperStream stream, string message, CancellationToken ct)
         {
             try
             {
@@ -192,7 +204,7 @@ namespace ShogiLibSharp.Csa
         /// <returns></returns>
         /// <exception cref="CsaServerException"></exception>
         /// <exception cref="OperationCanceledException"></exception>
-        static async Task<string> ReadLineAsync(WrapperStream stream, CancellationToken ct)
+        private protected static async Task<string> ReadLineAsync(WrapperStream stream, CancellationToken ct)
         {
             string? message;
             try
@@ -209,7 +221,7 @@ namespace ShogiLibSharp.Csa
             return message;
         }
 
-        class GameLoop
+        private protected class GameLoop
         {
             WrapperStream stream;
             GameSummary summary;
@@ -423,7 +435,7 @@ namespace ShogiLibSharp.Csa
         }
 
         // 一旦全部 StringBuilder とかに突っ込んであとからパースする方が良かったかも...
-        async Task<(GameSummary? summary, bool accept)> ReceiveGameSummaryAsync(CancellationToken ct)
+        private protected async Task<(GameSummary? summary, bool accept)> ReceiveGameSummaryAsync(CancellationToken ct)
         {
             await SetIsWaitingForNextGameAsync(true, ct).ConfigureAwait(false);
             await WaitingForMessageAsync("BEGIN Game_Summary", ct).ConfigureAwait(false);
