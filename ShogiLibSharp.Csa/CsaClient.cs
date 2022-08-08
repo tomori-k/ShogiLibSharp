@@ -188,7 +188,7 @@ namespace ShogiLibSharp.Csa
             // OperationCanceledException 以外は CsaServerException で包む
             catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
             {
-                throw new CsaServerException("サーバからのメッセージ待機中に例外が発生しました。", e);
+                throw new CsaServerException("サーバへのメッセージ送信中に例外が発生しました。", e);
             }
         }
 
