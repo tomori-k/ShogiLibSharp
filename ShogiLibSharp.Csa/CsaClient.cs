@@ -9,8 +9,7 @@ namespace ShogiLibSharp.Csa
     {
         WrapperStream? stream = null;
         ConnectOptions options;
-        SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
-        bool logoutSent = false;
+        SemaphoreSlim stateSem = new(1, 1);
         bool isWaitingForNextGame = false;
         readonly TimeSpan keepAliveInterval;
         
@@ -57,27 +56,18 @@ namespace ShogiLibSharp.Csa
         {
             if (ConnectionTask.IsCompleted) return;
 
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
+            await stateSem.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 if (stream is null || !isWaitingForNextGame) return;
-                await SendLogout(ct).ConfigureAwait(false);
+                await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
             }
             finally
             {
-                semaphore.Release();
+                stateSem.Release();
             }
 
             await ConnectionTask.ConfigureAwait(false);
-        }
-
-        async Task SendLogout(CancellationToken ct)
-        {
-            if (!logoutSent)
-            {
-                await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
-                logoutSent = true;
-            }
         }
 
         async Task ConnectAsyncImpl(IPlayerFactory playerFactory, CancellationToken ct)
@@ -95,16 +85,9 @@ namespace ShogiLibSharp.Csa
                 {
                     if (!playerFactory.ContinueLogin())
                     {
+                        Debug.Assert(!isWaitingForNextGame);
                         // ログアウト
-                        await semaphore.WaitAsync(ct).ConfigureAwait(false);
-                        try
-                        {
-                            await SendLogout(ct).ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            semaphore.Release();
-                        }
+                        await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
                     }
 
                     GameSummary? summary;
@@ -422,15 +405,15 @@ namespace ShogiLibSharp.Csa
 
         async Task<GameSummary?> ReceiveGameSummaryAsync(CancellationToken ct)
         {
-            await semaphore.WaitAsync(ct);
+            await stateSem.WaitAsync(ct);
             try { isWaitingForNextGame = true; }
-            finally { semaphore.Release(); }
+            finally { stateSem.Release(); }
 
             await WaitingForMessageAsync("BEGIN Game_Summary", ct).ConfigureAwait(false);
 
-            await semaphore.WaitAsync(ct);
+            await stateSem.WaitAsync(ct);
             try { isWaitingForNextGame = false; }
-            finally { semaphore.Release(); }
+            finally { stateSem.Release(); }
 
             string? protocolVersion = null;
             string protocolMode = "Server";
