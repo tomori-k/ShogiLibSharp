@@ -90,23 +90,32 @@ namespace ShogiLibSharp.Csa
                         await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
                     }
 
+                    bool accept;
                     GameSummary? summary;
                     try
                     {
-                        summary = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
+                        (summary, accept) = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
                     }
                     catch (LogoutException)
                     {
                         break;
                     }
 
+                    // summary が null のときは、おかしな summary が送られてきたということなので、無視
                     if (summary is null) continue;
 
-                    // Agree or Reject
-                    // AgreeWith の結果が null なら Reject
-                    var player = await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false);
-                    if (player is null) await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false); 
-                    else await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
+                    var player = accept
+                        ? await playerFactory.AgreeWith(summary, ct).ConfigureAwait(false)
+                        : null;
+
+                    if (player is null)
+                    {
+                        await WriteLineAsync(stream, $"REJECT", ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await WriteLineAsync(stream, $"AGREE", ct).ConfigureAwait(false);
+                    }
 
                     // Start or Reject が来るのを待つ
                     if (!await ReceiveGameStartAsync(summary, ct).ConfigureAwait(false))
@@ -403,17 +412,22 @@ namespace ShogiLibSharp.Csa
             };
         }
 
-        async Task<GameSummary?> ReceiveGameSummaryAsync(CancellationToken ct)
+        async Task SetIsWaitingForNextGameAsync(bool v, CancellationToken ct)
         {
-            await stateSem.WaitAsync(ct);
-            try { isWaitingForNextGame = true; }
+            await stateSem.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                isWaitingForNextGame = v;
+            }
             finally { stateSem.Release(); }
+        }
 
+        // 一旦全部 StringBuilder とかに突っ込んであとからパースする方が良かったかも...
+        async Task<(GameSummary? summary, bool accept)> ReceiveGameSummaryAsync(CancellationToken ct)
+        {
+            await SetIsWaitingForNextGameAsync(true, ct).ConfigureAwait(false);
             await WaitingForMessageAsync("BEGIN Game_Summary", ct).ConfigureAwait(false);
-
-            await stateSem.WaitAsync(ct);
-            try { isWaitingForNextGame = false; }
-            finally { stateSem.Release(); }
+            await SetIsWaitingForNextGameAsync(false, ct).ConfigureAwait(false);
 
             string? protocolVersion = null;
             string protocolMode = "Server";
@@ -551,16 +565,15 @@ namespace ShogiLibSharp.Csa
 
             await WaitingForMessageAsync("END Game_Summary", ct).ConfigureAwait(false);
 
-            if (!(protocolVersion == "1.1" || protocolVersion == "1.2")
-                || format != "Shogi 1.0"
-                || declaration != "Jishogi 1.1"
+            if (protocolVersion is null
+                || format is null
+                || declaration is null
                 || blackName is null
                 || whiteName is null
                 || color is null
-                || rematchOnDraw       // false のみ対応
                 || startColor is null
                 || totalTime is null)  // 時間制限無しはとりあえず未対応
-                return null;
+                return (null, false);
 
             var timeRule = new TimeRule
             {
@@ -572,7 +585,7 @@ namespace ShogiLibSharp.Csa
                 Increment = increment * timeUnit,
                 IsRoundUp = isRoundUp,
             };
-            return new GameSummary
+            var summary = new GameSummary
             {
                 GameId = gameId,
                 BlackName = blackName,
@@ -584,6 +597,14 @@ namespace ShogiLibSharp.Csa
                 StartPos = startpos,
                 Moves = movesWithTime,
             };
+
+            if (!(protocolVersion == "1.1" || protocolVersion == "1.2")
+                || format != "Shogi 1.0"
+                || declaration != "Jishogi 1.1"
+                || rematchOnDraw)      // false のみ受け付ける(trueの場合の動作がプロトコルに明記されていないため)
+                return (summary, false);
+
+            return (summary, true);
         }
     }
 }
