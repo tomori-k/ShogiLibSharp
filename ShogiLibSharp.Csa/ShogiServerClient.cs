@@ -82,7 +82,19 @@ namespace ShogiLibSharp.Csa
                 GameSummary? summary;
                 try
                 {
-                    (summary, accept) = await ReceiveGameSummaryAsync(ct).ConfigureAwait(false);
+                    var receiveTask = ReceiveGameSummaryAsync(ct);
+                    while (true)
+                    {
+                        var finished = await Task.WhenAny(receiveTask, Task.Delay(keepAliveInterval, ct));
+                        if (finished == receiveTask)
+                        {
+                            (summary, accept) = await receiveTask.ConfigureAwait(false);
+                            break;
+                        }
+                        // keep alive 送信
+                        else
+                            await rw!.WriteLineAsync("", ct).ConfigureAwait(false);
+                    }
                 }
                 catch (LogoutException)
                 {
