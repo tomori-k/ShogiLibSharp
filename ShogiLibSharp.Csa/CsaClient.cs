@@ -6,6 +6,10 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
 
+// https://www.nuits.jp/entry/net-standard-internals-visible-to
+using System.Runtime.CompilerServices;
+[assembly: InternalsVisibleTo("ShogiLibSharp.Csa.Tests")]
+
 namespace ShogiLibSharp.Csa
 {
     public class CsaClient
@@ -283,8 +287,8 @@ namespace ShogiLibSharp.Csa
                 this.rw = rw;
                 this.summary = summary;
                 this.player = player;
-                this.pos = summary.StartPos!.Clone();
-                this.remainingTime = new RemainingTime(summary.TimeRule!.TotalTime);
+                this.pos = summary.StartPos.Clone();
+                this.remainingTime = new RemainingTime(summary.TimeRule.TotalTime);
                 this.keepAliveInterval = keepAliveInterval;
                 this.sendPv = sendPv;
 
@@ -472,7 +476,7 @@ namespace ShogiLibSharp.Csa
 
             static void UpdateRemainingTime(Color c, RemainingTime rem, TimeSpan elapsed, GameSummary summary)
             {
-                rem[c] += summary.TimeRule!.Increment - elapsed;
+                rem[c] += summary.TimeRule.Increment - elapsed;
                 if (rem[c] < TimeSpan.Zero)
                 {
                     rem[c] += summary.TimeRule.Byoyomi;
@@ -535,7 +539,7 @@ namespace ShogiLibSharp.Csa
                 var message = await rw!.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "BEGIN Time") break;
 
-                var sp = message!.Split(':');
+                var sp = message.Split(':');
 
                 if (sp.Length < 2) continue;
 
@@ -596,7 +600,7 @@ namespace ShogiLibSharp.Csa
                 var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "END Time") break;
 
-                var sp = message!.Split(':');
+                var sp = message.Split(':');
 
                 if (sp.Length < 2) continue;
 
@@ -675,17 +679,17 @@ namespace ShogiLibSharp.Csa
                 IsRoundUp = isRoundUp,
             };
             var summary = new GameSummary
-            {
-                GameId = gameId,
-                BlackName = blackName,
-                WhiteName = whiteName,
-                Color = (Color)color,
-                StartColor = (Color)startColor,
-                MaxMoves = maxMoves,
-                TimeRule = timeRule,
-                StartPos = startpos,
-                Moves = movesWithTime,
-            };
+            (
+                GameId: gameId,
+                BlackName: blackName,
+                WhiteName: whiteName,
+                Color: (Color)color,
+                StartColor: (Color)startColor,
+                MaxMoves: maxMoves,
+                TimeRule: timeRule,
+                StartPos: startpos,
+                Moves: movesWithTime
+            );
 
             if (!(protocolVersion == "1.1" || protocolVersion == "1.2")
                 || format != "Shogi 1.0"

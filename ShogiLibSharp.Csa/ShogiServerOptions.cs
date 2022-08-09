@@ -3,11 +3,13 @@ namespace ShogiLibSharp.Csa
 {
     public record ShogiServerOptions : ConnectOptions
     {
-        public string GameName { get; init; } = "floodgate-300-10F";
+        public string GameName { get; init; }
 
-        public ShogiServerOptions()
+        public ShogiServerOptions(string HostName, string UserName, string Password, string GameName)
+            : base(HostName, UserName, Password)
         {
-            SendPv = true;
+            this.GameName = GameName;
+            this.SendPv = true;
         }
     }
 }

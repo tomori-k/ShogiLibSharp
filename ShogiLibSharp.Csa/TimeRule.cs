@@ -8,7 +8,7 @@ namespace ShogiLibSharp.Csa
 {
     public record TimeRule
     {
-        public TimeSpan TimeUnit { get; init; }
+        public TimeSpan TimeUnit { get; init; } = TimeSpan.FromSeconds(1.0);
         public TimeSpan LeastTimePerMove { get; init; }
         public TimeSpan TotalTime { get; init; }
         public TimeSpan Byoyomi { get; init; }

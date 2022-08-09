@@ -12,19 +12,19 @@ namespace ShogiLibSharp.Csa.Tests
         public async Task ShogiServerClientTest()
         {
             var options1 = new ShogiServerOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "zzz",
-                Password = "0"
-            };
+            (
+                HostName: "localhost",
+                UserName: "zzz",
+                Password: "0",
+                GameName: "floodgate-300-10F"
+            );
             var options2 = new ShogiServerOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "xyz",
-                Password = "1"
-            };
+            (
+                HostName: "localhost",
+                UserName: "xyz",
+                Password: "1",
+                GameName: "floodgate-300-10F"
+            );
 
             using var cts = new CancellationTokenSource();
 
@@ -336,11 +336,14 @@ END Position
 END Game_Summary
 ",
                 new GameSummary
-                {
-                    GameId = "20220809-Test-1",
-                    StartColor = Color.Black,
-                    MaxMoves = 1024,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220809-Test-1",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 1024,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromSeconds(1.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -350,13 +353,13 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
                         (Usi.ParseMove("3c3d"), TimeSpan.FromSeconds(6.0)),
-                    },
-                },
+                    }
+                ),
 
                 new List<(string, Move, TimeSpan)>
                 {
@@ -405,11 +408,14 @@ END Position
 END Game_Summary
 ",
                 new GameSummary
-                {
-                    GameId = "20220809-Test-2",
-                    StartColor = Color.Black,
-                    MaxMoves = 2,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220809-Test-2",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 2,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromMilliseconds(200.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -419,9 +425,9 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>(),
-                },
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>()
+                ),
 
                 new List<(string, Move, TimeSpan)>
                 {

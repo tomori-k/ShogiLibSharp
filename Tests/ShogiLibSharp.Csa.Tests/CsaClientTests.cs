@@ -19,19 +19,17 @@ namespace ShogiLibSharp.Csa.Tests
         public async Task ConnectAsyncTest()
         {
             var options1 = new ConnectOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "a--c6",
-                Password = "abc1234"
-            };
+            (
+                HostName: "localhost",
+                UserName: "a--c6",
+                Password: "abc1234"
+            );
             var options2 = new ConnectOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "b-c-d",
-                Password = "testteste"
-            };
+            (
+                HostName: "localhost",
+                UserName: "b-c-d",
+                Password: "testteste"
+            );
 
             using var cts = new CancellationTokenSource();
 
@@ -58,19 +56,17 @@ namespace ShogiLibSharp.Csa.Tests
         public async Task RejectTest()
         {
             var options1 = new ConnectOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "AbcDefGHjkLmnKpqrsTUvwxyz012345",
-                Password = "sakura999",
-            };
+            (
+                HostName: "localhost",
+                UserName: "AbcDefGHjkLmnKpqrsTUvwxyz012345",
+                Password: "sakura999"
+            );
             var options2 = new ConnectOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "--__________AAAAAAAAAAAAAAAAAAA",
-                Password = "qawsedrftgyhujikolp",
-            };
+            (
+                HostName: "localhost",
+                UserName: "--__________AAAAAAAAAAAAAAAAAAA",
+                Password: "qawsedrftgyhujikolp"
+            );
 
             using var cts = new CancellationTokenSource();
             var testFactory1 = new RejectPlayer(Testcases.Length);
@@ -102,19 +98,17 @@ namespace ShogiLibSharp.Csa.Tests
         public async Task LogoutTest()
         {
             var options1 = new ConnectOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "011101110111",
-                Password = "a",
-            };
+            (
+                HostName: "localhost",
+                UserName: "011101110111",
+                Password: "a"
+            );
             var options2 = new ConnectOptions
-            {
-                HostName = "localhost",
-                Port = 4081,
-                UserName = "_______________",
-                Password = "b",
-            };
+            (
+                HostName: "localhost",
+                UserName: "_______________",
+                Password: "b"
+            );
 
             using var cts = new CancellationTokenSource();
 
@@ -143,66 +137,75 @@ namespace ShogiLibSharp.Csa.Tests
         {
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "abcd~",
-                    Password = ""
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "abcd~",
+                    Password: ""
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "あ",
-                    Password = ""
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "あ",
+                    Password: ""
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "\t\r\n",
-                    Password = ""
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "\t\r\n",
+                    Password: ""
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                    Password = ""
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    Password: ""
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "",
-                    Password = "a"
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "",
+                    Password: "a"
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "a",
-                    Password = "あ"
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "a",
+                    Password: "あ"
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "a",
-                    Password = "\t\r\n"
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "a",
+                    Password: "\t\r\n"
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "bb",
-                    Password = "abcdefghijklmnopqrstuvwxyz0123456"
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "bb",
+                    Password: "abcdefghijklmnopqrstuvwxyz0123456"
+                )));
 
             Assert.ThrowsException<ArgumentException>(() => new CsaClient(new PlayerFactory(Testcases),
                 new ConnectOptions
-                {
-                    UserName = "abc",
-                    Password = ""
-                }));
+                (
+                    HostName: "localhost",
+                    UserName: "abc",
+                    Password: ""
+                )));
         }
 
         class PlayerFactory : IPlayerFactory
@@ -383,11 +386,14 @@ END Position
 END Game_Summary
 ",
                 Summary = new GameSummary
-                {
-                    GameId = "20220805-Test-1",
-                    StartColor = Color.Black,
-                    MaxMoves = 1024,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220805-Test-1",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 1024,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromSeconds(1.0),
                         LeastTimePerMove = TimeSpan.FromSeconds(1.0),
@@ -397,13 +403,13 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
                         (Usi.ParseMove("3c3d"), TimeSpan.FromSeconds(6.0)),
-                    },
-                },
+                    }
+                ),
 
                 Moves = new List<(Move, TimeSpan)>
                 {
@@ -548,11 +554,14 @@ END Position
 END Game_Summary
 ",
                 Summary = new GameSummary
-                {
-                    GameId = "20220805-Test-3",
-                    StartColor = Color.Black,
-                    MaxMoves = 2,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220805-Test-3",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 2,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromMilliseconds(200.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -562,9 +571,9 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>(),
-                },
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>()
+                ),
 
                 Moves = new List<(Move, TimeSpan)>
                 {
@@ -646,11 +655,14 @@ END Position
 END Game_Summary
 ",
                 Summary = new GameSummary
-                {
-                    GameId = "20220807-Test-1",
-                    StartColor = Color.White,
-                    MaxMoves = 512,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220807-Test-1",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.White,
+                    MaxMoves: 512,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromSeconds(1.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -660,8 +672,8 @@ END Game_Summary
                         Increment = TimeSpan.FromSeconds(2.0),
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(2.0)),
                         (Usi.ParseMove("3c3d"), TimeSpan.FromSeconds(2.0)),
@@ -688,8 +700,8 @@ END Game_Summary
                         (Usi.ParseMove("4i5h"), TimeSpan.FromSeconds(2.0)),
                         (Usi.ParseMove("3b4c"), TimeSpan.FromSeconds(2.0)),
                         (Usi.ParseMove("8h6f"), TimeSpan.FromSeconds(2.0)),
-                    },
-                },
+                    }
+                ),
 
                 Moves = new List<(Move, TimeSpan)>
                 {
@@ -891,11 +903,14 @@ END Position
 END Game_Summary
 ",
                 Summary = new GameSummary
-                {
-                    GameId = "20220807-Test-2",
-                    StartColor = Color.Black,
-                    MaxMoves = 512,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220807-Test-2",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 512,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromSeconds(1.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -905,8 +920,8 @@ END Game_Summary
                         Increment = TimeSpan.FromSeconds(2.0),
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("7g7f"), TimeSpan.FromSeconds(2.0)),
                         (Usi.ParseMove("8c8d"), TimeSpan.FromSeconds(2.0)),
@@ -1001,8 +1016,8 @@ END Game_Summary
                         (Usi.ParseMove("3f3e"), TimeSpan.FromSeconds(2.0)),
                         (Usi.ParseMove("3d2d"), TimeSpan.FromSeconds(2.0)),
                         
-                    },
-                },
+                    }
+                ),
 
                 Moves = new List<(Move, TimeSpan)>
                 {
@@ -1312,11 +1327,14 @@ END Position
 END Game_Summary
 ",
                 Summary = new GameSummary
-                {
-                    GameId = "20220807-Test-3",
-                    StartColor = Color.Black,
-                    MaxMoves = 256,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220807-Test-3",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 256,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromSeconds(1.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -1326,9 +1344,9 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>(),
-                },
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>()
+                ),
 
                 Moves = new List<(Move, TimeSpan)>(),
 
@@ -1381,11 +1399,14 @@ END Position
 END Game_Summary
 ",
                 Summary = new GameSummary
-                {
-                    GameId = "20220808-Test-1",
-                    StartColor = Color.Black,
-                    MaxMoves = 100,
-                    TimeRule = new TimeRule
+                (
+                    GameId: "20220808-Test-1",
+                    BlackName: "",
+                    WhiteName: "",
+                    Color: Color.Black,
+                    StartColor: Color.Black,
+                    MaxMoves: 100,
+                    TimeRule: new TimeRule
                     {
                         TimeUnit = TimeSpan.FromSeconds(1.0),
                         LeastTimePerMove = TimeSpan.Zero,
@@ -1395,13 +1416,13 @@ END Game_Summary
                         Increment = TimeSpan.FromSeconds(1.0),
                         IsRoundUp = false,
                     },
-                    StartPos = new Position(Position.Hirate),
-                    Moves = new List<(Move, TimeSpan)>
+                    StartPos: new Position(Position.Hirate),
+                    Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
                         (Usi.ParseMove("3c3d"), TimeSpan.FromSeconds(6.0)),
-                    },
-                },
+                    }
+                ),
 
                 Moves = new List<(Move, TimeSpan)>
                 {
