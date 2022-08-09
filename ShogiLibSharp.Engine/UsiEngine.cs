@@ -315,20 +315,26 @@ namespace ShogiLibSharp.Engine
             }
 
             using var cts = new CancellationTokenSource();
-            using var registration = ct.Register(() =>
+            using var registration = ct.Register(async () =>
             {
-                var task = Task.Delay(BestmoveResponseTimeout, cts.Token);
                 lock (syncObj)
                 {
                     State.StopGo(this);
                 }
-                task.ContinueWith(x =>
+                if (cts.IsCancellationRequested) return;
+                try
                 {
-                    lock (syncObj)
-                    {
-                        State.StopWaitingForBestmove(this);
-                    }
-                });
+                    await Task.Delay(BestmoveResponseTimeout, cts.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                lock (syncObj)
+                {
+                    State.StopWaitingForBestmove(this);
+                }
             }); // この Go に対するキャンセルを解除
 
             var result = await tcs.Task.ConfigureAwait(false);
@@ -355,23 +361,24 @@ namespace ShogiLibSharp.Engine
         /// <returns></returns>
         public async Task<(Move, Move)> StopPonderAsync()
         {
-            using var cts = new CancellationTokenSource();
-            var _ = Task.Delay(BestmoveResponseTimeout, cts.Token)
-                .ContinueWith(x =>
-                {
-                    lock (syncObj)
-                    {
-                        State.StopWaitingForBestmove(this);
-                    }
-                });
             var tcs = new TaskCompletionSource<(Move, Move)>();
             lock (syncObj)
             {
                 State.StopPonder(this, tcs);
             }
-            var result = await tcs.Task.ConfigureAwait(false);
-            cts.Cancel();
-            return result;
+
+            var finished = await Task
+                .WhenAny(tcs.Task, Task.Delay(BestmoveResponseTimeout))
+                .ConfigureAwait(false);
+            if (finished != tcs.Task)
+            {
+                lock (syncObj)
+                {
+                    State.StopWaitingForBestmove(this);
+                }
+            }
+
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         /// <summary>

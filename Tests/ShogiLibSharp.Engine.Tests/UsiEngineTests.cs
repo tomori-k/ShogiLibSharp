@@ -246,6 +246,7 @@ namespace ShogiLibSharp.Engine.Tests
             await engine.BeginAsync();
             await engine.IsReadyAsync();
             engine.StartNewGame();
+
             engine.BestmoveResponseTimeout = TimeSpan.FromSeconds(0.1);
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
@@ -253,6 +254,24 @@ namespace ShogiLibSharp.Engine.Tests
                 await Task.Delay(100);
                 await engine.StopPonderAsync();
             });
+        }
+
+        [TestMethod, Timeout(1000)]
+        public async Task StopPonderAsyncTest()
+        {
+            using var engine = new UsiEngine(new RandomPlayer());
+
+            //engine.StdIn += s => Trace.WriteLine($"< {s}");
+            //engine.StdOut += s => Trace.WriteLine($"  > {s}");
+
+            await engine.BeginAsync();
+            await engine.IsReadyAsync();
+            engine.StartNewGame();
+            engine.GoPonder(new Position(Position.Hirate), new SearchLimit());
+            await Task.Delay(100);
+            await engine.StopPonderAsync();
+            engine.Gameover("win");
+            await engine.QuitAsync();
         }
 
         [TestMethod]
