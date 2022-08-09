@@ -1585,7 +1585,7 @@ END Game_Summary
         {
             TcpClient client;
             
-            public WrapperStream Stream { get; }
+            public CancellableReaderWriter Stream { get; }
             public string Name { get; set; } = "";
             public string Password { get; set; } = "";
             public string Color { get; set; }
@@ -1593,7 +1593,7 @@ END Game_Summary
             public Connection(TcpClient client, string color)
             {
                 this.client = client;
-                this.Stream = new WrapperStream(client.GetStream());
+                this.Stream = new CancellableReaderWriter(client.GetStream());
                 this.Color = color;
             }
 

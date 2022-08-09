@@ -1,4 +1,6 @@
-﻿using ShogiLibSharp.Core;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using ShogiLibSharp.Core;
 using ShogiLibSharp.Csa.Exceptions;
 using System.Diagnostics;
 using System.Net.Sockets;
@@ -8,7 +10,8 @@ namespace ShogiLibSharp.Csa
 {
     public class CsaClient
     {
-        private protected WrapperStream? stream = null;
+        private protected ILogger<CsaClient> logger;
+        private protected ReaderWriterWrapper? rw = null;
         private protected IPlayerFactory playerFactory;
         private protected ConnectOptions options;
         private protected bool isWaitingForNextGame = false;
@@ -18,15 +21,31 @@ namespace ShogiLibSharp.Csa
         public Task ConnectionTask { get; }
 
         public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, CancellationToken ct = default)
-            : this(playerFactory, options, TimeSpan.FromSeconds(30.0), ct)
+            : this(playerFactory, options, TimeSpan.FromSeconds(30.0), NullLogger<CsaClient>.Instance, ct)
         {
         }
 
         public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, TimeSpan keepAliveInterval, CancellationToken ct = default)
+            : this(playerFactory, options, keepAliveInterval, NullLogger<CsaClient>.Instance, ct)
+        {
+        }
+
+        public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, ILogger<CsaClient> logger, CancellationToken ct = default)
+            : this(playerFactory, options, TimeSpan.FromSeconds(30.0), logger, ct)
+        {
+        }
+
+        public CsaClient(
+            IPlayerFactory playerFactory,
+            ConnectOptions options,
+            TimeSpan keepAliveInterval,
+            ILogger<CsaClient> logger,
+            CancellationToken ct = default)
         {
             this.playerFactory = playerFactory;
             this.options = options;
             this.keepAliveInterval = keepAliveInterval;
+            this.logger = logger;
             ValidateOptions();
             this.ConnectionTask = ConnectAsync(ct);
         }
@@ -65,8 +84,8 @@ namespace ShogiLibSharp.Csa
             await stateSem.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (stream is null || !isWaitingForNextGame) return;
-                await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
+                if (rw is null || !isWaitingForNextGame) return;
+                await rw.WriteLineAsync("LOGOUT", ct).ConfigureAwait(false);
             }
             finally
             {
@@ -79,17 +98,15 @@ namespace ShogiLibSharp.Csa
         async Task ConnectAsync(CancellationToken ct)
         {
             using var tcp = new TcpClient();
-
             await tcp.ConnectAsync(options.HostName, options.Port, ct).ConfigureAwait(false);
-            stream = new WrapperStream(tcp.GetStream());
-
+            rw = new ReaderWriterWrapper(new CancellableReaderWriter(tcp.GetStream()), logger);
             try
             {
                 await CommunicateWithServerAsync(ct).ConfigureAwait(false);
             }
             finally
             {
-                stream.Dispose();
+                rw.Dispose();
             }
         }
 
@@ -103,7 +120,7 @@ namespace ShogiLibSharp.Csa
                 {
                     Debug.Assert(!isWaitingForNextGame);
                     // ログアウト
-                    await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
+                    await rw!.WriteLineAsync("LOGOUT", ct).ConfigureAwait(false);
                 }
 
                 bool accept;
@@ -126,11 +143,11 @@ namespace ShogiLibSharp.Csa
 
                 if (player is null)
                 {
-                    await WriteLineAsync(stream!, $"REJECT", ct).ConfigureAwait(false);
+                    await rw!.WriteLineAsync($"REJECT", ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    await WriteLineAsync(stream!, $"AGREE", ct).ConfigureAwait(false);
+                    await rw!.WriteLineAsync($"AGREE", ct).ConfigureAwait(false);
                 }
 
                 // Start or Reject が来るのを待つ
@@ -143,7 +160,7 @@ namespace ShogiLibSharp.Csa
                 if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
 
                 await new GameLoop(
-                    stream!, summary, keepAliveInterval, player, options.SendPv)
+                    rw!, summary, keepAliveInterval, player, options.SendPv)
                     .StartAsync(ct)
                     .ConfigureAwait(false);
             }
@@ -151,10 +168,10 @@ namespace ShogiLibSharp.Csa
 
         async Task LoginAsync(CancellationToken ct)
         {
-            await WriteLineAsync(stream!, $"LOGIN {options.UserName} {options.Password}", ct).ConfigureAwait(false);
+            await rw!.WriteLineAsync($"LOGIN {options.UserName} {options.Password}", ct).ConfigureAwait(false);
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == $"LOGIN:{options.UserName} OK")
                 {
                     return;
@@ -172,7 +189,7 @@ namespace ShogiLibSharp.Csa
         {
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw!.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == expected) break;
             }
         }
@@ -181,53 +198,76 @@ namespace ShogiLibSharp.Csa
         {
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw!.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == $"START:{summary.GameId}") return true;
                 else if (message.StartsWith($"REJECT:{summary.GameId}")) return false;
             }
         }
 
-        private protected static async Task WriteLineAsync(WrapperStream stream, string message, CancellationToken ct)
-        {
-            try
-            {
-                await stream.WriteLineLFAsync(message, ct).ConfigureAwait(false);
-            }
-            // OperationCanceledException 以外は CsaServerException で包む
-            catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
-            {
-                throw new CsaServerException("サーバへのメッセージ送信中に例外が発生しました。", e);
-            }
-        }
-
         /// <summary>
-        /// キャンセル例外はそのまま、それ以外の例外を CsaServerException で包む <br/>
+        /// ストリームの読み込み・書き込み時に処理を挟むためのラッパー
         /// </summary>
-        /// <param name="stream"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        /// <exception cref="CsaServerException"></exception>
-        /// <exception cref="OperationCanceledException"></exception>
-        private protected static async Task<string> ReadLineAsync(WrapperStream stream, CancellationToken ct)
+        private protected class ReaderWriterWrapper : IDisposable
         {
-            string? message;
-            try
+            readonly CancellableReaderWriter rw;
+            ILogger<CsaClient> logger;
+
+            public ReaderWriterWrapper(CancellableReaderWriter rw, ILogger<CsaClient> logger)
             {
-                message = await stream.ReadLineAsync(ct).ConfigureAwait(false);
+                this.rw = rw;
+                this.logger = logger;
             }
-            // OperationCanceledException 以外は CsaServerException で包む
-            catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
+
+            /// <summary>
+            /// キャンセル以外の例外を CsaServerException で包み <br/>
+            /// message が null の場合や LOGOUT の場合は例外を新たに投げる <br/>
+            /// ついでにログに受け取った文字列を記録
+            /// </summary>
+            public async Task<string> ReadLineAsync(CancellationToken ct)
             {
-                throw new CsaServerException("サーバからのメッセージ待機中に例外が発生しました。", e);
+                string? message;
+                try
+                {
+                    message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
+                }
+                // OperationCanceledException 以外は CsaServerException で包む
+                catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
+                {
+                    throw new CsaServerException("サーバからのメッセージ待機中に例外が発生しました。", e);
+                }
+                if (message is null) throw new CsaServerException("サーバとの接続が切れました。");
+                logger.LogTrace($"  < {message}");
+                if (message.StartsWith("LOGOUT")) throw new LogoutException("ログアウトしました。");
+                return message;
             }
-            if (message is null) throw new CsaServerException("サーバとの接続が切れました。");
-            if (message.StartsWith("LOGOUT")) throw new LogoutException("ログアウトしました。");
-            return message;
+
+            /// <summary>
+            /// キャンセル以外の書き込み時の例外を CsaServerException で包む <br/>
+            /// また、書き込んだ文字列をログに記録
+            /// </summary>
+            public async Task WriteLineAsync(string message, CancellationToken ct)
+            {
+                try
+                {
+                    await rw.WriteLineLFAsync(message, ct).ConfigureAwait(false);
+                }
+                // OperationCanceledException 以外は CsaServerException で包む
+                catch (Exception e) when (e is not OperationCanceledException oe || oe.CancellationToken != ct)
+                {
+                    throw new CsaServerException("サーバへのメッセージ送信中に例外が発生しました。", e);
+                }
+                logger.LogTrace($"> {message}");
+            }
+
+            public void Dispose()
+            {
+                rw.Dispose();
+            }
         }
 
         private protected class GameLoop
         {
-            WrapperStream stream;
+            ReaderWriterWrapper rw;
             GameSummary summary;
             IPlayer player;
             Position pos;
@@ -238,9 +278,9 @@ namespace ShogiLibSharp.Csa
             bool sendPv;
 
             public GameLoop(
-                WrapperStream stream, GameSummary summary, TimeSpan keepAliveInterval, IPlayer player, bool sendPv)
+                ReaderWriterWrapper rw, GameSummary summary, TimeSpan keepAliveInterval, IPlayer player, bool sendPv)
             {
-                this.stream = stream;
+                this.rw = rw;
                 this.summary = summary;
                 this.player = player;
                 this.pos = summary.StartPos!.Clone();
@@ -272,7 +312,7 @@ namespace ShogiLibSharp.Csa
                         thinkTask = SendMoveAsync(thinkCanceler.Token);
                     }
 
-                    var readlineTask = ReadLineAsync(stream, ct);
+                    var readlineTask = rw.ReadLineAsync(ct);
 
                     while (true)
                     {
@@ -282,7 +322,7 @@ namespace ShogiLibSharp.Csa
 
                         if (finished == readlineTask)
                         {
-                            var message = await readlineTask;
+                            var message = await readlineTask.ConfigureAwait(false);
 
                             if (GameResultTable.ContainsKey(message))
                             {
@@ -295,7 +335,7 @@ namespace ShogiLibSharp.Csa
                                 break;
                             }
 
-                            readlineTask = ReadLineAsync(stream, ct);
+                            readlineTask = rw.ReadLineAsync(ct);
 
                             // 指し手
                             if (message.StartsWith("+") || message.StartsWith("-"))
@@ -339,7 +379,7 @@ namespace ShogiLibSharp.Csa
                                 //　ちゃんと 30 秒以上経っているか確認
                                 if ((DateTime.Now - lastWrite) >= keepAliveInterval)
                                 {
-                                    await WriteLineAsync(stream, "", ct).ConfigureAwait(false);
+                                    await rw.WriteLineAsync("", ct).ConfigureAwait(false);
                                     lastWrite = DateTime.Now;
                                 }
                             }
@@ -414,7 +454,7 @@ namespace ShogiLibSharp.Csa
                 await writeSem.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    await WriteLineAsync(stream, message.ToString(), ct).ConfigureAwait(false);
+                    await rw.WriteLineAsync(message.ToString(), ct).ConfigureAwait(false);
                     lastWrite = DateTime.Now;
                 }
                 finally
@@ -492,7 +532,7 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw!.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "BEGIN Time") break;
 
                 var sp = message!.Split(':');
@@ -553,7 +593,7 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "END Time") break;
 
                 var sp = message!.Split(':');
@@ -604,7 +644,7 @@ namespace ShogiLibSharp.Csa
             var lines = new Queue<string>();
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "END Position") break;
                 lines.Enqueue(message!);
             }

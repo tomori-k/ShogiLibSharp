@@ -13,7 +13,7 @@ namespace ShogiLibSharp.Csa
     /// CsaClient で送受信に使う NetworkStream をラップするクラス
     /// ASCII 限定で ReadLineAsync と WriteLineLFAsync のキャンセルが可能
     /// </summary>
-    internal class WrapperStream : IDisposable
+    internal class CancellableReaderWriter : IDisposable
     {
         private const int BufferSize = 1024;
 
@@ -24,7 +24,7 @@ namespace ShogiLibSharp.Csa
         private int charLen = 0;
         private bool disposed = false;
 
-        public WrapperStream(Stream stream)
+        public CancellableReaderWriter(Stream stream)
         {
             this.stream = stream;
         }

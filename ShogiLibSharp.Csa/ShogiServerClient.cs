@@ -1,11 +1,31 @@
 ﻿using System;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using ShogiLibSharp.Csa.Exceptions;
 
 namespace ShogiLibSharp.Csa
 {
     public class ShogiServerClient : CsaClient
     {
+        public ShogiServerClient(
+            IPlayerFactory playerFactory,
+            ShogiServerOptions options,
+            TimeSpan keepAliveInterval,
+            ILogger<CsaClient> logger,
+            CancellationToken ct = default)
+            : base(playerFactory, options, keepAliveInterval, logger, ct)
+        {
+        }
+
+        public ShogiServerClient(
+            IPlayerFactory playerFactory,
+            ShogiServerOptions options,
+            ILogger<CsaClient> logger,
+            CancellationToken ct = default)
+            : base(playerFactory, options, logger, ct)
+        {
+        }
+
         public ShogiServerClient(
             IPlayerFactory playerFactory,
             ShogiServerOptions options,
@@ -25,13 +45,12 @@ namespace ShogiLibSharp.Csa
 
         async Task LoginAsync(CancellationToken ct)
         {
-            await WriteLineAsync(
-                stream!, $"LOGIN {options.UserName} {options.Password} x1", ct)
+            await rw!.WriteLineAsync($"LOGIN {options.UserName} {options.Password} x1", ct)
                 .ConfigureAwait(false);
 
             while (true)
             {
-                var message = await ReadLineAsync(stream!, ct).ConfigureAwait(false);
+                var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == $"##[LOGIN] +OK x1")
                 {
                     return;
@@ -53,11 +72,10 @@ namespace ShogiLibSharp.Csa
                 {
                     Debug.Assert(!isWaitingForNextGame);
                     // ログアウト
-                    await WriteLineAsync(stream!, "LOGOUT", ct).ConfigureAwait(false);
+                    await rw!.WriteLineAsync("LOGOUT", ct).ConfigureAwait(false);
                 }
 
-                await WriteLineAsync(
-                    stream!, $"%%GAME {((ShogiServerOptions)options).GameName} *", ct)
+                await rw!.WriteLineAsync($"%%GAME {((ShogiServerOptions)options).GameName} *", ct)
                     .ConfigureAwait(false);
 
                 bool accept;
@@ -80,11 +98,11 @@ namespace ShogiLibSharp.Csa
 
                 if (player is null)
                 {
-                    await WriteLineAsync(stream!, $"REJECT", ct).ConfigureAwait(false);
+                    await rw.WriteLineAsync($"REJECT", ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    await WriteLineAsync(stream!, $"AGREE", ct).ConfigureAwait(false);
+                    await rw.WriteLineAsync($"AGREE", ct).ConfigureAwait(false);
                 }
 
                 // Start or Reject が来るのを待つ
@@ -97,7 +115,7 @@ namespace ShogiLibSharp.Csa
                 if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
 
                 await new GameLoop(
-                    stream!, summary, keepAliveInterval, player, options.SendPv)
+                    rw!, summary, keepAliveInterval, player, options.SendPv)
                     .StartAsync(ct)
                     .ConfigureAwait(false);
             }
