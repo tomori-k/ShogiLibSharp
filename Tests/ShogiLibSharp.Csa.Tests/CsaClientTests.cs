@@ -322,7 +322,8 @@ namespace ShogiLibSharp.Csa.Tests
                 position.DoMove(m);
             }
 
-            public async Task<Move> ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
+            public async Task<(Move, long?, List<Move>?)>
+                ThinkAsync(Position pos, RemainingTime time, CancellationToken ct)
             {
                 var expectedTime = testcase.Times![moveCount];
                 Assert.IsTrue(started);
@@ -334,7 +335,9 @@ namespace ShogiLibSharp.Csa.Tests
                     await Task.Delay(-1, ct);
                 else
                     await Task.Delay(5);
-                return moves[moveCount].Item1;
+                return (moves[moveCount].Item1,
+                    moveCount,
+                    moves.Select(x => x.Item1).Skip(moveCount).Take(4).ToList());
             }
         }
 
@@ -425,89 +428,89 @@ END Game_Summary
                 }
             },
 
-            new Testcase
-            {
-                SummaryStr = @"
-BEGIN Game_Summary
-Protocol_Version:1.2
-Protocol_Mode:Server
-Format:Shogi 1.0
-Declaration:Jishogi 1.1
-Game_ID:20220805-Test-2
-Name+:{0}
-Name-:{1}
-Your_Turn:{2}
-Rematch_On_Draw:NO
-To_Move:-
-Max_Moves:100
-BEGIN Time
-Time_Unit:1min
-Total_Time:60
-Byoyomi:0
-Least_Time_Per_Move:0
-Increment:5
-Delay: 3
-Time_Roundup:YES
-END Time
-BEGIN Position
-P1-KY *  *  *  *  *  * -KE-KY
-P2 *  *  *  *  * +TO * -KI-OU
-P3 *  * -KE-FU * +GI *  *  * 
-P4-FU * -FU *  *  *  * +FU-FU
-P5 *  *  * +FU *  * +GI-FU * 
-P6 * +FU+FU-KA *  * +FU * +FU
-P7+FU *  *  *  *  * +KI+GI * 
-P8+HI *  *  *  *  *  *  *  * 
-P9+KY+KE *  *  *  * -KA+OU+KY
-P+00HI00KI
-P-00KI00GI00KE00FU00FU00FU00FU00FU
--
-END Position
-END Game_Summary
-",
-                Summary = new GameSummary
-                {
-                    GameId = "20220805-Test-2",
-                    StartColor = Color.White,
-                    MaxMoves = 100,
-                    TimeRule = new TimeRule
-                    {
-                        TimeUnit = TimeSpan.FromMinutes(1.0),
-                        LeastTimePerMove = TimeSpan.Zero,
-                        TotalTime = TimeSpan.FromMinutes(60.0),
-                        Byoyomi = TimeSpan.Zero,
-                        Delay = TimeSpan.FromMinutes(3.0),
-                        Increment = TimeSpan.FromMinutes(5.0),
-                        IsRoundUp = true,
-                    },
-                    StartPos = new Position("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1"),
-                    Moves = new List<(Move, TimeSpan)>(),
-                },
+//            new Testcase
+//            {
+//                SummaryStr = @"
+//BEGIN Game_Summary
+//Protocol_Version:1.2
+//Protocol_Mode:Server
+//Format:Shogi 1.0
+//Declaration:Jishogi 1.1
+//Game_ID:20220805-Test-2
+//Name+:{0}
+//Name-:{1}
+//Your_Turn:{2}
+//Rematch_On_Draw:NO
+//To_Move:-
+//Max_Moves:100
+//BEGIN Time
+//Time_Unit:1min
+//Total_Time:60
+//Byoyomi:0
+//Least_Time_Per_Move:0
+//Increment:5
+//Delay: 3
+//Time_Roundup:YES
+//END Time
+//BEGIN Position
+//P1-KY *  *  *  *  *  * -KE-KY
+//P2 *  *  *  *  * +TO * -KI-OU
+//P3 *  * -KE-FU * +GI *  *  * 
+//P4-FU * -FU *  *  *  * +FU-FU
+//P5 *  *  * +FU *  * +GI-FU * 
+//P6 * +FU+FU-KA *  * +FU * +FU
+//P7+FU *  *  *  *  * +KI+GI * 
+//P8+HI *  *  *  *  *  *  *  * 
+//P9+KY+KE *  *  *  * -KA+OU+KY
+//P+00HI00KI
+//P-00KI00GI00KE00FU00FU00FU00FU00FU
+//-
+//END Position
+//END Game_Summary
+//",
+//                Summary = new GameSummary
+//                {
+//                    GameId = "20220805-Test-2",
+//                    StartColor = Color.White,
+//                    MaxMoves = 100,
+//                    TimeRule = new TimeRule
+//                    {
+//                        TimeUnit = TimeSpan.FromMinutes(1.0),
+//                        LeastTimePerMove = TimeSpan.Zero,
+//                        TotalTime = TimeSpan.FromMinutes(60.0),
+//                        Byoyomi = TimeSpan.Zero,
+//                        Delay = TimeSpan.FromMinutes(3.0),
+//                        Increment = TimeSpan.FromMinutes(5.0),
+//                        IsRoundUp = true,
+//                    },
+//                    StartPos = new Position("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1"),
+//                    Moves = new List<(Move, TimeSpan)>(),
+//                },
 
-                Moves = new List<(Move, TimeSpan)>
-                {
-                    (Usi.ParseMove("N*4d"), TimeSpan.FromMinutes(35.0)),
-                    (Usi.ParseMove("2d2c+"), TimeSpan.Zero),
-                    (Usi.ParseMove("2b2c"), TimeSpan.FromMinutes(35.0)),
-                    (Usi.ParseMove("R*1c"), TimeSpan.Zero),
-                    (Usi.ParseMove("4d3f"), TimeSpan.FromMinutes(5.0)),
-                },
+//                Moves = new List<(Move, TimeSpan)>
+//                {
+//                    (Usi.ParseMove("N*4d"), TimeSpan.FromMinutes(35.0)),
+//                    (Usi.ParseMove("2d2c+"), TimeSpan.Zero),
+//                    (Usi.ParseMove("2b2c"), TimeSpan.FromMinutes(35.0)),
+//                    (Usi.ParseMove("R*1c"), TimeSpan.Zero),
+//                    (Usi.ParseMove("4d3f"), TimeSpan.FromMinutes(5.0)),
+//                },
 
-                ResultStrs = new[] { "#WIN", "#LOSE" },
-                Results = new[] { GameResult.Win, GameResult.Lose },
-                EndStateStr = "#ILLEGAL_MOVE",
-                EndState = EndGameState.IllegalMove,
-                Times = new[]
-                {
-                    new RemainingTime(TimeSpan.FromMinutes(60.0), TimeSpan.FromMinutes(60.0)),
-                    new RemainingTime(TimeSpan.FromMinutes(60.0), TimeSpan.FromMinutes(30.0)),
-                    new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.FromMinutes(30.0)),
-                    new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.Zero),
-                    new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
-                    new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
+//                ResultStrs = new[] { "#WIN", "#LOSE" },
+//                Results = new[] { GameResult.Win, GameResult.Lose },
+//                EndStateStr = "#ILLEGAL_MOVE",
+//                EndState = EndGameState.IllegalMove,
+//                Times = new[]
+//                {
+//                    new RemainingTime(TimeSpan.FromMinutes(60.0), TimeSpan.FromMinutes(60.0)),
+//                    new RemainingTime(TimeSpan.FromMinutes(60.0), TimeSpan.FromMinutes(30.0)),
+//                    new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.FromMinutes(30.0)),
+//                    new RemainingTime(TimeSpan.FromMinutes(65.0), TimeSpan.Zero),
+//                    new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
+//                    new RemainingTime(TimeSpan.FromMinutes(70.0), TimeSpan.Zero),
 
-                }
-            },
+//                }
+//            },
 
             new Testcase
             {

@@ -2,6 +2,7 @@
 using ShogiLibSharp.Csa.Exceptions;
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Text;
 
 namespace ShogiLibSharp.Csa
 {
@@ -141,7 +142,10 @@ namespace ShogiLibSharp.Csa
 
                 if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
 
-                await new GameLoop(stream!, summary, keepAliveInterval, player).StartAsync(ct).ConfigureAwait(false);
+                await new GameLoop(
+                    stream!, summary, keepAliveInterval, player, options.SendPv)
+                    .StartAsync(ct)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -230,10 +234,11 @@ namespace ShogiLibSharp.Csa
             RemainingTime remainingTime;
             TimeSpan keepAliveInterval;
             DateTime lastWrite = DateTime.Now;
-            SemaphoreSlim writeSem = new(1, 1); 
+            SemaphoreSlim writeSem = new(1, 1);
+            bool sendPv;
 
             public GameLoop(
-                WrapperStream stream, GameSummary summary, TimeSpan keepAliveInterval, IPlayer player)
+                WrapperStream stream, GameSummary summary, TimeSpan keepAliveInterval, IPlayer player, bool sendPv)
             {
                 this.stream = stream;
                 this.summary = summary;
@@ -241,6 +246,7 @@ namespace ShogiLibSharp.Csa
                 this.pos = summary.StartPos!.Clone();
                 this.remainingTime = new RemainingTime(summary.TimeRule!.TotalTime);
                 this.keepAliveInterval = keepAliveInterval;
+                this.sendPv = sendPv;
 
                 foreach (var (move, time) in summary.Moves!)
                 {
@@ -369,15 +375,46 @@ namespace ShogiLibSharp.Csa
 
             async Task SendMoveAsync(CancellationToken ct)
             {
-                var bestmove = await player.ThinkAsync(pos.Clone(), remainingTime.Clone(), ct).ConfigureAwait(false);
-                var csa = bestmove == Move.Resign ? "%TORYO"
+                var clonedPos = pos.Clone();
+                var (bestmove, eval, pv)
+                    = await player.ThinkAsync(pos.Clone(), remainingTime.Clone(), ct).ConfigureAwait(false);
+
+                if (!(clonedPos.IsLegalMove(bestmove) || bestmove == Move.Resign || bestmove == Move.Win))
+                {
+                    throw new PlayerException($"合法手ではありません。指し手={bestmove.Usi()}, 局面={clonedPos.Sfen()}");
+                }
+
+                var message = new StringBuilder(bestmove == Move.Resign ? "%TORYO"
                     : bestmove == Move.Win ? "%KACHI"
-                    : bestmove.Csa(pos);
+                    : bestmove.Csa(clonedPos));
+
+                if (sendPv
+                    && bestmove != Move.Resign
+                    && bestmove != Move.Win
+                    && (eval is not null || pv is not null))
+                {
+                    message.Append(",'*");
+                    if (eval is not null)
+                    {
+                        message.Append(' ');
+                        message.Append(eval);
+                    }
+                    if (pv is not null)
+                    {
+                        foreach (var m in pv)
+                        {
+                            if (!clonedPos.IsLegalMove(m)) break;
+                            message.Append(' ');
+                            message.Append(m.Csa(clonedPos));
+                            clonedPos.DoMove(m);
+                        }
+                    }
+                }
 
                 await writeSem.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    await WriteLineAsync(stream, csa, ct).ConfigureAwait(false);
+                    await WriteLineAsync(stream, message.ToString(), ct).ConfigureAwait(false);
                     lastWrite = DateTime.Now;
                 }
                 finally

@@ -12,5 +12,6 @@ namespace ShogiLibSharp.Csa
         public int Port { get; init; } = 4081;
         public string UserName { get; init; } = "";
         public string Password { get; init; } = "";
+        public bool SendPv { get; init; } = false;
     }
 }

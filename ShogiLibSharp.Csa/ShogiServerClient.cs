@@ -96,7 +96,10 @@ namespace ShogiLibSharp.Csa
 
                 if (player is null) throw new CsaServerException("REJECT がサーバに無視されました;;");
 
-                await new GameLoop(stream!, summary, keepAliveInterval, player).StartAsync(ct).ConfigureAwait(false);
+                await new GameLoop(
+                    stream!, summary, keepAliveInterval, player, options.SendPv)
+                    .StartAsync(ct)
+                    .ConfigureAwait(false);
             }
         }
     }
