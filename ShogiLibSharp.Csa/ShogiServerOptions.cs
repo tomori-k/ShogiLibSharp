@@ -1,6 +1,9 @@
 ﻿using System;
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// ShogiServerClient の接続オプション
+    /// </summary>
     public record ShogiServerOptions : ConnectOptions
     {
         public string GameName { get; init; }

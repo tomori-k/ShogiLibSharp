@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// 終局状況
+    /// </summary>
     public enum EndGameState
     {
         None,

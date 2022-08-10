@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// 接続オプション
+    /// </summary>
     public record ConnectOptions(string HostName, string UserName, string Password)
     {
         public int Port { get; init; } = 4081;

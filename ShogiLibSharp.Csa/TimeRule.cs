@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// 対局時間のルール
+    /// </summary>
     public record TimeRule
     {
         public TimeSpan TimeUnit { get; init; } = TimeSpan.FromSeconds(1.0);

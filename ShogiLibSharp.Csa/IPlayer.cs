@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Csa
 {
-    // todo: 名前再考
+    /// <summary>
+    /// ログイン状態を管理する型を表すインターフェース
+    /// </summary>
     public interface IPlayerFactory
     {
         bool ContinueLogin();
@@ -15,6 +17,9 @@ namespace ShogiLibSharp.Csa
         Task<IPlayer?> AgreeWith(GameSummary summary, CancellationToken ct); // 対局するなら IPlayer を返し、そうでないなら null を返す
     }
 
+    /// <summary>
+    /// 対局中の処理を行う型を表すインターフェース
+    /// </summary>
     public interface IPlayer
     {
         void GameStart();

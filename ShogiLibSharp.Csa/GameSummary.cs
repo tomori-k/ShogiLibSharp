@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// 対局ルール
+    /// </summary>
     public record GameSummary(
         string GameId,
         string BlackName,

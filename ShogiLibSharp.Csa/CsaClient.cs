@@ -12,6 +12,9 @@ using System.Runtime.CompilerServices;
 
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// CSA サーバプロトコル 1.2.1 準拠の対局クライアント
+    /// </summary>
     public class CsaClient
     {
         private protected ILogger<CsaClient> logger;
@@ -22,6 +25,10 @@ namespace ShogiLibSharp.Csa
         private protected SemaphoreSlim stateSem = new(1, 1);
         private protected readonly TimeSpan keepAliveInterval;
         
+        /// <summary>
+        /// 接続タスク <br/>
+        /// 通信終了を待ちたいときはこれを await
+        /// </summary>
         public Task ConnectionTask { get; }
 
         public CsaClient(IPlayerFactory playerFactory, ConnectOptions options, CancellationToken ct = default)
@@ -81,6 +88,11 @@ namespace ShogiLibSharp.Csa
             }
         }
 
+        /// <summary>
+        /// サーバからログアウト
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task LogoutAsync(CancellationToken ct = default)
         {
             if (ConnectionTask.IsCompleted) return;

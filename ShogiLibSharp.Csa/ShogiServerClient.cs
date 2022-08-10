@@ -5,6 +5,9 @@ using ShogiLibSharp.Csa.Exceptions;
 
 namespace ShogiLibSharp.Csa
 {
+    /// <summary>
+    /// shogi-server の拡張モード対応の対局クライアント
+    /// </summary>
     public class ShogiServerClient : CsaClient
     {
         public ShogiServerClient(
