@@ -19,12 +19,12 @@ namespace ShogiLibSharp.Engine.Process
             ErrorDataReceived += EngineProcess_ErrorDataReceived;
         }
 
-        private void EngineProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        void EngineProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
             StdOutReceived?.Invoke(e.Data);
         }
 
-        private void EngineProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        void EngineProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
             StdErrReceived?.Invoke(e.Data);
         }

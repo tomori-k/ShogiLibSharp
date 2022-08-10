@@ -100,7 +100,7 @@ namespace ShogiLibSharp.Engine
             SetEventCallback();
         }
 
-        private void SetEventCallback()
+        void SetEventCallback()
         {
             this.process.StdOutReceived += Process_StdOutReceived;
             this.process.StdErrReceived += s => Logger.LogWarning($"stderr: {s}");
@@ -157,14 +157,14 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private void Process_StdOutReceived(string? message)
+        void Process_StdOutReceived(string? message)
         {
             if (message is null) return;
             Logger.LogTrace($"  < {message}");
             stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
         }
 
-        private void Process_Exited(object? sender, EventArgs e)
+        void Process_Exited(object? sender, EventArgs e)
         {
             lock (syncObj)
             {
@@ -229,7 +229,7 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private async Task BeginAsyncImpl(CancellationToken ct)
+        async Task BeginAsyncImpl(CancellationToken ct)
         {
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
@@ -276,7 +276,7 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private async Task IsReadyAsyncImpl(CancellationToken ct)
+        async Task IsReadyAsyncImpl(CancellationToken ct)
         {
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)

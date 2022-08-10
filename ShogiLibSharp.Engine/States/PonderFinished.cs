@@ -12,7 +12,8 @@ namespace ShogiLibSharp.Engine.States
     {
         public override string Name => "次の go が来るまでに ponder が終了";
 
-        private string ponderedPos, bestmoveCmd;
+        string ponderedPos;
+        string bestmoveCmd;
 
         public PonderFinished(
             string ponderedPos, string bestmoveCmd)

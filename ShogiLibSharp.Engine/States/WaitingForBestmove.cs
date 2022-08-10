@@ -10,13 +10,13 @@ namespace ShogiLibSharp.Engine.States
 {
     internal class WaitingForBestmove : StateBase
     {
-        private TaskCompletionSource<(Move, Move)> tcs;
+        public override string Name => "bestmove 待ち";
+
+        TaskCompletionSource<(Move, Move)> tcs;
         public WaitingForBestmove(TaskCompletionSource<(Move, Move)> tcs)
         {
             this.tcs = tcs;
         }
-
-        public override string Name => "bestmove 待ち";
 
         public override void Bestmove(UsiEngine context,string message)
         {
