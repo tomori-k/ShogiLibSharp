@@ -91,6 +91,21 @@ namespace ShogiLibSharp.Core
             this.initPos = Sfen();
         }
 
+        public Position(Position pos)
+        {
+            this.initPos = pos.initPos;
+            this.board = pos.board.Clone();
+            this.colorBB = (Bitboard[])pos.colorBB.Clone();
+            this.pieceBB = (Bitboard[,])pos.pieceBB.Clone();
+            this.moves = new(pos.moves.Reverse()); // シャローコピーだけどまあいいか...
+            this.checkers = pos.checkers;
+            this.pinnedBy = (Bitboard[])pos.pinnedBy.Clone();
+            this.silvers = (Bitboard[])pos.silvers.Clone();
+            this.golds = (Bitboard[])pos.golds.Clone();
+            this.bishops = (Bitboard[])pos.bishops.Clone();
+            this.rooks = (Bitboard[])pos.rooks.Clone();
+        }
+
         #endregion
 
         #region public メソッド
@@ -664,6 +679,15 @@ namespace ShogiLibSharp.Core
         public Board ToBoard()
         {
             return board.Clone();
+        }
+
+        /// <summary>
+        /// 現在の局面をコピーを作成
+        /// </summary>
+        /// <returns></returns>
+        public Position Clone()
+        {
+            return new Position(this);
         }
 
         public override string ToString()

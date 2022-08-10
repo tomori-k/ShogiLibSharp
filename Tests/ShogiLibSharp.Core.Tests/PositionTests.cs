@@ -108,9 +108,9 @@ namespace ShogiLibSharp.Core.Tests
             foreach (var fileName in fileNames)
             {
                 var kifu = File.ReadAllText(fileName);
-                var (sfen, moves) = Csa.ParseKifu(kifu);
+                var (sfen, moves) = Kifu.Csa.ParseKifu(kifu);
                 var pos = new Position(sfen);
-                foreach (var m in moves)
+                foreach (var (m, t) in moves)
                 {
                     Assert.AreEqual(Repetition.None, pos.CheckRepetition());
                     pos.DoMove(m);

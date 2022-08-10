@@ -138,6 +138,56 @@ namespace ShogiLibSharp.Core
                 { Piece.W_King  , 'k' },
             };
 
+        static readonly Dictionary<Piece, string> PieceToCsaNoColor = new Dictionary<Piece, string>
+        {
+            { Piece.Pawn     , "FU" },
+            { Piece.Lance    , "KY" },
+            { Piece.Knight   , "KE" },
+            { Piece.Silver   , "GI" },
+            { Piece.Gold     , "KI" },
+            { Piece.Bishop   , "KA" },
+            { Piece.Rook     , "HI" },
+            { Piece.King     , "OU" },
+            { Piece.ProPawn  , "TO" },
+            { Piece.ProLance , "NY" },
+            { Piece.ProKnight, "NK" },
+            { Piece.ProSilver, "NG" },
+            { Piece.ProBishop, "UM" },
+            { Piece.ProRook  , "RY" },
+        };
+
+        static readonly Dictionary<Piece, string> PieceToCsa = new Dictionary<Piece, string>
+        {
+            { Piece.B_Pawn     , "+FU" },
+            { Piece.B_Lance    , "+KY" },
+            { Piece.B_Knight   , "+KE" },
+            { Piece.B_Silver   , "+GI" },
+            { Piece.B_Gold     , "+KI" },
+            { Piece.B_Bishop   , "+KA" },
+            { Piece.B_Rook     , "+HI" },
+            { Piece.B_King     , "+OU" },
+            { Piece.B_ProPawn  , "+TO" },
+            { Piece.B_ProLance , "+NY" },
+            { Piece.B_ProKnight, "+NK" },
+            { Piece.B_ProSilver, "+NG" },
+            { Piece.B_ProBishop, "+UM" },
+            { Piece.B_ProRook  , "+RY" },
+            { Piece.W_Pawn     , "-FU" },
+            { Piece.W_Lance    , "-KY" },
+            { Piece.W_Knight   , "-KE" },
+            { Piece.W_Silver   , "-GI" },
+            { Piece.W_Gold     , "-KI" },
+            { Piece.W_Bishop   , "-KA" },
+            { Piece.W_Rook     , "-HI" },
+            { Piece.W_King     , "-OU" },
+            { Piece.W_ProPawn  , "-TO" },
+            { Piece.W_ProLance , "-NY" },
+            { Piece.W_ProKnight, "-NK" },
+            { Piece.W_ProSilver, "-NG" },
+            { Piece.W_ProBishop, "-UM" },
+            { Piece.W_ProRook  , "-RY" },
+        };
+
         /// <summary>
         /// USI 形式の文字列に変換
         /// </summary>
@@ -155,6 +205,37 @@ namespace ShogiLibSharp.Core
             char c = PieceToChar[t];
             return p.Colorless() != Piece.King && p.IsPromoted()
                 ? $"+{c}" : $"{c}";
+        }
+
+        /// <summary>
+        /// CSA 形式の文字列に変換
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        /// <exception cref="FormatException"></exception>
+        public static string Csa(this Piece p)
+        {
+            if (!PieceToCsa.ContainsKey(p))
+            {
+                throw new FormatException($"Piece: {p} が有効な値ではありません");
+            }
+            return PieceToCsa[p];
+        }
+
+        /// <summary>
+        /// CSA 形式の文字列（符号なし）に変換
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        /// <exception cref="FormatException"></exception>
+        public static string CsaNoColor(this Piece p)
+        {
+            p = p.Colorless();
+            if (!PieceToCsaNoColor.ContainsKey(p))
+            {
+                throw new FormatException($"Piece: {p} が有効な値ではありません");
+            }
+            return PieceToCsaNoColor[p];
         }
 
         /// <summary>

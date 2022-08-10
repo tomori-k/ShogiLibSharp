@@ -49,9 +49,9 @@ namespace ShogiLibSharp.Engine.Tests
 
         private void SendRandomMove()
         {
-            var moves = Movegen.GenerateMoves(pos);
+            var moves = Movegen.GenerateMoves(pos!);
             var select = moves[rnd.Next(moves.Count)];
-            pos.DoMove(select);
+            pos!.DoMove(select);
             if (pos.IsMated())
             {
                 StdOutReceived?.Invoke($"bestmove {select.Usi()}");

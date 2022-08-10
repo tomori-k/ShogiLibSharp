@@ -67,7 +67,7 @@ namespace ShogiLibSharp.Engine
                 .Where(x => x.First == "var")
                 .Select(x => x.Second)
                 .ToList();
-            if (items.Contains(defaultValue))
+            if (defaultValue is not null && items.Contains(defaultValue))
             {
                 return Combo.Create(defaultValue, items);
             }

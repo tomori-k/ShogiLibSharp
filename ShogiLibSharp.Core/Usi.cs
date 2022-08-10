@@ -69,6 +69,7 @@ namespace ShogiLibSharp.Core
         public static Move ParseMove(string usiMove)
         {
             if (usiMove == "resign") return Move.Resign;
+            else if (usiMove == "win") return Move.Win;
 
             if (usiMove.Length < 4)
             {
@@ -79,6 +80,8 @@ namespace ShogiLibSharp.Core
             if (usiMove[1] == '*')
             {
                 var dropped = FromUsi(usiMove[0]);
+                if (dropped.Color() != Color.Black)
+                    throw new FormatException($"USI 形式ではありません：{usiMove}");
                 return MoveExtensions.MakeDrop(dropped, to);
             }
             // 駒移動
