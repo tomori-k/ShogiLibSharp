@@ -160,7 +160,7 @@ namespace ShogiLibSharp.Engine
         void Process_StdOutReceived(string? message)
         {
             if (message is null) return;
-            Logger.LogTrace($"  < {message}");
+            Logger.LogTrace($"  > {message}");
             stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
         }
 
@@ -195,7 +195,7 @@ namespace ShogiLibSharp.Engine
         {
             lock (syncObj)
             {
-                Logger.LogTrace($"> {command}");
+                Logger.LogTrace($"< {command}");
                 process.SendLine(command);
             }
         }
