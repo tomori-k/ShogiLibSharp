@@ -14,21 +14,24 @@ namespace ShogiLibSharp.Engine.States
 
         string ponderedPos;
         string bestmoveCmd;
+        List<UsiInfo> infoList;
 
         public PonderFinished(
-            string ponderedPos, string bestmoveCmd)
+            string ponderedPos, string bestmoveCmd, List<UsiInfo> infoList)
         {
-            (this.ponderedPos, this.bestmoveCmd) = (ponderedPos, bestmoveCmd);
+            this.ponderedPos = ponderedPos;
+            this.bestmoveCmd = bestmoveCmd;
+            this.infoList = infoList;
         }
 
         public override void Go(
-            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
+            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<SearchResult> tcs)
         {
             var sfen = pos.SfenWithMoves();
             if (sfen == ponderedPos)
             {
                 context.State = new PlayingGame();
-                SetBestmove(tcs, bestmoveCmd);
+                SetBestmove(tcs, bestmoveCmd, infoList);
             }
             else
             {
@@ -37,10 +40,10 @@ namespace ShogiLibSharp.Engine.States
             }
         }
 
-        public override void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
+        public override void StopPonder(UsiEngine context, TaskCompletionSource<SearchResult> tcs)
         {
             context.State = new PlayingGame();
-            SetBestmove(tcs, bestmoveCmd);
+            SetBestmove(tcs, bestmoveCmd, infoList);
         }
     }
 }

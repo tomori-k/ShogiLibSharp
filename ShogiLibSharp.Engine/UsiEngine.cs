@@ -154,6 +154,13 @@ namespace ShogiLibSharp.Engine
                         Logger.LogWarning(e, "エンジンオプションを解析できません");
                     }
                 }
+                else if (message.StartsWith("info"))
+                {
+                    lock (syncObj)
+                    {
+                        State.Info(this, message);
+                    }
+                }
             }
         }
 
@@ -345,9 +352,9 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="OperationCanceledException">CancellationToken により処理がキャンセルされたときにスロー。</exception>
         /// <exception cref="EngineException">エンジンが落ちる、タイムアウト時間を超えても返事がないときなどにスロー。</exception>
         /// <exception cref="ObjectDisposedException">探索中に Dispose() が呼ばれたときにスロー。</exception>
-        public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
+        public async Task<SearchResult> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<SearchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Go(this, pos, limits, tcs);
@@ -398,9 +405,9 @@ namespace ShogiLibSharp.Engine
         /// ponder の停止を行い、bestmove が返ってくるまで待つ
         /// </summary>
         /// <returns></returns>
-        public async Task<(Move, Move)> StopPonderAsync()
+        public async Task<SearchResult> StopPonderAsync()
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<SearchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.StopPonder(this, tcs);
