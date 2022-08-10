@@ -9,6 +9,11 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 
+// https://www.nuits.jp/entry/net-standard-internals-visible-to
+using System.Runtime.CompilerServices;
+[assembly: InternalsVisibleTo("ShogiLibSharp.Engine.Tests")]
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]   // Moq
+
 namespace ShogiLibSharp.Engine
 {
     /// <summary>
@@ -87,7 +92,7 @@ namespace ShogiLibSharp.Engine
         /// テスト用
         /// </summary>
         /// <param name="process"></param>
-        public UsiEngine(IEngineProcess process)
+        internal UsiEngine(IEngineProcess process)
         {
             this.stdoutTask = ReceiveStdoutAsync();
             this.process = process;
