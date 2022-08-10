@@ -6,6 +6,7 @@ using ShogiLibSharp.Engine.Options;
 using ShogiLibSharp.Engine.Process;
 using ShogiLibSharp.Engine.States;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using System.Threading.Channels;
 
 namespace ShogiLibSharp.Engine
@@ -15,6 +16,8 @@ namespace ShogiLibSharp.Engine
     /// </summary>
     public class UsiEngine : IDisposable
     {
+        static readonly Regex IdCommandRegex = new(@"^id\s+(name|author)\s+(.+)$", RegexOptions.Compiled);
+
         IEngineProcess process;
         object syncObj = new();
 
@@ -27,6 +30,7 @@ namespace ShogiLibSharp.Engine
         //     StdOutReceived("readyok") // これを Task.Run().Wait() などで囲ったりすると
         //       lock (syncObj)          // ここでデッドロック（スレッドが変わるため）
         //         State.ReadyOk();
+
         Channel<string> stdoutChannel = Channel
             .CreateUnbounded<string>(new UnboundedChannelOptions
             { SingleWriter = true, SingleReader = true, AllowSynchronousContinuations = false });
@@ -126,10 +130,12 @@ namespace ShogiLibSharp.Engine
                 }
                 else if (message.StartsWith("id"))
                 {
-                    var sp = message.Split();
-                    if (sp.Length < 3) return;
-                    else if (sp[1] == "name") this.Name = sp[2];
-                    else if (sp[1] == "author") this.Author = sp[2];
+                    var match = IdCommandRegex.Match(message);
+                    if (match.Success)
+                    {
+                        if (match.Groups[1].Value == "name") Name = match.Groups[2].Value;
+                        else Author = match.Groups[2].Value;
+                    }
                 }
                 else if (message.StartsWith("option"))
                 {
