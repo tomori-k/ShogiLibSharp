@@ -12,7 +12,7 @@ namespace ShogiLibSharp.Engine.States
     {
         public override string Name => "ponder 中";
 
-        private string ponderingPos;
+        string ponderingPos;
 
         public Pondering(string ponderingPos)
         {

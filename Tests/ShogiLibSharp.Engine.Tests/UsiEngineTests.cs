@@ -207,8 +207,6 @@ namespace ShogiLibSharp.Engine.Tests
                 });
 
             using var engine = new UsiEngine(mock.Object);
-            engine.StdIn += s => Trace.WriteLine($"< {s}");
-            engine.StdOut += s => Trace.WriteLine($"  > {s}");
 
             await engine.BeginAsync();
             await engine.IsReadyAsync();
@@ -312,6 +310,20 @@ namespace ShogiLibSharp.Engine.Tests
             Assert.AreEqual("public.bin", ((Options.String)engine1.Options["BookFile"]).Default);
             Assert.AreEqual("", ((FileName)engine1.Options["LearningFile"]).Value);
             Assert.AreEqual("", ((FileName)engine1.Options["LearningFile"]).Default);
+        }
+
+        [TestMethod, Timeout(3000)]
+        public void DeadlockTest()
+        {
+            using var engine = new UsiEngine(new RandomPlayer());
+            engine.BeginAsync().Wait();
+            engine.IsReadyAsync().Wait();
+            engine.StartNewGame();
+            engine.GoAsync(new Position(Position.Hirate), SearchLimit.Create(TimeSpan.FromMilliseconds(100.0))).Wait();
+            engine.GoPonder(new Position(Position.Hirate), SearchLimit.Create(TimeSpan.FromMilliseconds(100.0)));
+            engine.StopPonderAsync().Wait();
+            engine.Gameover("win");
+            engine.QuitAsync().Wait();
         }
 
         private static IEngineProcess CreateMock_FailToReturnUsiOk()
