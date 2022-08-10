@@ -71,15 +71,16 @@ namespace ShogiLibSharp.Csa
 
             while (true)
             {
-                if (!playerFactory.ContinueLogin())
+                if (playerFactory.ContinueLogin())
+                {
+                    await rw!.WriteLineAsync($"%%GAME {((ShogiServerOptions)options).GameName} *", ct).ConfigureAwait(false);
+                }
+                else
                 {
                     Debug.Assert(!isWaitingForNextGame);
                     // ログアウト
                     await rw!.WriteLineAsync("LOGOUT", ct).ConfigureAwait(false);
                 }
-
-                await rw!.WriteLineAsync($"%%GAME {((ShogiServerOptions)options).GameName} *", ct)
-                    .ConfigureAwait(false);
 
                 bool accept;
                 GameSummary? summary;
