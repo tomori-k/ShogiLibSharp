@@ -46,13 +46,13 @@ namespace ShogiLibSharp.Engine.States
             => throw new InvalidOperationException($"状態：{Name} において、gameover コマンドの送信は不正な操作です。");
 
         public virtual void UsiOk(UsiEngine context)
-            => context.Logger.LogInformation("状態：{Name} において不正なコマンド usiok を受信しました。", Name);
+            => context.Logger.LogWarning("状態：{Name} において不正なコマンド usiok を受信しました。", Name);
 
         public virtual void ReadyOk(UsiEngine context)
-            => context.Logger.LogInformation("状態：{Name} において不正なコマンド readyok を受信しました。", Name);
+            => context.Logger.LogWarning("状態：{Name} において不正なコマンド readyok を受信しました。", Name);
 
         public virtual void Bestmove(UsiEngine context, string message)
-            => context.Logger.LogInformation("状態：{Name} において不正なコマンド {message} を受信しました。", Name, message);
+            => context.Logger.LogWarning("状態：{Name} において不正なコマンド {message} を受信しました。", Name, message);
 
         public virtual void CancelUsiOk(UsiEngine context) { /* 何もしない */ }
 

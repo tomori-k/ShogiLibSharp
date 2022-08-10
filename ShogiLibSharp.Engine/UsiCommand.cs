@@ -42,7 +42,7 @@ namespace ShogiLibSharp.Engine
             };
         }
 
-        private static FileName ParseFileNameOption(string command, string[] sp)
+        static FileName ParseFileNameOption(string command, string[] sp)
         {
             if(sp.Length < 7)
             {
@@ -51,7 +51,7 @@ namespace ShogiLibSharp.Engine
             return FileName.Create(sp[6] == "<empty>" ? "" : sp[6]);
         }
 
-        private static Options.String ParseStringOption(string command, string[] sp)
+        static Options.String ParseStringOption(string command, string[] sp)
         {
             if (sp.Length < 7)
             {
@@ -60,7 +60,7 @@ namespace ShogiLibSharp.Engine
             return Options.String.Create(sp[6] == "<empty>" ? "" : sp[6]);
         }
 
-        private static Combo ParseComboOption(string command, string[] sp)
+        static Combo ParseComboOption(string command, string[] sp)
         {
             var defaultValue = sp.SkipWhile(x => x != "default").Skip(1).FirstOrDefault();
             var items = sp.Zip(sp.Skip(1))
@@ -77,7 +77,7 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private static IUsiOptionValue ParseCheckOption(string command, string[] sp)
+        static IUsiOptionValue ParseCheckOption(string command, string[] sp)
         {
             if (sp.Length < 7)
             {
@@ -93,7 +93,7 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private static Spin ParseSpinOption(string command, string[] sp)
+        static Spin ParseSpinOption(string command, string[] sp)
         {
             if (sp.Length < 11)
             {

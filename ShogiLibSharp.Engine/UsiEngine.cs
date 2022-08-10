@@ -6,6 +6,13 @@ using ShogiLibSharp.Engine.Options;
 using ShogiLibSharp.Engine.Process;
 using ShogiLibSharp.Engine.States;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Threading.Channels;
+
+// https://www.nuits.jp/entry/net-standard-internals-visible-to
+using System.Runtime.CompilerServices;
+[assembly: InternalsVisibleTo("ShogiLibSharp.Engine.Tests")]
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]   // Moq
 
 namespace ShogiLibSharp.Engine
 {
@@ -14,18 +21,32 @@ namespace ShogiLibSharp.Engine
     /// </summary>
     public class UsiEngine : IDisposable
     {
-        private IEngineProcess process;
-        private object syncObj = new();
+        static readonly Regex IdCommandRegex = new(@"^id\s+(name|author)\s+(.+)$", RegexOptions.Compiled);
+
+        IEngineProcess process;
+        object syncObj = new();
+
+        // IEngineProcess の SendLine の呼び出しの内部で StdOutReceived が
+        // Invoke されると lock がネストする可能性があるので、メッセージの受信は
+        // 必ず非同期に処理
+        // 例:
+        // lock (syncObj)
+        //   SendLine("isready")
+        //     StdOutReceived("readyok") // これを Task.Run().Wait() などで囲ったりすると
+        //       lock (syncObj)          // ここでデッドロック（スレッドが変わるため）
+        //         State.ReadyOk();
+
+        Channel<string> stdoutChannel = Channel
+            .CreateUnbounded<string>(new UnboundedChannelOptions
+            { SingleWriter = true, SingleReader = true, AllowSynchronousContinuations = false });
+        Task stdoutTask;
+
         internal StateBase State { get; set; } = new Deactivated();
         internal ILogger<UsiEngine> Logger { get; }
 
         public string Name { get; private set; } = "";
         public string Author { get; private set; } = "";
         public Dictionary<string, IUsiOptionValue> Options { get; } = new();
-
-        public event Action<string>? StdIn;
-        public event Action<string?>? StdOut;
-        public event Action<string?>? StdErr;
 
         public TimeSpan UsiOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan ReadyOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
@@ -34,6 +55,7 @@ namespace ShogiLibSharp.Engine
 
         public UsiEngine(string fileName, string workingDir, ILogger<UsiEngine> logger, string arguments = "")
         {
+            this.stdoutTask = ReceiveStdoutAsync();
             this.Logger = logger;
             var si = new ProcessStartInfo(fileName, arguments)
             {
@@ -56,6 +78,11 @@ namespace ShogiLibSharp.Engine
         {
         }
 
+        public UsiEngine(string fileName, ILogger<UsiEngine> logger, string arguments = "")
+            : this(fileName, Path.GetDirectoryName(fileName) ?? "", logger, arguments)
+        {
+        }
+
         public UsiEngine(string fileName, string arguments = "")
             : this(fileName, Path.GetDirectoryName(fileName) ?? "", NullLogger<UsiEngine>.Instance, arguments)
         {
@@ -65,73 +92,85 @@ namespace ShogiLibSharp.Engine
         /// テスト用
         /// </summary>
         /// <param name="process"></param>
-        public UsiEngine(IEngineProcess process)
+        internal UsiEngine(IEngineProcess process)
         {
+            this.stdoutTask = ReceiveStdoutAsync();
             this.process = process;
             this.Logger = NullLogger<UsiEngine>.Instance;
             SetEventCallback();
         }
 
-        private void SetEventCallback()
+        void SetEventCallback()
         {
-            this.process.StdOutReceived += s => StdOut?.Invoke(s);
-            this.process.StdErrReceived += s => StdErr?.Invoke(s);
             this.process.StdOutReceived += Process_StdOutReceived;
+            this.process.StdErrReceived += s => Logger.LogWarning($"stderr: {s}");
             this.process.Exited += Process_Exited;
         }
 
-        private void Process_StdOutReceived(string? message)
+        async Task ReceiveStdoutAsync()
         {
-            if (message == null) return;
-
-            if (message == "usiok")
+            while (await stdoutChannel.Reader.WaitToReadAsync().ConfigureAwait(false))
             {
-                lock (syncObj)
+                var message = await stdoutChannel.Reader.ReadAsync().ConfigureAwait(false);
+                if (message == "usiok")
                 {
-                    State.UsiOk(this);
+                    lock (syncObj)
+                    {
+                        State.UsiOk(this);
+                    }
                 }
-            }
-            else if (message == "readyok")
-            {
-                lock (syncObj)
+                else if (message == "readyok")
                 {
-                    State.ReadyOk(this);
+                    lock (syncObj)
+                    {
+                        State.ReadyOk(this);
+                    }
                 }
-            }
-            else if (message.StartsWith("bestmove"))
-            {
-                lock (syncObj)
+                else if (message.StartsWith("bestmove"))
                 {
-                    State.Bestmove(this, message);
+                    lock (syncObj)
+                    {
+                        State.Bestmove(this, message);
+                    }
                 }
-            }
-            else if (message.StartsWith("id"))
-            {
-                var sp = message.Split();
-                if (sp.Length < 3) return;
-                else if (sp[1] == "name") this.Name = sp[2];
-                else if (sp[1] == "author") this.Author = sp[2];
-            }
-            else if (message.StartsWith("option"))
-            {
-                try
+                else if (message.StartsWith("id"))
                 {
-                    var (name, value) = UsiCommand.ParseOption(message);
-                    Options[name] = value;
+                    var match = IdCommandRegex.Match(message);
+                    if (match.Success)
+                    {
+                        if (match.Groups[1].Value == "name") Name = match.Groups[2].Value;
+                        else Author = match.Groups[2].Value;
+                    }
                 }
-                catch (FormatException e)
+                else if (message.StartsWith("option"))
                 {
-                    Logger.LogWarning(e, "エンジンオプションを解析できません");
+                    try
+                    {
+                        var (name, value) = UsiCommand.ParseOption(message);
+                        Options[name] = value;
+                    }
+                    catch (FormatException e)
+                    {
+                        Logger.LogWarning(e, "エンジンオプションを解析できません");
+                    }
                 }
             }
         }
 
-        private void Process_Exited(object? sender, EventArgs e)
+        void Process_StdOutReceived(string? message)
+        {
+            if (message is null) return;
+            Logger.LogTrace($"  < {message}");
+            stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
+        }
+
+        void Process_Exited(object? sender, EventArgs e)
         {
             lock (syncObj)
             {
                 State.Exited(this);
             }
+            Logger.LogInformation($"{Name}({Author}) exited.");
         }
 
         internal void BeginProcess()
@@ -156,8 +195,8 @@ namespace ShogiLibSharp.Engine
         {
             lock (syncObj)
             {
-                this.StdIn?.Invoke(command);
-                this.process.SendLine(command);
+                Logger.LogTrace($"> {command}");
+                process.SendLine(command);
             }
         }
 
@@ -190,9 +229,9 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private async Task BeginAsyncImpl(CancellationToken ct)
+        async Task BeginAsyncImpl(CancellationToken ct)
         {
-            var tcs = new TaskCompletionSource();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Begin(this, tcs);
@@ -237,9 +276,9 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        private async Task IsReadyAsyncImpl(CancellationToken ct)
+        async Task IsReadyAsyncImpl(CancellationToken ct)
         {
-            var tcs = new TaskCompletionSource();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.IsReady(this, tcs);
@@ -273,7 +312,7 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">終了待機中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task QuitAsync()
         {
-            var tcs = new TaskCompletionSource();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Quit(this, tcs);
@@ -308,7 +347,7 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">探索中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>();
+            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Go(this, pos, limits, tcs);
@@ -361,7 +400,7 @@ namespace ShogiLibSharp.Engine
         /// <returns></returns>
         public async Task<(Move, Move)> StopPonderAsync()
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>();
+            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.StopPonder(this, tcs);
@@ -398,6 +437,7 @@ namespace ShogiLibSharp.Engine
             lock (syncObj)
             {
                 State.Dispose(this);
+                stdoutChannel.Writer.Complete();
                 this.process.Dispose();
             }
         }

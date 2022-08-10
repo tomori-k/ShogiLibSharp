@@ -10,7 +10,7 @@ namespace ShogiLibSharp.Engine.States
     internal class WaitingForReadyOk : StateBase
     {
         public override string Name => "readyok 待ち";
-        private TaskCompletionSource tcs;
+        TaskCompletionSource tcs;
 
         public WaitingForReadyOk(TaskCompletionSource tcs)
         {

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ShogiLibSharp.Engine.Process
 {
     // IEngineProcess を噛ませたい
-    public class EngineProcess : System.Diagnostics.Process, IEngineProcess
+    internal class EngineProcess : System.Diagnostics.Process, IEngineProcess
     {
         public event Action<string?>? StdOutReceived;
         public event Action<string?>? StdErrReceived;
@@ -19,12 +19,12 @@ namespace ShogiLibSharp.Engine.Process
             ErrorDataReceived += EngineProcess_ErrorDataReceived;
         }
 
-        private void EngineProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        void EngineProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
             StdOutReceived?.Invoke(e.Data);
         }
 
-        private void EngineProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        void EngineProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
             StdErrReceived?.Invoke(e.Data);
         }

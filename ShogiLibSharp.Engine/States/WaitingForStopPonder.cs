@@ -12,9 +12,9 @@ namespace ShogiLibSharp.Engine.States
     {
         public override string Name => "ponder の停止待ち";
 
-        private Position pos;
-        private SearchLimit limits;
-        private TaskCompletionSource<(Move, Move)> tcs;
+        Position pos;
+        SearchLimit limits;
+        TaskCompletionSource<(Move, Move)> tcs;
 
         public WaitingForStopPonder(Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
         {

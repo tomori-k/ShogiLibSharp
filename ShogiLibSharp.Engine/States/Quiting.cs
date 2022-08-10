@@ -9,7 +9,8 @@ namespace ShogiLibSharp.Engine.States
     internal class Quiting : StateBase
     {
         public override string Name => "終了処理中";
-        private TaskCompletionSource tcs;
+
+        TaskCompletionSource tcs;
 
         public Quiting(TaskCompletionSource tcs)
         {

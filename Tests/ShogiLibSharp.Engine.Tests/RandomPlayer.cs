@@ -66,7 +66,7 @@ namespace ShogiLibSharp.Engine.Tests
 
         private async void GoPonder(string message)
         {
-            tcsPonder = new TaskCompletionSource();
+            tcsPonder = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             await tcsPonder.Task;
             SendRandomMove();
         }
@@ -107,23 +107,29 @@ namespace ShogiLibSharp.Engine.Tests
             }
         }
 
-        private async void IsReady()
+        private void IsReady()
         {
-            await Task.Delay(10);
-            StdOutReceived?.Invoke("readyok");
+            Task.Run(() =>
+            {
+                StdOutReceived?.Invoke("readyok");
+            }).Wait();
         }
 
         private void Usi()
         {
-            StdOutReceived?.Invoke("id name RandomPlayer");
-            StdOutReceived?.Invoke("id author Author0112");
-            StdOutReceived?.Invoke("option name USI_Hash type spin default 1024 min 1 max 33554432");
-            StdOutReceived?.Invoke("option name USI_Ponder type check default false");
-            StdOutReceived?.Invoke("option name NodesLimit type spin default 0 min 0 max 9223372036854775807");
-            StdOutReceived?.Invoke("option name BookEvalLimit type spin default 0 min -99999 max 99999");
-            StdOutReceived?.Invoke("option name SomeFile type filename default <empty>");
-            StdOutReceived?.Invoke("option name BookFile type combo default no_book var no_book var standard_book.db var yaneura_book1.db var yaneura_book2.db var yaneura_book3.db var yaneura_book4.db var user_book1.db var user_book2.db var user_book3.db var book.bin");
-            StdOutReceived?.Invoke("usiok");
+            // SendLine 内部で、別スレッドから StdOutReceived を呼び出し（意地悪）
+            Task.Run(() =>
+            {
+                StdOutReceived?.Invoke("id name RandomPlayer");
+                StdOutReceived?.Invoke("id author Author0112");
+                StdOutReceived?.Invoke("option name USI_Hash type spin default 1024 min 1 max 33554432");
+                StdOutReceived?.Invoke("option name USI_Ponder type check default false");
+                StdOutReceived?.Invoke("option name NodesLimit type spin default 0 min 0 max 9223372036854775807");
+                StdOutReceived?.Invoke("option name BookEvalLimit type spin default 0 min -99999 max 99999");
+                StdOutReceived?.Invoke("option name SomeFile type filename default <empty>");
+                StdOutReceived?.Invoke("option name BookFile type combo default no_book var no_book var standard_book.db var yaneura_book1.db var yaneura_book2.db var yaneura_book3.db var yaneura_book4.db var user_book1.db var user_book2.db var user_book3.db var book.bin");
+                StdOutReceived?.Invoke("usiok");
+            }).Wait();
         }
 
         public bool Start()
