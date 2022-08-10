@@ -6,6 +6,7 @@ using ShogiLibSharp.Engine.Options;
 using ShogiLibSharp.Engine.Process;
 using ShogiLibSharp.Engine.States;
 using System.Diagnostics;
+using System.Threading.Channels;
 
 namespace ShogiLibSharp.Engine
 {
@@ -14,8 +15,23 @@ namespace ShogiLibSharp.Engine
     /// </summary>
     public class UsiEngine : IDisposable
     {
-        private IEngineProcess process;
-        private object syncObj = new();
+        IEngineProcess process;
+        object syncObj = new();
+
+        // IEngineProcess の SendLine の呼び出しの内部で StdOutReceived が
+        // Invoke されると lock がネストする可能性があるので、メッセージの受信は
+        // 必ず非同期に処理
+        // 例:
+        // lock (syncObj)
+        //   SendLine("isready")
+        //     StdOutReceived("readyok") // これを Task.Run().Wait() などで囲ったりすると
+        //       lock (syncObj)          // ここでデッドロック（スレッドが変わるため）
+        //         State.ReadyOk();
+        Channel<string> stdoutChannel = Channel
+            .CreateUnbounded<string>(new UnboundedChannelOptions
+            { SingleWriter = true, SingleReader = true, AllowSynchronousContinuations = false });
+        Task stdoutTask;
+
         internal StateBase State { get; set; } = new Deactivated();
         internal ILogger<UsiEngine> Logger { get; }
 
@@ -34,6 +50,7 @@ namespace ShogiLibSharp.Engine
 
         public UsiEngine(string fileName, string workingDir, ILogger<UsiEngine> logger, string arguments = "")
         {
+            this.stdoutTask = ReceiveStdoutAsync();
             this.Logger = logger;
             var si = new ProcessStartInfo(fileName, arguments)
             {
@@ -67,6 +84,7 @@ namespace ShogiLibSharp.Engine
         /// <param name="process"></param>
         public UsiEngine(IEngineProcess process)
         {
+            this.stdoutTask = ReceiveStdoutAsync();
             this.process = process;
             this.Logger = NullLogger<UsiEngine>.Instance;
             SetEventCallback();
@@ -80,50 +98,58 @@ namespace ShogiLibSharp.Engine
             this.process.Exited += Process_Exited;
         }
 
+        async Task ReceiveStdoutAsync()
+        {
+            while (await stdoutChannel.Reader.WaitToReadAsync().ConfigureAwait(false))
+            {
+                var message = await stdoutChannel.Reader.ReadAsync().ConfigureAwait(false);
+                if (message == "usiok")
+                {
+                    lock (syncObj)
+                    {
+                        State.UsiOk(this);
+                    }
+                }
+                else if (message == "readyok")
+                {
+                    lock (syncObj)
+                    {
+                        State.ReadyOk(this);
+                    }
+                }
+                else if (message.StartsWith("bestmove"))
+                {
+                    lock (syncObj)
+                    {
+                        State.Bestmove(this, message);
+                    }
+                }
+                else if (message.StartsWith("id"))
+                {
+                    var sp = message.Split();
+                    if (sp.Length < 3) return;
+                    else if (sp[1] == "name") this.Name = sp[2];
+                    else if (sp[1] == "author") this.Author = sp[2];
+                }
+                else if (message.StartsWith("option"))
+                {
+                    try
+                    {
+                        var (name, value) = UsiCommand.ParseOption(message);
+                        Options[name] = value;
+                    }
+                    catch (FormatException e)
+                    {
+                        Logger.LogWarning(e, "エンジンオプションを解析できません");
+                    }
+                }
+            }
+        }
+
         private void Process_StdOutReceived(string? message)
         {
-            if (message == null) return;
-
-            if (message == "usiok")
-            {
-                lock (syncObj)
-                {
-                    State.UsiOk(this);
-                }
-            }
-            else if (message == "readyok")
-            {
-                lock (syncObj)
-                {
-                    State.ReadyOk(this);
-                }
-            }
-            else if (message.StartsWith("bestmove"))
-            {
-                lock (syncObj)
-                {
-                    State.Bestmove(this, message);
-                }
-            }
-            else if (message.StartsWith("id"))
-            {
-                var sp = message.Split();
-                if (sp.Length < 3) return;
-                else if (sp[1] == "name") this.Name = sp[2];
-                else if (sp[1] == "author") this.Author = sp[2];
-            }
-            else if (message.StartsWith("option"))
-            {
-                try
-                {
-                    var (name, value) = UsiCommand.ParseOption(message);
-                    Options[name] = value;
-                }
-                catch (FormatException e)
-                {
-                    Logger.LogWarning(e, "エンジンオプションを解析できません");
-                }
-            }
+            if (message is null) return;
+            stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
         }
 
         private void Process_Exited(object? sender, EventArgs e)
@@ -192,7 +218,7 @@ namespace ShogiLibSharp.Engine
 
         private async Task BeginAsyncImpl(CancellationToken ct)
         {
-            var tcs = new TaskCompletionSource();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Begin(this, tcs);
@@ -239,7 +265,7 @@ namespace ShogiLibSharp.Engine
 
         private async Task IsReadyAsyncImpl(CancellationToken ct)
         {
-            var tcs = new TaskCompletionSource();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.IsReady(this, tcs);
@@ -273,7 +299,7 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">終了待機中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task QuitAsync()
         {
-            var tcs = new TaskCompletionSource();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Quit(this, tcs);
@@ -308,27 +334,33 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">探索中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>();
+            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Go(this, pos, limits, tcs);
             }
 
             using var cts = new CancellationTokenSource();
-            using var registration = ct.Register(() =>
+            using var registration = ct.Register(async () =>
             {
-                var task = Task.Delay(BestmoveResponseTimeout, cts.Token);
                 lock (syncObj)
                 {
                     State.StopGo(this);
                 }
-                task.ContinueWith(x =>
+                if (cts.IsCancellationRequested) return;
+                try
                 {
-                    lock (syncObj)
-                    {
-                        State.StopWaitingForBestmove(this);
-                    }
-                });
+                    await Task.Delay(BestmoveResponseTimeout, cts.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                lock (syncObj)
+                {
+                    State.StopWaitingForBestmove(this);
+                }
             }); // この Go に対するキャンセルを解除
 
             var result = await tcs.Task.ConfigureAwait(false);
@@ -355,23 +387,24 @@ namespace ShogiLibSharp.Engine
         /// <returns></returns>
         public async Task<(Move, Move)> StopPonderAsync()
         {
-            using var cts = new CancellationTokenSource();
-            var _ = Task.Delay(BestmoveResponseTimeout, cts.Token)
-                .ContinueWith(x =>
-                {
-                    lock (syncObj)
-                    {
-                        State.StopWaitingForBestmove(this);
-                    }
-                });
-            var tcs = new TaskCompletionSource<(Move, Move)>();
+            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.StopPonder(this, tcs);
             }
-            var result = await tcs.Task.ConfigureAwait(false);
-            cts.Cancel();
-            return result;
+
+            var finished = await Task
+                .WhenAny(tcs.Task, Task.Delay(BestmoveResponseTimeout))
+                .ConfigureAwait(false);
+            if (finished != tcs.Task)
+            {
+                lock (syncObj)
+                {
+                    State.StopWaitingForBestmove(this);
+                }
+            }
+
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -391,6 +424,7 @@ namespace ShogiLibSharp.Engine
             lock (syncObj)
             {
                 State.Dispose(this);
+                stdoutChannel.Writer.Complete();
                 this.process.Dispose();
             }
         }
