@@ -39,10 +39,6 @@ namespace ShogiLibSharp.Engine
         public string Author { get; private set; } = "";
         public Dictionary<string, IUsiOptionValue> Options { get; } = new();
 
-        public event Action<string>? StdIn;
-        public event Action<string?>? StdOut;
-        public event Action<string?>? StdErr;
-
         public TimeSpan UsiOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan ReadyOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan BestmoveResponseTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
@@ -73,6 +69,11 @@ namespace ShogiLibSharp.Engine
         {
         }
 
+        public UsiEngine(string fileName, ILogger<UsiEngine> logger, string arguments = "")
+            : this(fileName, Path.GetDirectoryName(fileName) ?? "", logger, arguments)
+        {
+        }
+
         public UsiEngine(string fileName, string arguments = "")
             : this(fileName, Path.GetDirectoryName(fileName) ?? "", NullLogger<UsiEngine>.Instance, arguments)
         {
@@ -92,9 +93,8 @@ namespace ShogiLibSharp.Engine
 
         private void SetEventCallback()
         {
-            this.process.StdOutReceived += s => StdOut?.Invoke(s);
-            this.process.StdErrReceived += s => StdErr?.Invoke(s);
             this.process.StdOutReceived += Process_StdOutReceived;
+            this.process.StdErrReceived += s => Logger.LogWarning($"stderr: {s}");
             this.process.Exited += Process_Exited;
         }
 
@@ -149,6 +149,7 @@ namespace ShogiLibSharp.Engine
         private void Process_StdOutReceived(string? message)
         {
             if (message is null) return;
+            Logger.LogTrace($"  < {message}");
             stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
         }
 
@@ -158,6 +159,7 @@ namespace ShogiLibSharp.Engine
             {
                 State.Exited(this);
             }
+            Logger.LogInformation($"{Name}({Author}) exited.");
         }
 
         internal void BeginProcess()
@@ -182,8 +184,8 @@ namespace ShogiLibSharp.Engine
         {
             lock (syncObj)
             {
-                this.StdIn?.Invoke(command);
-                this.process.SendLine(command);
+                Logger.LogTrace($"> {command}");
+                process.SendLine(command);
             }
         }
 

@@ -207,8 +207,6 @@ namespace ShogiLibSharp.Engine.Tests
                 });
 
             using var engine = new UsiEngine(mock.Object);
-            engine.StdIn += s => Trace.WriteLine($"< {s}");
-            engine.StdOut += s => Trace.WriteLine($"  > {s}");
 
             await engine.BeginAsync();
             await engine.IsReadyAsync();
