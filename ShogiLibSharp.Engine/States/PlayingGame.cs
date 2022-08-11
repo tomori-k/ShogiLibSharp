@@ -13,7 +13,7 @@ namespace ShogiLibSharp.Engine.States
         public override string Name => "go コマンド待機";
 
         public override void Go(
-            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
+            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<SearchResult> tcs)
         {
             context.State = new WaitingForBestmoveOrStop(tcs);
             context.SendGo(pos.SfenWithMoves(), limits);
@@ -38,9 +38,9 @@ namespace ShogiLibSharp.Engine.States
             // 無視（たまたま bestmove がタイムアウトより遅れて返ってきたときにエラーが出てほしくない）
         }
 
-        public override void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
+        public override void StopPonder(UsiEngine context, TaskCompletionSource<SearchResult> tcs)
         {
-            tcs.TrySetResult((Move.None, Move.None));
+            tcs.TrySetResult(new SearchResult(Move.None, Move.None, new()));
         }
     }
 }

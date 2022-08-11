@@ -30,7 +30,7 @@ namespace ShogiLibSharp.Engine.States
             => throw new InvalidOperationException($"状態：{Name} において、usinewgame コマンドの送信は不正な操作です。");
 
         public virtual void Go(
-            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<(Move, Move)> tcs)
+            UsiEngine context, Position pos, SearchLimit limits, TaskCompletionSource<SearchResult> tcs)
             => throw new InvalidOperationException($"状態：{Name} において、go コマンドの送信は不正な操作です。");
 
         public virtual void GoPonder(UsiEngine context, Position pos, SearchLimit limits)
@@ -39,7 +39,7 @@ namespace ShogiLibSharp.Engine.States
         public virtual void StopGo(UsiEngine context)
             => throw new InvalidOperationException($"状態：{Name} において、探索のキャンセルは不正な操作です。");
 
-        public virtual void StopPonder(UsiEngine context, TaskCompletionSource<(Move, Move)> tcs)
+        public virtual void StopPonder(UsiEngine context, TaskCompletionSource<SearchResult> tcs)
             => throw new InvalidOperationException($"状態：{Name} において、ponder の停止は不正な操作です。");
 
         public virtual void Gameover(UsiEngine context, string message)
@@ -54,6 +54,9 @@ namespace ShogiLibSharp.Engine.States
         public virtual void Bestmove(UsiEngine context, string message)
             => context.Logger.LogWarning("状態：{Name} において不正なコマンド {message} を受信しました。", Name, message);
 
+        public virtual void Info(UsiEngine context, string message)
+            => context.Logger.LogWarning("状態：{Name} において不正なコマンド {message} を受信しました。", Name, message);
+
         public virtual void CancelUsiOk(UsiEngine context) { /* 何もしない */ }
 
         public virtual void CancelReadyOk(UsiEngine context) { /* 何もしない */ }
@@ -66,12 +69,13 @@ namespace ShogiLibSharp.Engine.States
         public virtual void Dispose(UsiEngine context)
             => context.State = new Invalid();
 
-        public static void SetBestmove(TaskCompletionSource<(Move, Move)> tcs, string command)
+        public static void SetBestmove(
+            TaskCompletionSource<SearchResult> tcs, string command, List<UsiInfo> infoList)
         {
             try
             {
                 var (move, ponder) = UsiCommand.ParseBestmove(command);
-                tcs.TrySetResult((move, ponder));
+                tcs.TrySetResult(new SearchResult(move, ponder, infoList));
             }
             catch (FormatException e)
             {

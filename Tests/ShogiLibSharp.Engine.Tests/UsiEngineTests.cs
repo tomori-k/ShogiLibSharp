@@ -37,7 +37,9 @@ namespace ShogiLibSharp.Engine.Tests
             while (!pos.IsMated()
                 && pos.CheckRepetition() == Repetition.None)
             {
-                var (bestmove, ponder) = await p.GoAsync(pos, limits);
+                var result = await p.GoAsync(pos, limits);
+                var bestmove = result.Bestmove;
+                var ponder = result.Ponder;
                 pos.DoMove(bestmove);
                 if (pos.IsLegalMove(ponder))
                 {
@@ -343,6 +345,104 @@ namespace ShogiLibSharp.Engine.Tests
             engine.StopPonderAsync().Wait();
             engine.Gameover("win");
             engine.QuitAsync().Wait();
+        }
+
+        [TestMethod]
+        public async Task InfoCatchTest()
+        {
+            var mock1 = new Mock<IEngineProcess>();
+            mock1.Setup(m => m.SendLine(It.IsAny<string>()))
+                .Callback((string s) =>
+                {
+                    if (s == "usi")
+                    {
+                        mock1.Raise(x => x.StdOutReceived += null, "id name Mock1000");
+                        mock1.Raise(x => x.StdOutReceived += null, "id author Author1000");
+                        mock1.Raise(x => x.StdOutReceived += null, "usiok");
+                    }
+                    else if (s == "isready")
+                    {
+                        mock1.Raise(x => x.StdOutReceived += null, "readyok");
+                    }
+                    else if (s == "quit")
+                    {
+                        mock1.Raise(x => x.Exited += null, new EventArgs());
+                    }
+                    else if (s.StartsWith("go") || s.StartsWith("ponderhit"))
+                    {
+                        mock1.Raise(x => x.StdOutReceived += null, "info string a");
+                    }
+                    else if (s.StartsWith("stop"))
+                    {
+                        mock1.Raise(x => x.StdOutReceived += null, "info string b");
+                        mock1.Raise(x => x.StdOutReceived += null, "bestmove resign");
+                    }
+                });
+
+            using var engine1 = new UsiEngine(mock1.Object);
+            await engine1.BeginAsync();
+            await engine1.IsReadyAsync();
+            engine1.StartNewGame();
+
+            {
+                var pos = new Position(Position.Hirate);
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+
+                var result1 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
+                Assert.AreEqual(2, result1.InfoList.Count);
+
+                var result2 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
+                Assert.AreEqual(2, result2.InfoList.Count);
+
+                engine1.GoPonder(pos, new SearchLimit());
+                var result3 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
+                Assert.AreEqual(3, result3.InfoList.Count);
+
+                using var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100.0));
+                engine1.GoPonder(pos, new SearchLimit());
+                pos.DoMove(Usi.ParseMove("7g7f"));
+                var result4 = await engine1.GoAsync(pos, new SearchLimit(), cts2.Token);
+                Assert.AreEqual(2, result4.InfoList.Count);
+            }
+
+            var mock2 = new Mock<IEngineProcess>();
+            mock2.Setup(m => m.SendLine(It.IsAny<string>()))
+                .Callback((string s) =>
+                {
+                    if (s == "usi")
+                    {
+                        mock2.Raise(x => x.StdOutReceived += null, "id name Mock1000");
+                        mock2.Raise(x => x.StdOutReceived += null, "id author Author1000");
+                        mock2.Raise(x => x.StdOutReceived += null, "usiok");
+                    }
+                    else if (s == "isready")
+                    {
+                        mock2.Raise(x => x.StdOutReceived += null, "readyok");
+                    }
+                    else if (s == "quit")
+                    {
+                        mock2.Raise(x => x.Exited += null, new EventArgs());
+                    }
+                    else if (s.StartsWith("go ponder"))
+                    {
+                        mock2.Raise(x => x.StdOutReceived += null, "info string a");
+                        mock2.Raise(x => x.StdOutReceived += null, "bestmove resign");
+                    }
+                });
+
+            using var engine2 = new UsiEngine(mock2.Object);
+            await engine2.BeginAsync();
+            await engine2.IsReadyAsync();
+            engine2.StartNewGame();
+
+            {
+                var pos = new Position(Position.Hirate);
+
+                engine2.GoPonder(pos, new SearchLimit());
+                var result1 = await engine2.GoAsync(pos, new SearchLimit());
+                Assert.AreEqual(1, result1.InfoList.Count);
+            }
         }
 
         private static IEngineProcess CreateMock_FailToReturnUsiOk()

@@ -12,16 +12,24 @@ namespace ShogiLibSharp.Engine.States
     {
         public override string Name => "bestmove 待ち";
 
-        TaskCompletionSource<(Move, Move)> tcs;
-        public WaitingForBestmove(TaskCompletionSource<(Move, Move)> tcs)
+        List<UsiInfo> infoList;
+        TaskCompletionSource<SearchResult> tcs;
+
+        public WaitingForBestmove(TaskCompletionSource<SearchResult> tcs, List<UsiInfo> infoList)
         {
+            this.infoList = infoList;
             this.tcs = tcs;
         }
 
-        public override void Bestmove(UsiEngine context,string message)
+        public override void Bestmove(UsiEngine context, string message)
         {
             context.State = new PlayingGame();
-            SetBestmove(tcs, message);
+            SetBestmove(tcs, message, infoList);
+        }
+
+        public override void Info(UsiEngine context, string message)
+        {
+            if (UsiCommand.TryParseInfo(message, out var info)) infoList.Add(info);
         }
 
         public override void StopWaitingForBestmove(UsiEngine context)

@@ -154,6 +154,13 @@ namespace ShogiLibSharp.Engine
                         Logger.LogWarning(e, "エンジンオプションを解析できません");
                     }
                 }
+                else if (message.StartsWith("info"))
+                {
+                    lock (syncObj)
+                    {
+                        State.Info(this, message);
+                    }
+                }
             }
         }
 
@@ -240,7 +247,8 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
-                    State.CancelUsiOk(this);
+                    if (!tcs.Task.IsCompleted)
+                        State.CancelUsiOk(this);
                 }
             });
             await tcs.Task.ConfigureAwait(false);
@@ -287,7 +295,8 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
-                    State.CancelReadyOk(this);
+                    if (!tcs.Task.IsCompleted)
+                        State.CancelReadyOk(this);
                 }
             });
             await tcs.Task.ConfigureAwait(false);
@@ -322,6 +331,7 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
+                    if (tcs.Task.IsCompleted) return;
                     try
                     {
                         process.Kill();
@@ -345,9 +355,9 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="OperationCanceledException">CancellationToken により処理がキャンセルされたときにスロー。</exception>
         /// <exception cref="EngineException">エンジンが落ちる、タイムアウト時間を超えても返事がないときなどにスロー。</exception>
         /// <exception cref="ObjectDisposedException">探索中に Dispose() が呼ばれたときにスロー。</exception>
-        public async Task<(Move, Move)> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
+        public async Task<SearchResult> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<SearchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.Go(this, pos, limits, tcs);
@@ -358,9 +368,9 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
+                    if (tcs.Task.IsCompleted) return;
                     State.StopGo(this);
                 }
-                if (cts.IsCancellationRequested) return;
                 try
                 {
                     await Task.Delay(BestmoveResponseTimeout, cts.Token)
@@ -372,6 +382,7 @@ namespace ShogiLibSharp.Engine
                 }
                 lock (syncObj)
                 {
+                    if (tcs.Task.IsCompleted) return;
                     State.StopWaitingForBestmove(this);
                 }
             }); // この Go に対するキャンセルを解除
@@ -398,23 +409,21 @@ namespace ShogiLibSharp.Engine
         /// ponder の停止を行い、bestmove が返ってくるまで待つ
         /// </summary>
         /// <returns></returns>
-        public async Task<(Move, Move)> StopPonderAsync()
+        public async Task<SearchResult> StopPonderAsync()
         {
-            var tcs = new TaskCompletionSource<(Move, Move)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<SearchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
                 State.StopPonder(this, tcs);
             }
 
-            var finished = await Task
-                .WhenAny(tcs.Task, Task.Delay(BestmoveResponseTimeout))
+            await Task.WhenAny(tcs.Task, Task.Delay(BestmoveResponseTimeout))
                 .ConfigureAwait(false);
-            if (finished != tcs.Task)
+
+            lock (syncObj)
             {
-                lock (syncObj)
-                {
+                if (!tcs.Task.IsCompleted)
                     State.StopWaitingForBestmove(this);
-                }
             }
 
             return await tcs.Task.ConfigureAwait(false);
