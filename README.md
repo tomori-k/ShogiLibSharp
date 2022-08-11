@@ -114,8 +114,8 @@ class Player : IPlayer
     {
         var limits = SearchLimit.Create(
             time[Color.Black], time[Color.White], timeRule.Increment, timeRule.Increment);
-        var (bestmove, ponder) = await engine.GoAsync(pos, limits, ct);
-        return (bestmove, null, null);
+        var result = await engine.GoAsync(pos, limits, ct);
+        return (result.Bestmove, null, null);
     }
 }
 ```
