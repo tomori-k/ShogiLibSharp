@@ -247,7 +247,8 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
-                    State.CancelUsiOk(this);
+                    if (!tcs.Task.IsCompleted)
+                        State.CancelUsiOk(this);
                 }
             });
             await tcs.Task.ConfigureAwait(false);
@@ -294,7 +295,8 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
-                    State.CancelReadyOk(this);
+                    if (!tcs.Task.IsCompleted)
+                        State.CancelReadyOk(this);
                 }
             });
             await tcs.Task.ConfigureAwait(false);
@@ -329,6 +331,7 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
+                    if (tcs.Task.IsCompleted) return;
                     try
                     {
                         process.Kill();
@@ -365,9 +368,9 @@ namespace ShogiLibSharp.Engine
             {
                 lock (syncObj)
                 {
+                    if (tcs.Task.IsCompleted) return;
                     State.StopGo(this);
                 }
-                if (cts.IsCancellationRequested) return;
                 try
                 {
                     await Task.Delay(BestmoveResponseTimeout, cts.Token)
@@ -379,6 +382,7 @@ namespace ShogiLibSharp.Engine
                 }
                 lock (syncObj)
                 {
+                    if (tcs.Task.IsCompleted) return;
                     State.StopWaitingForBestmove(this);
                 }
             }); // この Go に対するキャンセルを解除
@@ -413,15 +417,13 @@ namespace ShogiLibSharp.Engine
                 State.StopPonder(this, tcs);
             }
 
-            var finished = await Task
-                .WhenAny(tcs.Task, Task.Delay(BestmoveResponseTimeout))
+            await Task.WhenAny(tcs.Task, Task.Delay(BestmoveResponseTimeout))
                 .ConfigureAwait(false);
-            if (finished != tcs.Task)
+
+            lock (syncObj)
             {
-                lock (syncObj)
-                {
+                if (!tcs.Task.IsCompleted)
                     State.StopWaitingForBestmove(this);
-                }
             }
 
             return await tcs.Task.ConfigureAwait(false);
