@@ -299,7 +299,7 @@ namespace ShogiLibSharp.Csa
                 this.rw = rw;
                 this.summary = summary;
                 this.player = player;
-                this.pos = summary.StartPos.Clone();
+                this.pos = new Position(summary.StartPos);
                 this.remainingTime = new RemainingTime(summary.TimeRule.TotalTime);
                 this.keepAliveInterval = keepAliveInterval;
                 this.sendPv = sendPv;
@@ -657,16 +657,21 @@ namespace ShogiLibSharp.Csa
 
             await WaitingForMessageAsync("BEGIN Position", ct).ConfigureAwait(false);
 
-            var lines = new Queue<string>();
+            var sb = new StringBuilder();
             while (true)
             {
                 var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "END Position") break;
-                lines.Enqueue(message!);
+                sb.AppendLine(message);
             }
 
-            var startpos = Core.Csa.ParseStartPosition(lines);
-            var movesWithTime = Core.Csa.ParseMovesWithTime(lines, startpos);
+            Board startpos;
+            List<(Move, TimeSpan)> movesWithTime;
+            using (var reader = new PeekableReader(new StringReader(sb.ToString())))
+            {
+                startpos = Core.Csa.ParseStartPosition(reader);
+                movesWithTime = ParseMovesWithTime(reader, startpos);
+            }
 
             await WaitingForMessageAsync("END Game_Summary", ct).ConfigureAwait(false);
 
@@ -710,6 +715,25 @@ namespace ShogiLibSharp.Csa
                 return (summary, false);
 
             return (summary, true);
+        }
+
+        static List<(Move, TimeSpan)> ParseMovesWithTime(PeekableReader reader, Board startpos)
+        {
+            var pos = new Position(startpos);
+            var moves = new List<(Move, TimeSpan)>();
+
+            while (true)
+            {
+                var moveStr = reader.ReadLine();
+                if (moveStr is null
+                    || !(moveStr.StartsWith("+") || moveStr.StartsWith("-"))) break;
+
+                var (move, time) = Core.Csa.ParseMoveWithTime(moveStr, pos);
+                moves.Add((move, time));
+                pos.DoMove(move);
+            }
+
+            return moves;
         }
     }
 }

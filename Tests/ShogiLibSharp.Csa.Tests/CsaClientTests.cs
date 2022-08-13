@@ -240,7 +240,7 @@ namespace ShogiLibSharp.Csa.Tests
                 Assert.AreEqual(testSummary.StartColor, summary.StartColor);
                 Assert.AreEqual(testSummary.MaxMoves, summary.MaxMoves);
                 Assert.AreEqual(testSummary.TimeRule, summary.TimeRule);
-                Assert.AreEqual(testSummary.StartPos!.SfenWithMoves(), summary.StartPos!.SfenWithMoves());
+                Assert.IsTrue(testSummary.StartPos!.Equals(summary.StartPos!));
                 Assert.IsTrue(testSummary.Moves!.SequenceEqual(summary.Moves!));
 
                 return Task.FromResult<IPlayer?>(new Player(testcase, summary));
@@ -289,7 +289,7 @@ namespace ShogiLibSharp.Csa.Tests
             public Player(Testcase testcase, GameSummary summary)
             {
                 this.testcase = testcase;
-                this.position = summary.StartPos!.Clone();
+                this.position = new Position(summary.StartPos!);
                 this.moves = testcase.Moves!;
                 this.summary = summary;
 
@@ -403,7 +403,7 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
@@ -571,7 +571,7 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>()
                 ),
 
@@ -672,7 +672,7 @@ END Game_Summary
                         Increment = TimeSpan.FromSeconds(2.0),
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(2.0)),
@@ -920,7 +920,7 @@ END Game_Summary
                         Increment = TimeSpan.FromSeconds(2.0),
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("7g7f"), TimeSpan.FromSeconds(2.0)),
@@ -1344,7 +1344,7 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>()
                 ),
 
@@ -1416,7 +1416,7 @@ END Game_Summary
                         Increment = TimeSpan.FromSeconds(1.0),
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
@@ -1540,7 +1540,7 @@ END Game_Summary
                         foreach (var con in connections)
                             await con.Stream.WriteLineLFAsync($"START:{testcase.Summary!.GameId!}", ct);
 
-                        var pos = testcase.Summary!.StartPos!.Clone();
+                        var pos = new Position(testcase.Summary!.StartPos!);
                         foreach (var (m, t) in testcase.Summary!.Moves!)
                         {
                             pos.DoMove(m);

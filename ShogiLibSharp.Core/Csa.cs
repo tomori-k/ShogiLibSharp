@@ -5,15 +5,13 @@
         /// <summary>
         /// CSA 形式の棋譜の開始局面をパース
         /// </summary>
-        /// <param name="lines"></param>
-        /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
         /// <exception cref="FormatException"></exception>
-        public static Position ParseStartPosition(Queue<string> lines)
+        internal static Board ParseStartPosition(PeekableReader reader)
         {
             var board = new Board();
 
-            if (lines.TryPeek(out var firstLine) && firstLine.StartsWith("PI"))
+            if (reader.PeekLine() is { } firstLine && firstLine.StartsWith("PI"))
             {
                 // todo
                 throw new NotImplementedException();
@@ -23,7 +21,8 @@
                 // 一括表現
                 for (int rank = 0; rank < 9; ++rank)
                 {
-                    if (!lines.TryDequeue(out var line) || line.Length < 3 * 9 + 2)
+                    var line = reader.ReadLine();
+                    if (line is null || line.Length < 3 * 9 + 2)
                     {
                         throw new FormatException($"盤面情報が欠けています：{line}");
                     }
@@ -40,16 +39,12 @@
                     }
                 }
                 // 駒別単独表現
-                while (lines.Count > 0)
+                while (true)
                 {
-                    var next = lines.Peek();
+                    var next = reader.PeekLine();
+                    if (next is null || !next.StartsWith("P")) break;
 
-                    if (!next.StartsWith("P"))
-                    {
-                        break;
-                    }
-
-                    lines.Dequeue();
+                    reader.ReadLine();
 
                     var pc = next.StartsWith("P+")
                         ? Color.Black : Color.White;
@@ -80,77 +75,13 @@
             }
 
             // 手番
-            if (!lines.TryDequeue(out var colorStr))
+            if (reader.ReadLine() is not { } colorStr)
             {
                 throw new FormatException("開始局面での手番の情報がありません。");
             }
             board.Player = colorStr == "+" ? Color.Black : Color.White;
 
-            return new Position(board);
-        }
-
-        /// <summary>
-        /// CSA 形式の棋譜の指し手・消費時間をパース
-        /// </summary>
-        /// <param name="lines"></param>
-        /// <param name="startpos"></param>
-        /// <returns></returns>
-        public static List<(Move, TimeSpan?)> ParseMoves(Queue<string> lines, Position position)
-        {
-            var pos = position.Clone();
-            var moves = new List<(Move, TimeSpan?)>();
-
-            while (lines.Count > 0)
-            {
-                var moveStr = lines.Dequeue();
-                if (!(moveStr.StartsWith("+") || moveStr.StartsWith("-")))
-                {
-                    break;
-                }
-
-                var move = ParseMove(moveStr, pos);
-                pos.DoMove(move);
-
-                if (!lines.TryPeek(out var timeStr)) continue;
-
-                // 消費時間はオプションなので、ないこともある
-                if (timeStr.StartsWith("T"))
-                {
-                    lines.Dequeue();
-                    moves.Add((move, ParseTime(timeStr)));
-                }
-                else
-                    moves.Add((move, null));
-            }
-
-            return moves;
-        }
-
-        /// <summary>
-        /// CSA 形式の棋譜の指し手・消費時間をパース（消費時間がカンマで同じ行にあるパターン）
-        /// </summary>
-        /// <param name="lines"></param>
-        /// <param name="startpos"></param>
-        /// <returns></returns>
-        public static List<(Move, TimeSpan)> ParseMovesWithTime(Queue<string> lines, Position position)
-        {
-            var pos = position.Clone();
-            var moves = new List<(Move, TimeSpan)>();
-
-            while (lines.Count > 0)
-            {
-                var moveStr = lines.Dequeue();
-                if (!(moveStr.StartsWith("+") || moveStr.StartsWith("-")))
-                {
-                    break;
-                }
-
-                var (move, time) = ParseMoveWithTime(moveStr, pos);
-                moves.Add((move, time));
-                pos.DoMove(move);
-            }
-
-            return moves;
+            return board;
         }
 
         public static (Move, TimeSpan) ParseMoveWithTime(string s, Position pos)

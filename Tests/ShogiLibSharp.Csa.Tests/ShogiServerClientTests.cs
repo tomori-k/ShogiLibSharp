@@ -84,7 +84,7 @@ namespace ShogiLibSharp.Csa.Tests
 
             public Player(Testcase testcase, GameSummary summary)
             {
-                this.position = summary.StartPos!.Clone();
+                this.position = new Position(summary.StartPos!);
                 this.moves = testcase.Moves!;
 
                 foreach (var (m, _) in summary.Moves!)
@@ -212,7 +212,7 @@ namespace ShogiLibSharp.Csa.Tests
                         foreach (var con in connections)
                             await con.Stream.WriteLineLFAsync($"START:{testcase.Summary!.GameId!}", ct);
 
-                        var pos = testcase.Summary!.StartPos!.Clone();
+                        var pos = new Position(testcase.Summary!.StartPos!);
                         foreach (var (m, t) in testcase.Summary!.Moves!)
                         {
                             pos.DoMove(m);
@@ -353,7 +353,7 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>
                     {
                         (Usi.ParseMove("2g2f"), TimeSpan.FromSeconds(12.0)),
@@ -425,7 +425,7 @@ END Game_Summary
                         Increment = TimeSpan.Zero,
                         IsRoundUp = false,
                     },
-                    StartPos: new Position(Position.Hirate),
+                    StartPos: new Position(Position.Hirate).ToBoard(),
                     Moves: new List<(Move, TimeSpan)>()
                 ),
 
