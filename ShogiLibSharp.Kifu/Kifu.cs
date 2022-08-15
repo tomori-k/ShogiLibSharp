@@ -25,13 +25,25 @@ namespace ShogiLibSharp.Kifu
         public string? Site { get; set; }
     }
 
+    public class MoveSequence
+    {
+        public int StartPly { get; }
+        public List<MoveInfo> Moves { get; }
+
+        public MoveSequence(int startPly, List<MoveInfo> moves)
+        {
+            this.StartPly = startPly;
+            this.Moves = moves;
+        }
+    }
+
     public class Kifu
     {
         public GameInfo GameInfo { get; set; }
         public Board StartPos { get; set; }
-        public List<List<MoveInfo>> MoveLists { get; set; }
+        public List<MoveSequence> MoveLists { get; set; }
 
-        public Kifu(GameInfo info, Board startpos, List<List<MoveInfo>> moveLists)
+        public Kifu(GameInfo info, Board startpos, List<MoveSequence> moveLists)
         {
             (GameInfo, StartPos, MoveLists) = (info, startpos, moveLists);
         }

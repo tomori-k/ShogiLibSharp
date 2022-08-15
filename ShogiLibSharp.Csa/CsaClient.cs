@@ -667,7 +667,7 @@ namespace ShogiLibSharp.Csa
 
             Board startpos;
             List<(Move, TimeSpan)> movesWithTime;
-            using (var reader = new PeekableReader(new StringReader(sb.ToString())))
+            using (var reader = new PeekableReader(new StringReader(sb.ToString()), '\''))
             {
                 startpos = Core.Csa.ParseStartPosition(reader);
                 movesWithTime = ParseMovesWithTime(reader, startpos);

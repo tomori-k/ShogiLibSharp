@@ -18,14 +18,14 @@ namespace ShogiLibSharp.Kifu
         /// <exception cref="FormatException"></exception>
         public static Kifu ParseKifu(TextReader textReader)
         {
-            using var reader = new PeekableReader(textReader);
+            using var reader = new PeekableReader(textReader, '\'');
             ParseVersion(reader);
             var (nameBlack, nameWhite) = ParseNames(reader);
             var info = ParseGameInfo(reader);
             var startpos = Core.Csa.ParseStartPosition(reader);
             var moves = ParseMoves(reader, startpos);
             // ParseResult(lines);
-            return new Kifu(info, startpos, new() { moves });
+            return new Kifu(info, startpos, new() { new MoveSequence(1, moves) });
         }
 
         static void ParseVersion(PeekableReader reader)

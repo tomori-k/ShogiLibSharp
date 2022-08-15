@@ -15,17 +15,19 @@ namespace ShogiLibSharp.Core
     {
         TextReader reader;
         string? nextLine = null;
+        char commentPrefix;
 
-        public PeekableReader(TextReader reader)
+        public PeekableReader(TextReader reader, char commentPrefix)
         {
             this.reader = reader;
+            this.commentPrefix = commentPrefix;
         }
 
         public string? PeekLine()
         {
             if (nextLine is null)
             {
-                nextLine = reader.ReadLine();
+                nextLine = ReadLineImpl();
             }
             return nextLine;
         }
@@ -34,7 +36,7 @@ namespace ShogiLibSharp.Core
         {
             if (nextLine is null)
             {
-                return reader.ReadLine();
+                return ReadLineImpl();
             }
             else
             {
@@ -47,6 +49,15 @@ namespace ShogiLibSharp.Core
         public void Dispose()
         {
             reader.Dispose();
+        }
+
+        string? ReadLineImpl()
+        {
+            while (true)
+            {
+                if (reader.ReadLine() is not { } line) return null;
+                if (!line.StartsWith(commentPrefix)) return line;
+            }
         }
     }
 }

@@ -109,7 +109,7 @@ namespace ShogiLibSharp.Core.Tests
             {
                 var kifu = Kifu.Csa.ParseKifu(fileName);
                 var pos = new Position(kifu.StartPos);
-                foreach (var mi in kifu.MoveLists[0])
+                foreach (var mi in kifu.MoveLists[0].Moves)
                 {
                     Assert.AreEqual(Repetition.None, pos.CheckRepetition());
                     pos.DoMove(mi.Move);
