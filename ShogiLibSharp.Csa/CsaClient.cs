@@ -657,21 +657,16 @@ namespace ShogiLibSharp.Csa
 
             await WaitingForMessageAsync("BEGIN Position", ct).ConfigureAwait(false);
 
-            var sb = new StringBuilder();
+            var lines = new Queue<string>();
             while (true)
             {
                 var message = await rw.ReadLineAsync(ct).ConfigureAwait(false);
                 if (message == "END Position") break;
-                sb.AppendLine(message);
+                lines.Enqueue(message);
             }
 
-            Board startpos;
-            List<(Move, TimeSpan)> movesWithTime;
-            using (var reader = new PeekableReader(new StringReader(sb.ToString()), '\''))
-            {
-                startpos = Core.Csa.ParseStartPosition(reader);
-                movesWithTime = ParseMovesWithTime(reader, startpos);
-            }
+            var startpos = Core.Csa.ParseBoard(lines);
+            var movesWithTime = ParseMovesWithTime(lines, startpos);
 
             await WaitingForMessageAsync("END Game_Summary", ct).ConfigureAwait(false);
 
@@ -717,15 +712,14 @@ namespace ShogiLibSharp.Csa
             return (summary, true);
         }
 
-        static List<(Move, TimeSpan)> ParseMovesWithTime(PeekableReader reader, Board startpos)
+        static List<(Move, TimeSpan)> ParseMovesWithTime(Queue<string> lines, Board startpos)
         {
             var pos = new Position(startpos);
             var moves = new List<(Move, TimeSpan)>();
 
             while (true)
             {
-                var moveStr = reader.ReadLine();
-                if (moveStr is null
+                if (!lines.TryDequeue(out var moveStr)
                     || !(moveStr.StartsWith("+") || moveStr.StartsWith("-"))) break;
 
                 var (move, time) = Core.Csa.ParseMoveWithTime(moveStr, pos);

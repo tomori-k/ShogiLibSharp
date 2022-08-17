@@ -22,7 +22,7 @@ namespace ShogiLibSharp.Kifu
             ParseVersion(reader);
             var (nameBlack, nameWhite) = ParseNames(reader);
             var info = ParseGameInfo(reader);
-            var startpos = Core.Csa.ParseStartPosition(reader);
+            var startpos = ParseStartPos(reader);
             var moves = ParseMoves(reader, startpos);
             // ParseResult(lines);
             return new Kifu(info, startpos, new() { new MoveSequence(1, moves) });
@@ -108,6 +108,30 @@ namespace ShogiLibSharp.Kifu
                 }
             }
             return info;
+        }
+
+        static Board ParseStartPos(PeekableReader reader)
+        {
+            var lines = new Queue<string>();
+            while (true)
+            {
+                if (reader.PeekLine() is not { } line
+                    || !line.StartsWith('P')) break;
+                reader.ReadLine();
+                lines.Enqueue(line);
+            }
+            if (lines.Count == 0)
+            {
+                throw new FormatException("開始局面の情報がありません。");
+            }
+            var colorStr = reader.ReadLine();
+            if (colorStr is null
+                || !(colorStr == "+" || colorStr == "-"))
+            {
+                throw new FormatException("開始局面の手番情報がありません。");
+            }
+            lines.Enqueue(colorStr);
+            return Core.Csa.ParseBoard(lines);
         }
 
         /// <summary>

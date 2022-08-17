@@ -7,11 +7,26 @@
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
         /// <exception cref="FormatException"></exception>
-        internal static Board ParseStartPosition(PeekableReader reader)
+        public static Board ParseBoard(string csaBoard)
+        {
+            var lines = new Queue<string>(csaBoard
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(x => !x.StartsWith("'"))
+                .Select(x => x.Split(','))
+                .SelectMany(x => x));
+            return ParseBoard(lines);
+        }
+
+        /// <summary>
+        /// CSA 形式の棋譜の開始局面をパース
+        /// </summary>
+        /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="FormatException"></exception>
+        public static Board ParseBoard(Queue<string> lines)
         {
             var board = new Board();
 
-            if (reader.PeekLine() is { } firstLine && firstLine.StartsWith("PI"))
+            if (lines.TryPeek(out var firstLine) && firstLine.StartsWith("PI"))
             {
                 // todo
                 throw new NotImplementedException();
@@ -21,8 +36,7 @@
                 // 一括表現
                 for (int rank = 0; rank < 9; ++rank)
                 {
-                    var line = reader.ReadLine();
-                    if (line is null || line.Length < 3 * 9 + 2)
+                    if (!lines.TryDequeue(out var line) || line.Length < 3 * 9 + 2)
                     {
                         throw new FormatException($"盤面情報が欠けています：{line}");
                     }
@@ -41,10 +55,9 @@
                 // 駒別単独表現
                 while (true)
                 {
-                    var next = reader.PeekLine();
-                    if (next is null || !next.StartsWith("P")) break;
+                    if (!lines.TryPeek(out var next) || !next.StartsWith("P")) break;
 
-                    reader.ReadLine();
+                    lines.Dequeue();
 
                     var pc = next.StartsWith("P+")
                         ? Color.Black : Color.White;
@@ -75,7 +88,7 @@
             }
 
             // 手番
-            if (reader.ReadLine() is not { } colorStr)
+            if (!lines.TryDequeue(out var colorStr))
             {
                 throw new FormatException("開始局面での手番の情報がありません。");
             }

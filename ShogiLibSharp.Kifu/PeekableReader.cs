@@ -4,12 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-// https://www.nuits.jp/entry/net-standard-internals-visible-to
-using System.Runtime.CompilerServices;
-[assembly: InternalsVisibleTo("ShogiLibSharp.Kifu")]
-[assembly: InternalsVisibleTo("ShogiLibSharp.Csa")]
-
-namespace ShogiLibSharp.Core
+namespace ShogiLibSharp.Kifu
 {
     internal class PeekableReader : IDisposable
     {
