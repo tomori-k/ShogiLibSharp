@@ -7,7 +7,7 @@ namespace ShogiLibSharp.Kifu.Tests;
 [TestClass]
 public class KifTests
 {
-    [TestMethod, Timeout(1000)]
+    [TestMethod]
     [DeploymentItem("kif/1.kifu")]
     public void ParseTest1()
     {
@@ -38,7 +38,7 @@ public class KifTests
         Assert.AreEqual("悪手 -99999999" + Environment.NewLine, moves1[1].Comment);
     }
 
-    [TestMethod, Timeout(1000)]
+    [TestMethod]
     [DeploymentItem("kif/2.kifu")]
     [DeploymentItem("kif/2_usi.txt")]
     public void ParseTest2()
