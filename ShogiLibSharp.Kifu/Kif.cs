@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using ShogiLibSharp.Core;
@@ -36,6 +37,8 @@ namespace ShogiLibSharp.Kifu
         const string PrefixMultiPv = "変化：";
         const string HeaderMoveSequence = "手数----指手---------消費時間--";
 
+        static readonly DateTimeFormatInfo JpFormat = CultureInfo.GetCultureInfo("ja-JP").DateTimeFormat;
+
         static void ExpectEqual(string expected, string? actual)
         {
             if (expected != actual)
@@ -66,12 +69,12 @@ namespace ShogiLibSharp.Kifu
                     info.Names[1] = line[PrefixWhiteName.Length..];
                 }
                 else if (line.StartsWith(PrefixStartTime)
-                    && DateTime.TryParse(line[PrefixStartTime.Length..], out var startTime))
+                    && DateTime.TryParse(line[PrefixStartTime.Length..], JpFormat, DateTimeStyles.None, out var startTime))
                 {
                     info.StartTime = startTime;
                 }
                 else if (line.StartsWith(PrefixEndTime)
-                    && DateTime.TryParse(line[PrefixEndTime.Length..], out var endTime))
+                    && DateTime.TryParse(line[PrefixEndTime.Length..], JpFormat, DateTimeStyles.None, out var endTime))
                 {
                     info.EndTime = endTime;
                 }
