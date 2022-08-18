@@ -9,12 +9,23 @@ namespace ShogiLibSharp.Kifu
 {
     public static class Kif
     {
+        /// <summary>
+        /// KIF 形式の棋譜をパース
+        /// </summary>
+        /// <param name="path">棋譜ファイルパス</param>
+        /// <param name="encoding">棋譜ファイルのエンコード</param>
+        /// <returns></returns>
         public static Kifu Parse(string path, Encoding encoding)
         {
             using var reader = new StreamReader(path, encoding);
             return Parse(reader);
         }
 
+        /// <summary>
+        /// KIF 形式の棋譜をパース
+        /// </summary>
+        /// <param name="textReader"></param>
+        /// <returns></returns>
         public static Kifu Parse(TextReader textReader)
         {
             using var reader = new PeekableReader(textReader, '#');

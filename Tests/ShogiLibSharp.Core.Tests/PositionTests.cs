@@ -107,7 +107,7 @@ namespace ShogiLibSharp.Core.Tests
         {
             foreach (var fileName in fileNames)
             {
-                var kifu = Kifu.Csa.ParseKifu(fileName);
+                var kifu = Kifu.Csa.Parse(fileName);
                 var pos = new Position(kifu.StartPos);
                 foreach (var mi in kifu.MoveLists[0].Moves)
                 {

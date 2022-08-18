@@ -6,17 +6,21 @@ namespace ShogiLibSharp.Kifu
     {
         // CSA 棋譜ファイル形式：http://www2.computer-shogi.org/protocol/record_v22.html
 
-        public static Kifu ParseKifu(string path)
+        /// <summary>
+        /// CSA 形式の棋譜をパース
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        public static Kifu Parse(string path)
         {
             using var reader = new StreamReader(path);
-            return ParseKifu(reader);
+            return Parse(reader);
         }
 
         /// <summary>
         /// CSA 形式の棋譜をパース
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        public static Kifu ParseKifu(TextReader textReader)
+        public static Kifu Parse(TextReader textReader)
         {
             using var reader = new PeekableReader(textReader, '\'');
             ParseVersion(reader);
