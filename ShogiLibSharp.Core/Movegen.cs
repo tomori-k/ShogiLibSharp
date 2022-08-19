@@ -43,7 +43,7 @@ namespace ShogiLibSharp.Core
         {
             if (pos.InCheck()) return GenerateEvasionMoves(pos);
 
-            var moves = new List<Move> {  };
+            var moves = new List<Move> { Capacity = 600 }; // Capasity 設定重要
             var occupancy = pos.GetOccupancy();
             var us = pos.ColorBB(pos.Player);
             var pinned = pos.PinnedBy(pos.Player.Opponent()) & us;
@@ -207,7 +207,7 @@ namespace ShogiLibSharp.Core
 
         private static List<Move> GenerateEvasionMoves(Position pos)
         {
-            var moves = new List<Move>();
+            var moves = new List<Move> { Capacity = 600 }; // Capasity 設定重要
             var ksq = pos.King(pos.Player);
             var checkerCount = pos.Checkers().Popcount();
 
@@ -251,6 +251,14 @@ namespace ShogiLibSharp.Core
             return moves;
         }
 
+        class ListDummy<T>
+        {
+#pragma warning disable CS8618 // null 非許容のフィールドには、コンストラクターの終了時に null 以外の値が入っていなければなりません。Null 許容として宣言することをご検討ください。
+            internal T[] Items;
+#pragma warning restore CS8618 // null 非許容のフィールドには、コンストラクターの終了時に null 以外の値が入っていなければなりません。Null 許容として宣言することをご検討ください。
+            internal int Size;
+        }
+
         private static partial void GenerateDrops(Position pos, Bitboard target, List<Move> moves);
 
         [InlineBitboardEnumerator]
@@ -282,7 +290,7 @@ namespace ShogiLibSharp.Core
             if (!captureList.ExceptPawn())
                 return;
 
-            var tmpl = new Move[6];
+            var tmpl = new Move[10];
             int n = 0, li = 0;
 
             if (captureList.Count(Piece.Knight) > 0)
@@ -316,138 +324,55 @@ namespace ShogiLibSharp.Core
             var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
             var rem = target & Bitboard.Rank(pos.Player, 2, 8);
 
-            switch (n - other)
             {
-                case 1:
+                var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
+                ref var tmplAsUlong = ref Unsafe.As<Move, ulong>(ref tmpl[other]);
+
+                if (n - other != 0)
+                {
                     foreach (var to in to1)
                     {
-                        moves.Add((Move)((int)tmpl[other] + to));
+                        ref var p = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
+                        var to4 = 0x0001000100010001UL * (ulong)to;
+                        p = tmplAsUlong + to4;
+                        mlist64.Size += n - other;
                     }
-                    break;
-                case 2:
-                    foreach (var to in to1)
-                    {
-                        moves.Add((Move)((int)tmpl[other] + to));
-                        moves.Add((Move)((int)tmpl[other + 1] + to));
-                    }
-                    break;
-                case 3:
-                    foreach (var to in to1)
-                    {
-                        moves.Add((Move)((int)tmpl[other] + to));
-                        moves.Add((Move)((int)tmpl[other + 1] + to));
-                        moves.Add((Move)((int)tmpl[other + 2] + to));
-                    }
-                    break;
-                case 4:
-                    foreach (var to in to1)
-                    {
-                        moves.Add((Move)((int)tmpl[other] + to));
-                        moves.Add((Move)((int)tmpl[other + 1] + to));
-                        moves.Add((Move)((int)tmpl[other + 2] + to));
-                        moves.Add((Move)((int)tmpl[other + 3] + to));
-                    }
-                    break;
+                }
             }
 
-
-            switch (n - li)
             {
-                case 1:
+                var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
+                ref var tmplAsUlong0 = ref Unsafe.As<Move, ulong>(ref tmpl[li]);
+                ref var tmplAsUlong1 = ref Unsafe.As<Move, ulong>(ref tmpl[li + 4]);
+
+                if (n - li != 0)
+                {
                     foreach (var to in to2)
                     {
-                        moves.Add((Move)((int)tmpl[li] + to));
+                        ref var p0 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
+                        ref var p1 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size + 4]);
+                        var to4 = 0x0001000100010001UL * (ulong)to;
+                        p0 = tmplAsUlong0 + to4;
+                        p1 = tmplAsUlong1 + to4;
+                        mlist64.Size += n - li;
                     }
-                    break;
-                case 2:
-                    foreach (var to in to2)
-                    {
-                        moves.Add((Move)((int)tmpl[li] + to));
-                        moves.Add((Move)((int)tmpl[li + 1] + to));
-                    }
-                    break;
-                case 3:
-                    foreach (var to in to2)
-                    {
-                        moves.Add((Move)((int)tmpl[li] + to));
-                        moves.Add((Move)((int)tmpl[li + 1] + to));
-                        moves.Add((Move)((int)tmpl[li + 2] + to));
-                    }
-                    break;
-                case 4:
-                    foreach (var to in to2)
-                    {
-                        moves.Add((Move)((int)tmpl[li] + to));
-                        moves.Add((Move)((int)tmpl[li + 1] + to));
-                        moves.Add((Move)((int)tmpl[li + 2] + to));
-                        moves.Add((Move)((int)tmpl[li + 3] + to));
-                    }
-                    break;
-                case 5:
-                    foreach (var to in to2)
-                    {
-                        moves.Add((Move)((int)tmpl[li] + to));
-                        moves.Add((Move)((int)tmpl[li + 1] + to));
-                        moves.Add((Move)((int)tmpl[li + 2] + to));
-                        moves.Add((Move)((int)tmpl[li + 3] + to));
-                        moves.Add((Move)((int)tmpl[li + 4] + to));
-                    }
-                    break;
+                }
             }
 
-            switch (n)
             {
-                case 1:
-                    foreach (var to in rem)
-                    {
-                        moves.Add((Move)((int)tmpl[0] + to));
-                    }
-                    break;
-                case 2:
-                    foreach (var to in rem)
-                    {
-                        moves.Add((Move)((int)tmpl[0] + to));
-                        moves.Add((Move)((int)tmpl[1] + to));
-                    }
-                    break;
-                case 3:
-                    foreach (var to in rem)
-                    {
-                        moves.Add((Move)((int)tmpl[0] + to));
-                        moves.Add((Move)((int)tmpl[1] + to));
-                        moves.Add((Move)((int)tmpl[2] + to));
-                    }
-                    break;
-                case 4:
-                    foreach (var to in rem)
-                    {
-                        moves.Add((Move)((int)tmpl[0] + to));
-                        moves.Add((Move)((int)tmpl[1] + to));
-                        moves.Add((Move)((int)tmpl[2] + to));
-                        moves.Add((Move)((int)tmpl[3] + to));
-                    }
-                    break;
-                case 5:
-                    foreach (var to in rem)
-                    {
-                        moves.Add((Move)((int)tmpl[0] + to));
-                        moves.Add((Move)((int)tmpl[1] + to));
-                        moves.Add((Move)((int)tmpl[2] + to));
-                        moves.Add((Move)((int)tmpl[3] + to));
-                        moves.Add((Move)((int)tmpl[4] + to));
-                    }
-                    break;
-                case 6:
-                    foreach (var to in rem)
-                    {
-                        moves.Add((Move)((int)tmpl[0] + to));
-                        moves.Add((Move)((int)tmpl[1] + to));
-                        moves.Add((Move)((int)tmpl[2] + to));
-                        moves.Add((Move)((int)tmpl[3] + to));
-                        moves.Add((Move)((int)tmpl[4] + to));
-                        moves.Add((Move)((int)tmpl[5] + to));
-                    }
-                    break;
+                var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
+                ref var tmplAsUlong0 = ref Unsafe.As<Move, ulong>(ref tmpl[0]);
+                ref var tmplAsUlong1 = ref Unsafe.As<Move, ulong>(ref tmpl[4]);
+
+                foreach (var to in rem)
+                {
+                    ref var p0 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
+                    ref var p1 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size + 4]);
+                    var to4 = 0x0001000100010001UL * (ulong)to;
+                    p0 = tmplAsUlong0 + to4;
+                    p1 = tmplAsUlong1 + to4;
+                    mlist64.Size += n;
+                }
             }
         }
 
