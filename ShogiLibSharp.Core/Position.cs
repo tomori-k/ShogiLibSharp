@@ -69,6 +69,21 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        /// <summary>
+        /// 最後の指し手
+        /// </summary>
+        public Move LastMove
+        {
+            get
+            {
+                if (moves.Count == 0)
+                {
+                    throw new InvalidOperationException("以前の指し手が存在しません");
+                }
+                return moves.Peek().Move;
+            }
+        }
+
         #endregion
 
         #region コンストラクタ

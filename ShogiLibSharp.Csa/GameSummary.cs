@@ -18,6 +18,6 @@ namespace ShogiLibSharp.Csa
         Color StartColor,
         int? MaxMoves,
         TimeRule TimeRule,
-        Position StartPos,
+        Board StartPos,
         List<(Move, TimeSpan)> Moves);
 }
