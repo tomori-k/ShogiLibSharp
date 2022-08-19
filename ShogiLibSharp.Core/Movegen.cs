@@ -326,7 +326,7 @@ namespace ShogiLibSharp.Core
             var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
             var rem = target & Bitboard.Rank(pos.Player, 2, 8);
 
-            if (Sse2.IsSupported)
+            if (!Sse2.IsSupported)
             {
                 // こっちのほうが遅い... なんで？
                 unsafe
@@ -368,7 +368,7 @@ namespace ShogiLibSharp.Core
                 }
             }
             // No SSE
-            else
+            else if (true)
             {
                 {
                     var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
@@ -416,6 +416,54 @@ namespace ShogiLibSharp.Core
                         p0 = tmplAsUlong0 + to4;
                         p1 = tmplAsUlong1 + to4;
                         mlist64.Size += n;
+                    }
+                }
+            }
+            // No SSE, unsafe + fixed
+            else
+            {
+                unsafe
+                {
+                    var mlistDummy = Unsafe.As<ListDummy<Move>>(moves);
+                    fixed (Move* tmpl_p = tmpl)
+                    {
+                        fixed (Move* mlist = mlistDummy.Items)
+                        {
+                            {
+                                var tmpl4 = (ulong*)(tmpl_p + other);
+                                foreach (var to in to1)
+                                {
+                                    var to4 = 0x0001000100010001UL * (ulong)to;
+                                    var p = (ulong*)(mlist + mlistDummy.Size);
+                                    *p = *tmpl4 + to4;
+                                    mlistDummy.Size += n - other;
+                                }
+                            }
+                            {
+                                var tmpl4_0 = *(ulong*)(tmpl_p + li);
+                                var tmpl4_1 = *(ulong*)(tmpl_p + li + 4);
+                                foreach (var to in to2)
+                                {
+                                    var to4 = 0x0001000100010001UL * (ulong)to;
+                                    var p = (ulong*)(mlist + mlistDummy.Size);
+                                    *p = tmpl4_0 + to4;
+                                    *(p + 1) = tmpl4_1 + to4;
+                                    mlistDummy.Size += n - li;
+                                }
+                            }
+                            {
+                                var tmpl4_0 = *(ulong*)(tmpl_p);
+                                var tmpl4_1 = *(ulong*)(tmpl_p + 4);
+                                foreach (var to in rem)
+                                {
+                                    var to4 = 0x0001000100010001UL * (ulong)to;
+                                    var p = (ulong*)(mlist + mlistDummy.Size);
+                                    *p = tmpl4_0 + to4;
+                                    *(p + 1) = tmpl4_1 + to4;
+                                    mlistDummy.Size += n;
+                                }
+                            }
+                        }
                     }
                 }
             }
