@@ -256,28 +256,198 @@ namespace ShogiLibSharp.Core
         [InlineBitboardEnumerator]
         private static void GenerateDropsImpl(Position pos, Bitboard target, List<Move> moves)
         {
-            foreach (var p in PieceExtensions.PawnToRook)
+            var captureList = pos.CaptureListOf(pos.Player);
+            if (captureList.None())
+                return;
+
+            if (captureList.Count(Piece.Pawn) > 0)
             {
-                if (pos.CaptureListOf(pos.Player).Count(p) > 0)
+                var toBB = target
+                    & Bitboard.ReachableMask(pos.Player, Piece.Pawn)
+                    & Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
                 {
-                    var toBB = target
-                        & Bitboard.ReachableMask(pos.Player, p);
-                    if (p == Piece.Pawn)
+                    var o = pos.Player.Opponent();
+                    var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
+                    if (!toBB.TestZ(uchifuzumeCand) && IsUchifuzume(uchifuzumeCand.LsbSquare(), pos))
                     {
-                        toBB &= Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
-                        var o = pos.Player.Opponent();
-                        var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
-                        if (!toBB.TestZ(uchifuzumeCand)
-                            && IsUchifuzume(uchifuzumeCand.LsbSquare(), pos))
-                        {
-                            toBB ^= uchifuzumeCand;
-                        }
-                    }
-                    foreach (var to in toBB)
-                    {
-                        moves.Add(MoveExtensions.MakeDrop(p, to));
+                        toBB ^= uchifuzumeCand;
                     }
                 }
+                foreach (var to in toBB)
+                {
+                    moves.Add(MoveExtensions.MakeDrop(Piece.Pawn, to));
+                }
+            }
+
+            if (!captureList.ExceptPawn())
+                return;
+
+            var tmpl = new Move[6];
+            int n = 0, li = 0;
+
+            if (captureList.Count(Piece.Knight) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Knight, 0);
+                ++li;
+            }
+            if (captureList.Count(Piece.Lance) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Lance, 0);
+            }
+            int other = n;
+            if (captureList.Count(Piece.Silver) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Silver, 0);
+            }
+            if (captureList.Count(Piece.Gold) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Gold, 0);
+            }
+            if (captureList.Count(Piece.Bishop) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Bishop, 0);
+            }
+            if (captureList.Count(Piece.Rook) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Rook, 0);
+            }
+
+            var to1 = target & Bitboard.Rank(pos.Player, 0, 0);
+            var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
+            var rem = target & Bitboard.Rank(pos.Player, 2, 8);
+
+            switch (n - other)
+            {
+                case 1:
+                    foreach (var to in to1)
+                    {
+                        moves.Add((Move)((int)tmpl[other] + to));
+                    }
+                    break;
+                case 2:
+                    foreach (var to in to1)
+                    {
+                        moves.Add((Move)((int)tmpl[other] + to));
+                        moves.Add((Move)((int)tmpl[other + 1] + to));
+                    }
+                    break;
+                case 3:
+                    foreach (var to in to1)
+                    {
+                        moves.Add((Move)((int)tmpl[other] + to));
+                        moves.Add((Move)((int)tmpl[other + 1] + to));
+                        moves.Add((Move)((int)tmpl[other + 2] + to));
+                    }
+                    break;
+                case 4:
+                    foreach (var to in to1)
+                    {
+                        moves.Add((Move)((int)tmpl[other] + to));
+                        moves.Add((Move)((int)tmpl[other + 1] + to));
+                        moves.Add((Move)((int)tmpl[other + 2] + to));
+                        moves.Add((Move)((int)tmpl[other + 3] + to));
+                    }
+                    break;
+            }
+
+
+            switch (n - li)
+            {
+                case 1:
+                    foreach (var to in to2)
+                    {
+                        moves.Add((Move)((int)tmpl[li] + to));
+                    }
+                    break;
+                case 2:
+                    foreach (var to in to2)
+                    {
+                        moves.Add((Move)((int)tmpl[li] + to));
+                        moves.Add((Move)((int)tmpl[li + 1] + to));
+                    }
+                    break;
+                case 3:
+                    foreach (var to in to2)
+                    {
+                        moves.Add((Move)((int)tmpl[li] + to));
+                        moves.Add((Move)((int)tmpl[li + 1] + to));
+                        moves.Add((Move)((int)tmpl[li + 2] + to));
+                    }
+                    break;
+                case 4:
+                    foreach (var to in to2)
+                    {
+                        moves.Add((Move)((int)tmpl[li] + to));
+                        moves.Add((Move)((int)tmpl[li + 1] + to));
+                        moves.Add((Move)((int)tmpl[li + 2] + to));
+                        moves.Add((Move)((int)tmpl[li + 3] + to));
+                    }
+                    break;
+                case 5:
+                    foreach (var to in to2)
+                    {
+                        moves.Add((Move)((int)tmpl[li] + to));
+                        moves.Add((Move)((int)tmpl[li + 1] + to));
+                        moves.Add((Move)((int)tmpl[li + 2] + to));
+                        moves.Add((Move)((int)tmpl[li + 3] + to));
+                        moves.Add((Move)((int)tmpl[li + 4] + to));
+                    }
+                    break;
+            }
+
+            switch (n)
+            {
+                case 1:
+                    foreach (var to in rem)
+                    {
+                        moves.Add((Move)((int)tmpl[0] + to));
+                    }
+                    break;
+                case 2:
+                    foreach (var to in rem)
+                    {
+                        moves.Add((Move)((int)tmpl[0] + to));
+                        moves.Add((Move)((int)tmpl[1] + to));
+                    }
+                    break;
+                case 3:
+                    foreach (var to in rem)
+                    {
+                        moves.Add((Move)((int)tmpl[0] + to));
+                        moves.Add((Move)((int)tmpl[1] + to));
+                        moves.Add((Move)((int)tmpl[2] + to));
+                    }
+                    break;
+                case 4:
+                    foreach (var to in rem)
+                    {
+                        moves.Add((Move)((int)tmpl[0] + to));
+                        moves.Add((Move)((int)tmpl[1] + to));
+                        moves.Add((Move)((int)tmpl[2] + to));
+                        moves.Add((Move)((int)tmpl[3] + to));
+                    }
+                    break;
+                case 5:
+                    foreach (var to in rem)
+                    {
+                        moves.Add((Move)((int)tmpl[0] + to));
+                        moves.Add((Move)((int)tmpl[1] + to));
+                        moves.Add((Move)((int)tmpl[2] + to));
+                        moves.Add((Move)((int)tmpl[3] + to));
+                        moves.Add((Move)((int)tmpl[4] + to));
+                    }
+                    break;
+                case 6:
+                    foreach (var to in rem)
+                    {
+                        moves.Add((Move)((int)tmpl[0] + to));
+                        moves.Add((Move)((int)tmpl[1] + to));
+                        moves.Add((Move)((int)tmpl[2] + to));
+                        moves.Add((Move)((int)tmpl[3] + to));
+                        moves.Add((Move)((int)tmpl[4] + to));
+                        moves.Add((Move)((int)tmpl[5] + to));
+                    }
+                    break;
             }
         }
 
