@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using ShogiLibSharp.MovegenGenerator;
 
@@ -324,54 +326,97 @@ namespace ShogiLibSharp.Core
             var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
             var rem = target & Bitboard.Rank(pos.Player, 2, 8);
 
+            if (Sse2.IsSupported)
             {
-                var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
-                ref var tmplAsUlong = ref Unsafe.As<Move, ulong>(ref tmpl[other]);
-
-                if (n - other != 0)
+                // こっちのほうが遅い... なんで？
+                unsafe
                 {
-                    foreach (var to in to1)
+                    var mlistDummy = Unsafe.As<ListDummy<Move>>(moves);
+                    fixed (Move* tmpl_p = tmpl)
                     {
-                        ref var p = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        p = tmplAsUlong + to4;
-                        mlist64.Size += n - other;
+                        fixed(Move* mlist = mlistDummy.Items)
+                        {
+                            {
+                                var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl_p + other));
+                                foreach (var to in to1)
+                                {
+                                    var to8 = Vector128.Create((ushort)to);
+                                    Sse2.Store((ushort*)(mlist + mlistDummy.Size), Sse2.Add(tmpl8, to8));
+                                    mlistDummy.Size += n - other;
+                                }
+                            }
+                            {
+                                var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl_p + li));
+                                foreach (var to in to2)
+                                {
+                                    var to8 = Vector128.Create((ushort)to);
+                                    Sse2.Store((ushort*)(mlist + mlistDummy.Size), Sse2.Add(tmpl8, to8));
+                                    mlistDummy.Size += n - li;
+                                }
+                            }
+                            {
+                                var tmpl8 = Sse2.LoadVector128((ushort*)tmpl_p);
+                                foreach (var to in rem)
+                                {
+                                    var to8 = Vector128.Create((ushort)to);
+                                    Sse2.Store((ushort*)(mlist + mlistDummy.Size), Sse2.Add(tmpl8, to8));
+                                    mlistDummy.Size += n;
+                                }
+                            }
+                        }
                     }
                 }
             }
-
+            // No SSE
+            else
             {
-                var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
-                ref var tmplAsUlong0 = ref Unsafe.As<Move, ulong>(ref tmpl[li]);
-                ref var tmplAsUlong1 = ref Unsafe.As<Move, ulong>(ref tmpl[li + 4]);
-
-                if (n - li != 0)
                 {
-                    foreach (var to in to2)
+                    var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
+                    ref var tmplAsUlong = ref Unsafe.As<Move, ulong>(ref tmpl[other]);
+
+                    if (n - other != 0)
+                    {
+                        foreach (var to in to1)
+                        {
+                            ref var p = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
+                            var to4 = 0x0001000100010001UL * (ulong)to;
+                            p = tmplAsUlong + to4;
+                            mlist64.Size += n - other;
+                        }
+                    }
+                }
+                {
+                    var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
+                    ref var tmplAsUlong0 = ref Unsafe.As<Move, ulong>(ref tmpl[li]);
+                    ref var tmplAsUlong1 = ref Unsafe.As<Move, ulong>(ref tmpl[li + 4]);
+
+                    if (n - li != 0)
+                    {
+                        foreach (var to in to2)
+                        {
+                            ref var p0 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
+                            ref var p1 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size + 4]);
+                            var to4 = 0x0001000100010001UL * (ulong)to;
+                            p0 = tmplAsUlong0 + to4;
+                            p1 = tmplAsUlong1 + to4;
+                            mlist64.Size += n - li;
+                        }
+                    }
+                }
+                {
+                    var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
+                    ref var tmplAsUlong0 = ref Unsafe.As<Move, ulong>(ref tmpl[0]);
+                    ref var tmplAsUlong1 = ref Unsafe.As<Move, ulong>(ref tmpl[4]);
+
+                    foreach (var to in rem)
                     {
                         ref var p0 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
                         ref var p1 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size + 4]);
                         var to4 = 0x0001000100010001UL * (ulong)to;
                         p0 = tmplAsUlong0 + to4;
                         p1 = tmplAsUlong1 + to4;
-                        mlist64.Size += n - li;
+                        mlist64.Size += n;
                     }
-                }
-            }
-
-            {
-                var mlist64 = Unsafe.As<ListDummy<Move>>(moves);
-                ref var tmplAsUlong0 = ref Unsafe.As<Move, ulong>(ref tmpl[0]);
-                ref var tmplAsUlong1 = ref Unsafe.As<Move, ulong>(ref tmpl[4]);
-
-                foreach (var to in rem)
-                {
-                    ref var p0 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size]);
-                    ref var p1 = ref Unsafe.As<Move, ulong>(ref mlist64.Items[mlist64.Size + 4]);
-                    var to4 = 0x0001000100010001UL * (ulong)to;
-                    p0 = tmplAsUlong0 + to4;
-                    p1 = tmplAsUlong1 + to4;
-                    mlist64.Size += n;
                 }
             }
         }
