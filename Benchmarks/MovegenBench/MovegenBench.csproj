@@ -13,11 +13,9 @@
     <None Remove="BenchmarkDotNet" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="ShogiLibSharp.Core">
-      <HintPath>..\..\ShogiLibSharp.Core\bin\Release\net6.0\ShogiLibSharp.Core.dll</HintPath>
-    </Reference>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
+    <ProjectReference Include="..\..\ShogiLibSharp.Core\ShogiLibSharp.Core.csproj" />
   </ItemGroup>
 </Project>
