@@ -701,75 +701,76 @@ namespace ShogiLibSharp.Core
             var rem = target & Bitboard.Rank(pos.Player, 2, 8);
 
             // Use SIMD
-            if (false)
+#if true
+            if (n - other != 0)
             {
+                var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl + other));
+                foreach (var to in to1)
                 {
-                    var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl + other));
-                    foreach (var to in to1)
-                    {
-                        var to8 = Vector128.Create((ushort)to);
-                        Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
-                        buffer += n - other;
-                    }
-                }
-                {
-                    var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl + li));
-                    foreach (var to in to2)
-                    {
-                        var to8 = Vector128.Create((ushort)to);
-                        Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
-                        buffer += n - li;
-                    }
-                }
-                {
-                    var tmpl8 = Sse2.LoadVector128((ushort*)tmpl);
-                    foreach (var to in rem)
-                    {
-                        var to8 = Vector128.Create((ushort)to);
-                        Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
-                        buffer += n;
-                    }
+                    var to8 = Vector128.Create((ushort)to);
+                    Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
+                    buffer += n - other;
                 }
             }
+            if (n - li != 0)
+            {
+                var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl + li));
+                foreach (var to in to2)
+                {
+                    var to8 = Vector128.Create((ushort)to);
+                    Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
+                    buffer += n - li;
+                }
+            }
+            {
+                var tmpl8 = Sse2.LoadVector128((ushort*)tmpl);
+                foreach (var to in rem)
+                {
+                    var to8 = Vector128.Create((ushort)to);
+                    Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
+                    buffer += n;
+                }
+            }
+#endif
             // No SSE, unsafe + fixed
-            else
+#if false
+            if (n - other != 0)
             {
+                var tmpl4 = (ulong*)(tmpl + other);
+                foreach (var to in to1)
                 {
-                    var tmpl4 = (ulong*)(tmpl + other);
-                    foreach (var to in to1)
-                    {
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        var p = (ulong*)buffer;
-                        *p = *tmpl4 + to4;
-                        buffer += n - other;
-                    }
-                }
-                {
-                    var tmpl4_0 = *(ulong*)(tmpl + li);
-                    var tmpl4_1 = *(ulong*)(tmpl + li + 4);
-                    foreach (var to in to2)
-                    {
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        var p = (ulong*)buffer;
-                        *p = tmpl4_0 + to4;
-                        *(p + 1) = tmpl4_1 + to4;
-                        buffer += n - li;
-                    }
-                }
-                {
-                    var tmpl4_0 = *(ulong*)(tmpl);
-                    var tmpl4_1 = *(ulong*)(tmpl + 4);
-                    foreach (var to in rem)
-                    {
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        var p = (ulong*)buffer;
-                        *p = tmpl4_0 + to4;
-                        *(p + 1) = tmpl4_1 + to4;
-                        buffer += n;
-                    }
+                    var to4 = 0x0001000100010001UL * (ulong)to;
+                    var p = (ulong*)buffer;
+                    *p = *tmpl4 + to4;
+                    buffer += n - other;
                 }
             }
-
+            if (n - li != 0)
+            {
+                var tmpl4_0 = *(ulong*)(tmpl + li);
+                var tmpl4_1 = *(ulong*)(tmpl + li + 4);
+                foreach (var to in to2)
+                {
+                    var to4 = 0x0001000100010001UL * (ulong)to;
+                    var p = (ulong*)buffer;
+                    *p = tmpl4_0 + to4;
+                    *(p + 1) = tmpl4_1 + to4;
+                    buffer += n - li;
+                }
+            }
+            {
+                var tmpl4_0 = *(ulong*)(tmpl);
+                var tmpl4_1 = *(ulong*)(tmpl + 4);
+                foreach (var to in rem)
+                {
+                    var to4 = 0x0001000100010001UL * (ulong)to;
+                    var p = (ulong*)buffer;
+                    *p = tmpl4_0 + to4;
+                    *(p + 1) = tmpl4_1 + to4;
+                    buffer += n;
+                }
+            }
+#endif
             return buffer;
         }
 
