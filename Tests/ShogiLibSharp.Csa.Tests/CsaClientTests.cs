@@ -35,8 +35,8 @@ namespace ShogiLibSharp.Csa.Tests
 
             var server = new TestServer(Testcases);
             var serverTask = server.ListenAsync(cts.Token);
-            var c1 = new CsaClient(new PlayerFactory(Testcases), options1, TimeSpan.FromMilliseconds(1.0), cts.Token);
-            var c2 = new CsaClient(new PlayerFactory(Testcases), options2, TimeSpan.FromMilliseconds(1.0), cts.Token);
+            var c1 = new CsaClient(new PlayerFactory(Testcases), options1, cts.Token);
+            var c2 = new CsaClient(new PlayerFactory(Testcases), options2, cts.Token);
 
             var first = await Task.WhenAny(serverTask, c1.ConnectionTask, c2.ConnectionTask);
             if (!first.IsCompletedSuccessfully) await first; // 例外スロー
