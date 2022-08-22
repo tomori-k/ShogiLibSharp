@@ -255,31 +255,61 @@ namespace ShogiLibSharp.Core
             return !this.TestZ(SQUARE_BIT[sq]);
         }
 
-        /// <summary>
-        /// ビットが立っているマスを列挙
-        /// </summary>
-        /// <returns></returns>
-        public IEnumerator<int> GetEnumerator()
+        public struct Enumerator : IEnumerator<int>
         {
-            var x = Lower();
-            while (x != 0UL)
+            bool first = true;
+            ulong b0, b1;
+
+            internal Enumerator(Bitboard x)
             {
-                yield return BitOperations.TrailingZeroCount(x);
-                x &= x - 1UL;
+                this.b0 = x.Lower();
+                this.b1 = x.Upper();
             }
 
-            x = Upper();
-            while (x != 0UL)
+            public int Current
+                => b0 != 0UL
+                    ? BitOperations.TrailingZeroCount(b0)
+                    : BitOperations.TrailingZeroCount(b1) + 63;
+
+            object System.Collections.IEnumerator.Current => Current;
+
+            public void Dispose() { }
+
+            public bool MoveNext()
             {
-                yield return BitOperations.TrailingZeroCount(x) + 63;
-                x &= x - 1UL;
+                if (first)
+                {
+                    first = false;
+                    return b0 != 0UL || b1 != 0UL;
+                }
+                else
+                {
+                    if (b0 != 0UL)
+                    {
+                        b0 &= b0 - 1UL;
+                        return b0 != 0UL || b1 != 0UL;
+                    }
+                    else if (b1 != 0UL)
+                    {
+                        b1 &= b1 - 1UL;
+                        return b1 != 0UL;
+                    }
+                    else
+                        return false;
+                }
+            }
+
+            public void Reset()
+            {
+                throw new NotSupportedException();
             }
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return this.GetEnumerator();
-        }
+        public Enumerator GetEnumerator() => new Enumerator(this);
+
+        IEnumerator<int> IEnumerable<int>.GetEnumerator() => GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
         
         /// <summary>
         /// sq から d の方向へ伸ばしたビットボード（sq は含まない）
