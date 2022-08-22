@@ -1,45 +1,45 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using ShogiLibSharp.Core;
 
 BenchmarkRunner.Run<Bench>();
+BenchmarkRunner.Run<BenchUnsafe>();
+
 
 [IterationCount(3)]
 public class Bench
 {
-    static readonly (string, int, ulong)[] testcases = new[]
-    {
-        (Position.Hirate, 5, 19861490UL),
-        ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL),
-        ("R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1", 3, 53393368UL),
-    };
-
     [Benchmark]
-    public void PerftNoUnsafeBlock()
+    public void PerftHirate()
     {
-        
-        foreach (var (sfen, depth, expected) in testcases)
-        {
-            var pos = new Position(sfen);
-            var nodes = PerftImpl(pos, depth);
-            if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
-        }
+        var (sfen, depth, expected) = (Position.Hirate, 5, 19861490UL);
+        var pos = new Position(sfen);
+        var nodes = PerftImpl(pos, depth);
+        if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
 
     [Benchmark]
-    public unsafe void PerftUseUnsafe()
+    public void PerftMatsuri()
     {
-        foreach (var (sfen, depth, expected) in testcases)
-        {
-            var pos = new Position(sfen);
-            var nodes = PerftUnsafeImpl(pos, depth);
-            if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
-        }
+        var (sfen, depth, expected) =  ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL);
+        var pos = new Position(sfen);
+        var nodes = PerftImpl(pos, depth);
+        if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
 
-    private static ulong PerftImpl(Position pos, int depth)
+    [Benchmark]
+    public void PerftMax()
+    {
+        var (sfen, depth, expected) = ("R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1", 3, 53393368UL);
+        var pos = new Position(sfen);
+        var nodes = PerftImpl(pos, depth);
+        if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
+    }
+
+    static ulong PerftImpl(Position pos, int depth)
     {
         var moves = Movegen.GenerateMoves(pos);
 
@@ -48,7 +48,7 @@ public class Bench
 
         ulong count = 0;
 
-        foreach (Move m in moves)
+        foreach (var m in moves)
         {
             pos.DoMove_PseudoLegal(m);
             count += PerftImpl(pos, depth - 1);
@@ -57,22 +57,54 @@ public class Bench
 
         return count;
     }
+}
 
-    private static unsafe ulong PerftUnsafeImpl(Position pos, int depth)
+[IterationCount(3)]
+public class BenchUnsafe
+{
+    [Benchmark]
+    public void PerftHirate()
     {
-        var moves = stackalloc Move[600];
-        var end = Movegen.GenerateMovesUnsafe(moves, pos);
+        var (sfen, depth, expected) = (Position.Hirate, 5, 19861490UL);
+        var pos = new Position(sfen);
+        var nodes = PerftImpl(pos, depth);
+        if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
+    }
+
+    [Benchmark]
+    public void PerftMatsuri()
+    {
+        var (sfen, depth, expected) = ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL);
+        var pos = new Position(sfen);
+        var nodes = PerftImpl(pos, depth);
+        if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
+    }
+
+    [Benchmark]
+    public void PerftMax()
+    {
+        var (sfen, depth, expected) = ("R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1", 3, 53393368UL);
+        var pos = new Position(sfen);
+        var nodes = PerftImpl(pos, depth);
+        if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
+    }
+
+    [SkipLocalsInit]
+    static unsafe ulong PerftImpl(Position pos, int depth)
+    {
+        var buffer = stackalloc Move[Movegen.BufferSize];
+        var end = Movegen.GenerateMoves(buffer, pos);
 
         if (depth == 1)
-            return (ulong)(end - moves);
+            return (ulong)(end - buffer);
 
         ulong count = 0;
-        var p = moves;
+        var p = buffer;
 
         while (p != end)
-        { 
+        {
             pos.DoMove_PseudoLegal(*p++);
-            count += PerftUnsafeImpl(pos, depth - 1);
+            count += PerftImpl(pos, depth - 1);
             pos.UndoMove();
         }
 
