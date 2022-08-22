@@ -1,4 +1,5 @@
-﻿using System.Runtime.Intrinsics;
+﻿using System.Diagnostics;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using ShogiLibSharp.MovegenGenerator;
 
@@ -322,7 +323,6 @@ namespace ShogiLibSharp.Core
             var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
             var rem = target & Bitboard.Rank(pos.Player, 2, 8);
 
-            // Use SIMD
             if (Sse2.IsSupported)
             {
                 if (n - other != 0)
@@ -356,43 +356,46 @@ namespace ShogiLibSharp.Core
                     }
                 }
             }
-            // No SSE, unsafe + fixed
             else
-            { 
+            {
+                // sizeof(nuint) == 4(32bit) or 8(64bit) のみ考える
+                Debug.Assert(sizeof(nuint) == 4 || sizeof(nuint) == 8);
+
                 if (n - other != 0)
                 {
-                    var tmpl4 = (ulong*)(tmpl + other);
+                    var tmpl_p = (nuint*)(tmpl + other);
                     foreach (var to in to1)
                     {
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        var p = (ulong*)buffer;
-                        *p = *tmpl4 + to4;
+                        var multiTo = unchecked((nuint)0x0001000100010001UL) * (nuint)to;
+                        var p = (nuint*)buffer;
+                        *p = *tmpl_p + multiTo;
+                        if (sizeof(nuint) == 4) *(p + 1) = *(tmpl_p + 1) * multiTo;
                         buffer += n - other;
                     }
                 }
                 if (n - li != 0)
                 {
-                    var tmpl4_0 = *(ulong*)(tmpl + li);
-                    var tmpl4_1 = *(ulong*)(tmpl + li + 4);
+                    var tmpl_p = (nuint*)(tmpl + li);
                     foreach (var to in to2)
                     {
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        var p = (ulong*)buffer;
-                        *p = tmpl4_0 + to4;
-                        *(p + 1) = tmpl4_1 + to4;
+                        var multiTo = unchecked((nuint)0x0001000100010001UL) * (nuint)to;
+                        var p = (nuint*)buffer;
+                        *p = *tmpl_p + multiTo;
+                        *(p + 1) = *(tmpl_p + 1) + multiTo;
+                        if (sizeof(nuint) == 4) *(p + 2) = *(tmpl_p + 2) * multiTo;
                         buffer += n - li;
                     }
                 }
                 // n != 0
                 {
-                    var tmpl4_0 = *(ulong*)(tmpl);
-                    var tmpl4_1 = *(ulong*)(tmpl + 4);
+                    var tmpl_p = (nuint*)tmpl;
                     foreach (var to in rem)
                     {
-                        var to4 = 0x0001000100010001UL * (ulong)to;
-                        var p = (ulong*)buffer;
-                        *p = tmpl4_0 + to4;
-                        *(p + 1) = tmpl4_1 + to4;
+                        var multiTo = unchecked((nuint)0x0001000100010001UL) * (nuint)to;
+                        var p = (nuint*)buffer;
+                        *p = *tmpl_p + multiTo;
+                        *(p + 1) = *(tmpl_p + 1) + multiTo;
+                        if (sizeof(nuint) == 4) *(p + 2) = *(tmpl_p + 2) * multiTo;
                         buffer += n;
                     }
                 }
