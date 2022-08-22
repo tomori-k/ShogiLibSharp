@@ -25,6 +25,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace ShogiLibSharp.Core
 {

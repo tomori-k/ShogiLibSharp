@@ -1,21 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Text;
+﻿using System.Diagnostics;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using ShogiLibSharp.MovegenGenerator;
 
 namespace ShogiLibSharp.Core
 {
     public static partial class Movegen
     {
-        /// <summary>
-        /// pos における合法手を生成
-        /// </summary>
-        /// <param name="pos"></param>
-        /// <returns></returns>
-        public static partial List<Move> GenerateMoves(Position pos);
-
         /*
          * 指し手生成を高速化するため、source generator によって
          * 元になるコード（Implで終わるメソッド）から実際の
@@ -38,12 +29,40 @@ namespace ShogiLibSharp.Core
          * すると、ジェネレータが上手く動かないので注意する（手抜き）
          */
 
-        [InlineBitboardEnumerator, MakePublic]
-        private static List<Move> GenerateMovesImpl(Position pos)
+        /// <summary>
+        /// 合法手を生成する。
+        /// </summary>
+        public static MoveList GenerateMoves(Position pos)
         {
-            if (pos.InCheck()) return GenerateEvasionMoves(pos);
+            var buffer = new Move[BufferSize];
+            unsafe
+            {
+                fixed (Move* start = buffer)
+                {
+                    var end = GenerateMoves(start, pos);
+                    return new MoveList(buffer, (int)(end - start));
+                }
+            }
+        }
 
-            var moves = new List<Move> {  };
+        /// <summary>
+        /// 指し手バッファの長さ
+        /// </summary>
+        public const int BufferSize = 600;
+
+        /// <summary>
+        /// 合法手を生成する。 <br/>
+        /// </summary>
+        /// <param name="buffer">長さ 600 以上のバッファの先頭ポインタ。</param>>
+        /// <param name="pos">局面</param>
+        /// <returns>生成した指し手列の終端。</returns>
+        public static unsafe partial Move* GenerateMoves(Move* buffer, Position pos);
+
+        [InlineBitboardEnumerator, MakePublic]
+        private static unsafe Move* GenerateMovesImpl(Move* buffer, Position pos)
+        {
+            if (pos.InCheck()) return GenerateEvasionMoves(buffer, pos);
+
             var occupancy = pos.GetOccupancy();
             var us = pos.ColorBB(pos.Player);
             var pinned = pos.PinnedBy(pos.Player.Opponent()) & us;
@@ -61,16 +80,16 @@ namespace ShogiLibSharp.Core
                     var rank = Square.RankOf(pos.Player, to);
                     if (rank == 0)
                     {
-                        moves.Add(MoveExtensions.MakeMove(from, to, true));
+                        *buffer++ = MoveExtensions.MakeMove(from, to, true);
                     }
                     else if (rank <= 2)
                     {
-                        moves.Add(MoveExtensions.MakeMove(from, to, false));
-                        moves.Add(MoveExtensions.MakeMove(from, to, true));
+                        *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                        *buffer++ = MoveExtensions.MakeMove(from, to, true);
                     }
                     else
                     {
-                        moves.Add(MoveExtensions.MakeMove(from, to, false));
+                        *buffer++ = MoveExtensions.MakeMove(from, to, false);
                     }
                 }
             }
@@ -88,16 +107,16 @@ namespace ShogiLibSharp.Core
                         var rank = Square.RankOf(pos.Player, to);
                         if (rank == 0)
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, true));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
                         else if (rank <= 2)
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, false));
-                            moves.Add(MoveExtensions.MakeMove(from, to, true));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
                         else
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, false));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
                         }
                     }
                 }
@@ -116,16 +135,16 @@ namespace ShogiLibSharp.Core
                         var rank = Square.RankOf(pos.Player, to);
                         if (rank <= 1)
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, true));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
                         else if (rank == 2)
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, false));
-                            moves.Add(MoveExtensions.MakeMove(from, to, true));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
                         else
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, false));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
                         }
                     }
                 }
@@ -144,10 +163,10 @@ namespace ShogiLibSharp.Core
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        moves.Add(MoveExtensions.MakeMove(from, to, false));
+                        *buffer++ = MoveExtensions.MakeMove(from, to, false);
                         if (Square.CanPromote(pos.Player, from, to))
                         {
-                            moves.Add(MoveExtensions.MakeMove(from, to, true));
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
                     }
                 }
@@ -162,7 +181,7 @@ namespace ShogiLibSharp.Core
                     if (pos.EnumerateAttackers(
                         pos.Player.Opponent(), to).None())
                     {
-                        moves.Add(MoveExtensions.MakeMove(from, to));
+                        *buffer++ = MoveExtensions.MakeMove(from, to);
                     }
                 }
             }
@@ -178,7 +197,7 @@ namespace ShogiLibSharp.Core
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        moves.Add(MoveExtensions.MakeMove(from, to));
+                        *buffer++ = MoveExtensions.MakeMove(from, to);
                     }
                 }
             }
@@ -194,20 +213,17 @@ namespace ShogiLibSharp.Core
                         .AndNot(us) & Bitboard.Line(ksq, from);
                     foreach (var to in toBB)
                     {
-                        AddMovesToList(pos.PieceAt(from), from, to, moves);
+                        buffer = AddMovesToList(buffer, pos.PieceAt(from), from, to);
                     }
                 }
             }
 
             // 駒打ち
-            GenerateDrops(pos, ~occupancy, moves);
-
-            return moves;
+            return GenerateDrops(buffer, pos, ~occupancy);
         }
 
-        private static List<Move> GenerateEvasionMoves(Position pos)
+        private static unsafe Move* GenerateEvasionMoves(Move* buffer, Position pos)
         {
-            var moves = new List<Move>();
             var ksq = pos.King(pos.Player);
             var checkerCount = pos.Checkers().Popcount();
 
@@ -222,17 +238,17 @@ namespace ShogiLibSharp.Core
                     .None();
                 if (canMove)
                 {
-                    moves.Add(MoveExtensions.MakeMove(ksq, to));
+                    *buffer++ = MoveExtensions.MakeMove(ksq, to);
                 }
             }
 
-            if (checkerCount > 1) return moves;
+            if (checkerCount > 1) return buffer;
 
             var csq = pos.Checkers().LsbSquare();
             var between = Bitboard.Between(ksq, csq);
 
             // 駒打ち
-            GenerateDrops(pos, between, moves);
+            buffer = GenerateDrops(buffer, pos, between);
 
             // 駒移動
             var excluded = pos.PieceBB(pos.Player, Piece.King) | pos.PinnedBy(pos.Player.Opponent());
@@ -244,44 +260,158 @@ namespace ShogiLibSharp.Core
                     .AndNot(excluded);
                 foreach (var from in fromBB)
                 {
-                    AddMovesToList(pos.PieceAt(from), from, to, moves);
+                    buffer = AddMovesToList(buffer, pos.PieceAt(from), from, to);
                 }
             }
 
-            return moves;
+            return buffer;
         }
 
-        private static partial void GenerateDrops(Position pos, Bitboard target, List<Move> moves);
+        private static unsafe partial Move* GenerateDrops(Move* buffer, Position pos, Bitboard target);
 
         [InlineBitboardEnumerator]
-        private static void GenerateDropsImpl(Position pos, Bitboard target, List<Move> moves)
+        private static unsafe Move* GenerateDropsImpl(Move* buffer, Position pos, Bitboard target)
         {
-            foreach (var p in PieceExtensions.PawnToRook)
+            var captureList = pos.CaptureListOf(pos.Player);
+            if (captureList.None()) return buffer;
+
+            if (captureList.Count(Piece.Pawn) > 0)
             {
-                if (pos.CaptureListOf(pos.Player).Count(p) > 0)
+                var toBB = target
+                    & Bitboard.ReachableMask(pos.Player, Piece.Pawn)
+                    & Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
                 {
-                    var toBB = target
-                        & Bitboard.ReachableMask(pos.Player, p);
-                    if (p == Piece.Pawn)
+                    var o = pos.Player.Opponent();
+                    var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
+                    if (!toBB.TestZ(uchifuzumeCand) && IsUchifuzume(uchifuzumeCand.LsbSquare(), pos))
                     {
-                        toBB &= Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
-                        var o = pos.Player.Opponent();
-                        var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
-                        if (!toBB.TestZ(uchifuzumeCand)
-                            && IsUchifuzume(uchifuzumeCand.LsbSquare(), pos))
-                        {
-                            toBB ^= uchifuzumeCand;
-                        }
+                        toBB ^= uchifuzumeCand;
                     }
-                    foreach (var to in toBB)
+                }
+                foreach (var to in toBB)
+                {
+                    *buffer++ = MoveExtensions.MakeDrop(Piece.Pawn, to);
+                }
+            }
+
+            if (!captureList.ExceptPawn()) return buffer;
+
+            var tmpl = stackalloc Move[10];
+            int n = 0, li = 0;
+
+            if (captureList.Count(Piece.Knight) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Knight, 0);
+                ++li;
+            }
+            if (captureList.Count(Piece.Lance) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Lance, 0);
+            }
+            int other = n;
+            if (captureList.Count(Piece.Silver) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Silver, 0);
+            }
+            if (captureList.Count(Piece.Gold) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Gold, 0);
+            }
+            if (captureList.Count(Piece.Bishop) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Bishop, 0);
+            }
+            if (captureList.Count(Piece.Rook) > 0)
+            {
+                tmpl[n++] = MoveExtensions.MakeDrop(Piece.Rook, 0);
+            }
+
+            var to1 = target & Bitboard.Rank(pos.Player, 0, 0);
+            var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
+            var rem = target & Bitboard.Rank(pos.Player, 2, 8);
+
+            if (Sse2.IsSupported)
+            {
+                if (n - other != 0)
+                {
+                    var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl + other));
+                    foreach (var to in to1)
                     {
-                        moves.Add(MoveExtensions.MakeDrop(p, to));
+                        var to8 = Vector128.Create((ushort)to);
+                        Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
+                        buffer += n - other;
+                    }
+                }
+                if (n - li != 0)
+                {
+                    var tmpl8 = Sse2.LoadVector128((ushort*)(tmpl + li));
+                    foreach (var to in to2)
+                    {
+                        var to8 = Vector128.Create((ushort)to);
+                        Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
+                        buffer += n - li;
+                    }
+                }
+                // n != 0
+                {
+                    var tmpl8 = Sse2.LoadVector128((ushort*)tmpl);
+                    foreach (var to in rem)
+                    {
+                        var to8 = Vector128.Create((ushort)to);
+                        Sse2.Store((ushort*)buffer, Sse2.Add(tmpl8, to8));
+                        buffer += n;
                     }
                 }
             }
+            else
+            {
+                // sizeof(nuint) == 4(32bit) or 8(64bit) のみ考える
+                Debug.Assert(sizeof(nuint) == 4 || sizeof(nuint) == 8);
+
+                if (n - other != 0)
+                {
+                    var tmpl_p = (nuint*)(tmpl + other);
+                    foreach (var to in to1)
+                    {
+                        var multiTo = unchecked((nuint)0x0001000100010001UL) * (nuint)to;
+                        var p = (nuint*)buffer;
+                        *p = *tmpl_p + multiTo;
+                        if (sizeof(nuint) == 4) *(p + 1) = *(tmpl_p + 1) * multiTo;
+                        buffer += n - other;
+                    }
+                }
+                if (n - li != 0)
+                {
+                    var tmpl_p = (nuint*)(tmpl + li);
+                    foreach (var to in to2)
+                    {
+                        var multiTo = unchecked((nuint)0x0001000100010001UL) * (nuint)to;
+                        var p = (nuint*)buffer;
+                        *p = *tmpl_p + multiTo;
+                        *(p + 1) = *(tmpl_p + 1) + multiTo;
+                        if (sizeof(nuint) == 4) *(p + 2) = *(tmpl_p + 2) * multiTo;
+                        buffer += n - li;
+                    }
+                }
+                // n != 0
+                {
+                    var tmpl_p = (nuint*)tmpl;
+                    foreach (var to in rem)
+                    {
+                        var multiTo = unchecked((nuint)0x0001000100010001UL) * (nuint)to;
+                        var p = (nuint*)buffer;
+                        *p = *tmpl_p + multiTo;
+                        *(p + 1) = *(tmpl_p + 1) + multiTo;
+                        if (sizeof(nuint) == 4) *(p + 2) = *(tmpl_p + 2) * multiTo;
+                        buffer += n;
+                    }
+                }
+            }
+
+            return buffer;
         }
 
-        private static void AddMovesToList(Piece p, int from, int to, List<Move> moves)
+        static unsafe Move* AddMovesToList(Move* buffer, Piece p, int from, int to)
         {
             var c = p.Color();
             p = p.Colorless();
@@ -289,19 +419,21 @@ namespace ShogiLibSharp.Core
             if ((Square.RankOf(c, to) <= 1 && p == Piece.Knight)
                 || (Square.RankOf(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
             {
-                moves.Add(MoveExtensions.MakeMove(from, to, true));
+                *buffer++ = MoveExtensions.MakeMove(from, to, true);
             }
             else
             {
-                moves.Add(MoveExtensions.MakeMove(from, to, false));
+                *buffer++ = MoveExtensions.MakeMove(from, to, false);
 
                 if (Square.CanPromote(c, from, to)
                     && !(p.IsPromoted() || p == Piece.Gold || p == Piece.King))
-                    moves.Add(MoveExtensions.MakeMove(from, to, true));
+                    *buffer++ = MoveExtensions.MakeMove(from, to, true);
             }
+
+            return buffer;
         }
 
-        private static bool IsUchifuzume(int to, Position pos)
+        static bool IsUchifuzume(int to, Position pos)
         {
             var theirKsq = pos.King(pos.Player.Opponent());
             var defenders = pos.EnumerateAttackers(
