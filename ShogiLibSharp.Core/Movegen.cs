@@ -30,10 +30,8 @@ namespace ShogiLibSharp.Core
          */
 
         /// <summary>
-        /// pos における合法手を生成
+        /// 合法手を生成する。
         /// </summary>
-        /// <param name="pos"></param>
-        /// <returns></returns>
         public static MoveList GenerateMoves(Position pos)
         {
             var buffer = new Move[BufferSize];
@@ -47,8 +45,17 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        /// <summary>
+        /// 指し手バッファの長さ
+        /// </summary>
         public const int BufferSize = 600;
 
+        /// <summary>
+        /// 合法手を生成する。 <br/>
+        /// </summary>
+        /// <param name="buffer">長さ 600 以上のバッファの先頭ポインタ。</param>>
+        /// <param name="pos">局面</param>
+        /// <returns>生成した指し手列の終端。</returns>
         public static unsafe partial Move* GenerateMoves(Move* buffer, Position pos);
 
         [InlineBitboardEnumerator, MakePublic]
