@@ -72,7 +72,7 @@ public class Bench
         while (p != end)
         { 
             pos.DoMove_PseudoLegal(*p++);
-            count += PerftImpl(pos, depth - 1);
+            count += PerftUnsafeImpl(pos, depth - 1);
             pos.UndoMove();
         }
 
