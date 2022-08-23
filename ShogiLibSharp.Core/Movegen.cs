@@ -78,18 +78,18 @@ namespace ShogiLibSharp.Core
                 {
                     var from = to + delta;
                     var rank = Square.RankOf(pos.Player, to);
-                    if (rank == 0)
+                    switch (rank)
                     {
-                        *buffer++ = MoveExtensions.MakeMove(from, to, true);
-                    }
-                    else if (rank <= 2)
-                    {
-                        *buffer++ = MoveExtensions.MakeMove(from, to, false);
-                        *buffer++ = MoveExtensions.MakeMove(from, to, true);
-                    }
-                    else
-                    {
-                        *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                        case 0:
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
+                            break;
+                        case 1: case 2:
+                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
+                            break;
+                        default:
+                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                            break;
                     }
                 }
             }
@@ -105,18 +105,18 @@ namespace ShogiLibSharp.Core
                     foreach (var to in toBB)
                     {
                         var rank = Square.RankOf(pos.Player, to);
-                        if (rank == 0)
+                        switch (rank)
                         {
-                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
-                        }
-                        else if (rank <= 2)
-                        {
-                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
-                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
-                        }
-                        else
-                        {
-                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                            case 0:
+                                *buffer++ = MoveExtensions.MakeMove(from, to, true);
+                                break;
+                            case 1: case 2:
+                                *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                                *buffer++ = MoveExtensions.MakeMove(from, to, true);
+                                break;
+                            default:
+                                *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                                break;
                         }
                     }
                 }
@@ -133,18 +133,18 @@ namespace ShogiLibSharp.Core
                     foreach (var to in toBB)
                     {
                         var rank = Square.RankOf(pos.Player, to);
-                        if (rank <= 1)
+                        switch (rank)
                         {
-                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
-                        }
-                        else if (rank == 2)
-                        {
-                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
-                            *buffer++ = MoveExtensions.MakeMove(from, to, true);
-                        }
-                        else
-                        {
-                            *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                            case 0: case 1:
+                                *buffer++ = MoveExtensions.MakeMove(from, to, true);
+                                break;
+                            case 2:
+                                *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                                *buffer++ = MoveExtensions.MakeMove(from, to, true);
+                                break;
+                            default:
+                                *buffer++ = MoveExtensions.MakeMove(from, to, false);
+                                break;
                         }
                     }
                 }
