@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
@@ -20,29 +21,29 @@ namespace ShogiLibSharp.Core
     /// 17 08       62 53 44 35 26 17 08 九               <br/>
     ///    hi                         lo                  <br/>
     /// </summary>
-    public struct Bitboard : IEnumerable<int>
+    public readonly struct Bitboard : IEnumerable<int>
     {
         #region テーブル
 
-        private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
-        private static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
-        private static readonly Bitboard[,] PAWN_ATTACKS = new Bitboard[81, 2];
-        private static readonly Bitboard[,] KNIGHT_ATTACKS = new Bitboard[81, 2];
-        private static readonly Bitboard[,] SILVER_ATTACKS = new Bitboard[81, 2];
-        private static readonly Bitboard[,] GOLD_ATTACKS = new Bitboard[81, 2];
-        private static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[,] LANCE_PSEUDO_ATTACKS = new Bitboard[81, 2];
-        private static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
+        static readonly Bitboard[] REACHABLE_MASK = new Bitboard[8 * 2];
+        static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
+        static readonly Bitboard[] PAWN_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] KNIGHT_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] SILVER_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] GOLD_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
+        static readonly Bitboard[] LANCE_PSEUDO_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
+        static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
 
-        private static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+        static readonly Bitboard[] RAY_BB = new Bitboard[81 * 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
 
-        private static readonly Vector256<ulong>[,] BishopMask = new Vector256<ulong>[81, 2];
-        private static readonly Vector128<ulong>[,] RookMask = new Vector128<ulong>[81, 2];
+        static readonly Vector256<ulong>[] BishopMask = new Vector256<ulong>[81 * 2];
+        static readonly Vector128<ulong>[] RookMask = new Vector128<ulong>[81 * 2];
 
         #endregion
 
-        private readonly Vector128<ulong> x;
+        readonly Vector128<ulong> x;
 
         public Bitboard(ulong lo, ulong hi)
         {
@@ -67,6 +68,7 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator&(Bitboard lhs, Bitboard rhs)
         {
             if (Sse2.IsSupported)
@@ -79,6 +81,7 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator|(Bitboard lhs, Bitboard rhs)
         {
             if (Sse2.IsSupported)
@@ -91,6 +94,7 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator^(Bitboard lhs, Bitboard rhs)
         {
             if (Sse2.IsSupported)
@@ -103,6 +107,7 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator <<(Bitboard x, int shift)
         {
             if (Sse2.IsSupported)
@@ -115,6 +120,7 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator >>(Bitboard x, int shift)
         {
             if (Sse2.IsSupported)
@@ -127,21 +133,25 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator &(Bitboard lhs, int sq)
         {
             return lhs & SQUARE_BIT[sq];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator |(Bitboard lhs, int sq)
         {
             return lhs | SQUARE_BIT[sq];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator ^(Bitboard lhs, int sq)
         {
             return lhs ^ SQUARE_BIT[sq];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard operator~(Bitboard x)
         {
             return x ^ new Bitboard(0x7fffffffffffffffUL, 0x000000000003ffffUL);
@@ -152,6 +162,7 @@ namespace ShogiLibSharp.Core
         /// </summary>
         /// <param name="rhs"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Bitboard AndNot(Bitboard rhs)
         {
             if (Sse2.IsSupported)
@@ -168,6 +179,7 @@ namespace ShogiLibSharp.Core
         /// 1 筋 から 7 筋までのビットボード
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ulong Lower()
         {
             return this.x.ToScalar();
@@ -177,6 +189,7 @@ namespace ShogiLibSharp.Core
         /// 8, 9 筋のビットボード
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ulong Upper()
         {
             return this.x.GetUpper().ToScalar();
@@ -186,6 +199,7 @@ namespace ShogiLibSharp.Core
         /// 立っているビットの数が 0 か
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool None()
         {
             if (Sse41.IsSupported)
@@ -202,6 +216,7 @@ namespace ShogiLibSharp.Core
         /// 立っているビットが存在するか
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Any()
         {
             return !None();
@@ -211,6 +226,7 @@ namespace ShogiLibSharp.Core
         /// 立っているビットの数
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Popcount()
         {
             return BitOperations.PopCount(Lower()) + BitOperations.PopCount(Upper());
@@ -221,6 +237,7 @@ namespace ShogiLibSharp.Core
         /// this.None() のとき、結果は不定
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int LsbSquare()
         {
             return Lower() != 0UL
@@ -233,6 +250,7 @@ namespace ShogiLibSharp.Core
         /// </summary>
         /// <param name="x"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TestZ(Bitboard x)
         {
             if (Sse41.IsSupported)
@@ -250,6 +268,7 @@ namespace ShogiLibSharp.Core
         /// </summary>
         /// <param name="sq"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Test(int sq)
         {
             return !this.TestZ(SQUARE_BIT[sq]);
@@ -310,16 +329,17 @@ namespace ShogiLibSharp.Core
         IEnumerator<int> IEnumerable<int>.GetEnumerator() => GetEnumerator();
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
-        
+
         /// <summary>
         /// sq から d の方向へ伸ばしたビットボード（sq は含まない）
         /// </summary>
         /// <param name="sq"></param>
         /// <param name="d"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard Ray(int sq, Direction d)
         {
-            return RAY_BB[sq, (int)d];
+            return RAY_BB[sq * 8 + (int)d];
         }
 
         /// <summary>
@@ -328,6 +348,7 @@ namespace ShogiLibSharp.Core
         /// <param name="i"></param>
         /// <param name="j"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard Between(int i, int j)
         {
             Direction d = DirectionExtensions.FromTo(i, j);
@@ -341,6 +362,7 @@ namespace ShogiLibSharp.Core
         /// <param name="i"></param>
         /// <param name="j"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard Line(int i, int j)
         {
             Direction d = DirectionExtensions.FromTo(i, j);
@@ -371,9 +393,10 @@ namespace ShogiLibSharp.Core
         /// <param name="c"></param>
         /// <param name="p"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard ReachableMask(Color c, Piece p)
         {
-            return REACHABLE_MASK[(int)p, (int)c];
+            return REACHABLE_MASK[(int)p * 2 + (int)c];
         }
 
         /// <summary>
@@ -402,41 +425,52 @@ namespace ShogiLibSharp.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static int TableIndex(Color c, int sq) => sq * 2 + (int)c;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard PawnAttacks(Color c, int sq)
         {
-            return PAWN_ATTACKS[sq, (int)c];
+            return PAWN_ATTACKS[TableIndex(c, sq)];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard KnightAttacks(Color c, int sq)
         {
-            return KNIGHT_ATTACKS[sq, (int)c];
+            return KNIGHT_ATTACKS[TableIndex(c, sq)];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard SilverAttacks(Color c, int sq)
         {
-            return SILVER_ATTACKS[sq, (int)c];
+            return SILVER_ATTACKS[TableIndex(c, sq)];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard GoldAttacks(Color c, int sq)
         {
-            return GOLD_ATTACKS[sq, (int)c];
+            return GOLD_ATTACKS[TableIndex(c, sq)];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard KingAttacks(int sq)
         {
             return KING_ATTACKS[sq];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard LancePseudoAttacks(Color c, int sq)
         {
-            return LANCE_PSEUDO_ATTACKS[sq, (int)c];
+            return LANCE_PSEUDO_ATTACKS[TableIndex(c, sq)];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard BishopPseudoAttacks(int sq)
         {
             return BISHOP_PSEUDO_ATTACKS[sq];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard RookPseudoAttacks(int sq)
         {
             return ROOK_PSEUDO_ATTACKS[sq];
@@ -531,8 +565,8 @@ namespace ShogiLibSharp.Core
                 var shuffle = Vector256.Create(
                     15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
                     15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-                var mask_lo = BishopMask[sq, 0];
-                var mask_hi = BishopMask[sq, 1];
+                var mask_lo = BishopMask[sq * 2 + 0];
+                var mask_hi = BishopMask[sq * 2 + 1];
                 var occ256 = occupancy.x.ToVector256Unsafe();
                 var occ2 = Avx2.Permute2x128(occ256, occ256, 0x20);
                 var rocc2 = Avx2.Shuffle(occ2.AsSByte(), shuffle).AsUInt64();
@@ -559,8 +593,8 @@ namespace ShogiLibSharp.Core
                 Vector128<ulong> res0, res1;
                 // 前半
                 {
-                    var mask_lo = BishopMask[sq, 0].GetLower();
-                    var mask_hi = BishopMask[sq, 1].GetLower();
+                    var mask_lo = BishopMask[sq * 2 + 0].GetLower();
+                    var mask_hi = BishopMask[sq * 2 + 1].GetLower();
                     var lo = Sse2.And(occ0, mask_lo);
                     var hi = Sse2.And(occ1, mask_hi);
                     var carry = Sse41.IsSupported
@@ -577,8 +611,8 @@ namespace ShogiLibSharp.Core
                 }
                 // 後半
                 {
-                    var mask_lo = BishopMask[sq, 0].GetUpper();
-                    var mask_hi = BishopMask[sq, 1].GetUpper();
+                    var mask_lo = BishopMask[sq * 2 + 0].GetUpper();
+                    var mask_hi = BishopMask[sq * 2 + 1].GetUpper();
                     var lo = Sse2.And(occ0, mask_lo);
                     var hi = Sse2.And(occ1, mask_hi);
                     var carry = Sse41.IsSupported
@@ -615,8 +649,8 @@ namespace ShogiLibSharp.Core
             if (Sse2.IsSupported)
             {
                 var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-                var mask_lo = RookMask[sq, 0];
-                var mask_hi = RookMask[sq, 1];
+                var mask_lo = RookMask[sq * 2 + 0];
+                var mask_hi = RookMask[sq * 2 + 1];
                 var rocc = Ssse3.IsSupported
                     ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
                     : Bswap128_Sse2(occupancy.x);
@@ -659,26 +693,26 @@ namespace ShogiLibSharp.Core
         {
             return p switch
             {
-                Piece.B_Pawn => PAWN_ATTACKS[sq, 0],
+                Piece.B_Pawn => PAWN_ATTACKS[sq * 2],
                 Piece.B_Lance => LanceAttacksBlack(sq, occupancy),
-                Piece.B_Knight => KNIGHT_ATTACKS[sq, 0],
-                Piece.B_Silver => SILVER_ATTACKS[sq, 0],
-                Piece.B_Gold => GOLD_ATTACKS[sq, 0],
+                Piece.B_Knight => KNIGHT_ATTACKS[sq * 2],
+                Piece.B_Silver => SILVER_ATTACKS[sq * 2],
+                Piece.B_Gold => GOLD_ATTACKS[sq * 2],
                 Piece.B_Bishop => BishopAttacks(sq, occupancy),
                 Piece.B_Rook => RookAttacks(sq, occupancy),
                 Piece.B_King => KING_ATTACKS[sq],
-                Piece.B_ProPawn or Piece.B_ProLance or Piece.B_ProKnight or Piece.B_ProSilver => GOLD_ATTACKS[sq, 0],
+                Piece.B_ProPawn or Piece.B_ProLance or Piece.B_ProKnight or Piece.B_ProSilver => GOLD_ATTACKS[sq * 2],
                 Piece.B_ProBishop => BishopAttacks(sq, occupancy) | KING_ATTACKS[sq],
                 Piece.B_ProRook => RookAttacks(sq, occupancy) | KING_ATTACKS[sq],
-                Piece.W_Pawn => PAWN_ATTACKS[sq, 1],
+                Piece.W_Pawn => PAWN_ATTACKS[sq * 2 + 1],
                 Piece.W_Lance => LanceAttacksWhite(sq, occupancy),
-                Piece.W_Knight => KNIGHT_ATTACKS[sq, 1],
-                Piece.W_Silver => SILVER_ATTACKS[sq, 1],
-                Piece.W_Gold => GOLD_ATTACKS[sq, 1],
+                Piece.W_Knight => KNIGHT_ATTACKS[sq * 2 + 1],
+                Piece.W_Silver => SILVER_ATTACKS[sq * 2 + 1],
+                Piece.W_Gold => GOLD_ATTACKS[sq * 2 + 1],
                 Piece.W_Bishop => BishopAttacks(sq, occupancy),
                 Piece.W_Rook => RookAttacks(sq, occupancy),
                 Piece.W_King => KING_ATTACKS[sq],
-                Piece.W_ProPawn or Piece.W_ProLance or Piece.W_ProKnight or Piece.W_ProSilver => GOLD_ATTACKS[sq, 1],
+                Piece.W_ProPawn or Piece.W_ProLance or Piece.W_ProKnight or Piece.W_ProSilver => GOLD_ATTACKS[sq * 2 + 1],
                 Piece.W_ProBishop => BishopAttacks(sq, occupancy) | KING_ATTACKS[sq],
                 Piece.W_ProRook => RookAttacks(sq, occupancy) | KING_ATTACKS[sq],
                 _ => new Bitboard(),
@@ -810,7 +844,7 @@ namespace ShogiLibSharp.Core
                         if (!(0 <= rank && rank < 9 && 0 <= file && file < 9))
                             break;
 
-                        RAY_BB[sq, d] |= Square.Index(rank, file);
+                        RAY_BB[sq * 8 + d] |= Square.Index(rank, file);
                     }
                 }
             }
@@ -818,34 +852,34 @@ namespace ShogiLibSharp.Core
             for (int rank = 0; rank < 9; ++rank)
                 for (int file = 0; file < 9; ++file)
                 {
-                    PAWN_ATTACKS[Square.Index(rank, file), (int)Color.Black]
+                    PAWN_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.Black]
                         = SquareBit(rank - 1, file);
-                    PAWN_ATTACKS[Square.Index(rank, file), (int)Color.White]
+                    PAWN_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.White]
                         = SquareBit(rank + 1, file);
-                    KNIGHT_ATTACKS[Square.Index(rank, file), (int)Color.Black]
+                    KNIGHT_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.Black]
                         = SquareBit(rank - 2, file - 1) | SquareBit(rank - 2, file + 1);
-                    KNIGHT_ATTACKS[Square.Index(rank, file), (int)Color.White]
+                    KNIGHT_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.White]
                         = SquareBit(rank + 2, file - 1) | SquareBit(rank + 2, file + 1);
-                    SILVER_ATTACKS[Square.Index(rank, file), (int)Color.Black]
+                    SILVER_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.Black]
                         = SquareBit(rank - 1, file - 1)
                         | SquareBit(rank - 1, file)
                         | SquareBit(rank - 1, file + 1)
                         | SquareBit(rank + 1, file - 1)
                         | SquareBit(rank + 1, file + 1);
-                    SILVER_ATTACKS[Square.Index(rank, file), (int)Color.White]
+                    SILVER_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.White]
                         = SquareBit(rank + 1, file - 1)
                         | SquareBit(rank + 1, file)
                         | SquareBit(rank + 1, file + 1)
                         | SquareBit(rank - 1, file - 1)
                         | SquareBit(rank - 1, file + 1);
-                    GOLD_ATTACKS[Square.Index(rank, file), (int)Color.Black]
+                    GOLD_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.Black]
                         = SquareBit(rank - 1, file - 1)
                         | SquareBit(rank - 1, file)
                         | SquareBit(rank - 1, file + 1)
                         | SquareBit(rank, file - 1)
                         | SquareBit(rank, file + 1)
                         | SquareBit(rank + 1, file);
-                    GOLD_ATTACKS[Square.Index(rank, file), (int)Color.White]
+                    GOLD_ATTACKS[Square.Index(rank, file) * 2 + (int)Color.White]
                         = SquareBit(rank + 1, file - 1)
                         | SquareBit(rank + 1, file)
                         | SquareBit(rank + 1, file + 1)
@@ -855,16 +889,16 @@ namespace ShogiLibSharp.Core
                 }
 
             for (int i = 0; i < 81; ++i)
-                KING_ATTACKS[i] = SILVER_ATTACKS[i, 0] | GOLD_ATTACKS[i, 0];
+                KING_ATTACKS[i] = SILVER_ATTACKS[i * 2] | GOLD_ATTACKS[i * 2];
 
             foreach (var p in PieceExtensions.PawnToRook)
             {
                 foreach (Color c in new[] { Color.Black, Color.White})
                 {
-                    REACHABLE_MASK[(int)p, (int)c] =
+                    REACHABLE_MASK[(int)p * 2 + (int)c] =
                         p == Piece.Pawn || p == Piece.Lance ? Rank(c, 1, 8)
-                      : p == Piece.Knight                  ? Rank(c, 2, 8)
-                      :                                     Rank(c, 0, 8);
+                      : p == Piece.Knight                   ? Rank(c, 2, 8)
+                      :                                       Rank(c, 0, 8);
                 }
             }
 
@@ -884,16 +918,16 @@ namespace ShogiLibSharp.Core
                 leftdown = Bswap128_NoSse(leftdown);
                 down = Bswap128_NoSse(down);
 
-                BishopMask[i, 0] = Vector256.Create(rightup.GetLower().ToScalar(), leftdown.GetLower().ToScalar(), leftup.GetLower().ToScalar(), rightdown.GetLower().ToScalar());
-                BishopMask[i, 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
-                RookMask[i, 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
-                RookMask[i, 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
+                BishopMask[i * 2 + 0] = Vector256.Create(rightup.GetLower().ToScalar(), leftdown.GetLower().ToScalar(), leftup.GetLower().ToScalar(), rightdown.GetLower().ToScalar());
+                BishopMask[i * 2 + 1] = Vector256.Create(rightup.GetUpper().ToScalar(), leftdown.GetUpper().ToScalar(), leftup.GetUpper().ToScalar(), rightdown.GetUpper().ToScalar());
+                RookMask[i * 2 + 0] = Vector128.Create(up.GetLower().ToScalar(), down.GetLower().ToScalar());
+                RookMask[i * 2 + 1] = Vector128.Create(up.GetUpper().ToScalar(), down.GetUpper().ToScalar());
             }
 
             for (int i = 0; i < 81; ++i)
             {
-                LANCE_PSEUDO_ATTACKS[i, 0] = LanceAttacksBlack(i, default);
-                LANCE_PSEUDO_ATTACKS[i, 1] = LanceAttacksWhite(i, default);
+                LANCE_PSEUDO_ATTACKS[i * 2 + 0] = LanceAttacksBlack(i, default);
+                LANCE_PSEUDO_ATTACKS[i * 2 + 1] = LanceAttacksWhite(i, default);
                 BISHOP_PSEUDO_ATTACKS[i] = BishopAttacks(i, default);
                 ROOK_PSEUDO_ATTACKS[i] = RookAttacks(i, default);
             }

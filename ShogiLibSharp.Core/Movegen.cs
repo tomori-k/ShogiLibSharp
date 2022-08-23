@@ -77,7 +77,7 @@ namespace ShogiLibSharp.Core
                 foreach (var to in toBB)
                 {
                     var from = to + delta;
-                    var rank = Square.RankOf_Unsafe(pos.Player, to);
+                    var rank = Square.RankOf(pos.Player, to);
                     if (rank == 0)
                     {
                         *buffer++ = MoveExtensions.MakeMove(from, to, true);
@@ -104,7 +104,7 @@ namespace ShogiLibSharp.Core
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        var rank = Square.RankOf_Unsafe(pos.Player, to);
+                        var rank = Square.RankOf(pos.Player, to);
                         if (rank == 0)
                         {
                             *buffer++ = MoveExtensions.MakeMove(from, to, true);
@@ -132,7 +132,7 @@ namespace ShogiLibSharp.Core
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        var rank = Square.RankOf_Unsafe(pos.Player, to);
+                        var rank = Square.RankOf(pos.Player, to);
                         if (rank <= 1)
                         {
                             *buffer++ = MoveExtensions.MakeMove(from, to, true);
@@ -164,7 +164,7 @@ namespace ShogiLibSharp.Core
                     foreach (var to in toBB)
                     {
                         *buffer++ = MoveExtensions.MakeMove(from, to, false);
-                        if (Square.CanPromote_Unsafe(pos.Player, from, to))
+                        if (Square.CanPromote(pos.Player, from, to))
                         {
                             *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
@@ -326,9 +326,9 @@ namespace ShogiLibSharp.Core
                 tmpl[n++] = MoveExtensions.MakeDrop(Piece.Rook, 0);
             }
 
-            var to1 = target & Bitboard.Rank(pos.Player, 0, 0);
-            var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
-            var rem = target & Bitboard.Rank(pos.Player, 2, 8);
+            var to1 = target & Rank1BB[(int)pos.Player];
+            var to2 = target & Rank2BB[(int)pos.Player];
+            var rem = target & Rank39BB[(int)pos.Player];
 
             if (Sse2.IsSupported)
             {
@@ -416,8 +416,8 @@ namespace ShogiLibSharp.Core
             var c = p.Color();
             p = p.Colorless();
 
-            if ((Square.RankOf_Unsafe(c, to) <= 1 && p == Piece.Knight)
-                || (Square.RankOf_Unsafe(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
+            if ((Square.RankOf(c, to) <= 1 && p == Piece.Knight)
+                || (Square.RankOf(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
             {
                 *buffer++ = MoveExtensions.MakeMove(from, to, true);
             }
@@ -425,7 +425,7 @@ namespace ShogiLibSharp.Core
             {
                 *buffer++ = MoveExtensions.MakeMove(from, to, false);
 
-                if (Square.CanPromote_Unsafe(c, from, to)
+                if (Square.CanPromote(c, from, to)
                     && !(p.IsPromoted() || p == Piece.Gold || p == Piece.King))
                     *buffer++ = MoveExtensions.MakeMove(from, to, true);
             }
@@ -470,6 +470,20 @@ namespace ShogiLibSharp.Core
             }
 
             return true;
+        }
+
+        static readonly Bitboard[] Rank1BB = new Bitboard[2];
+        static readonly Bitboard[] Rank2BB = new Bitboard[2];
+        static readonly Bitboard[] Rank39BB = new Bitboard[2];
+
+        static Movegen()
+        {
+            Rank1BB[0] = Bitboard.Rank(Color.Black, 0, 0);
+            Rank2BB[0] = Bitboard.Rank(Color.Black, 1, 1);
+            Rank39BB[0] = Bitboard.Rank(Color.Black, 2, 8);
+            Rank1BB[1] = Bitboard.Rank(Color.White, 0, 0);
+            Rank2BB[1] = Bitboard.Rank(Color.White, 1, 1);
+            Rank39BB[1] = Bitboard.Rank(Color.White, 2, 8);
         }
     }
 }
