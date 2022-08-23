@@ -21,29 +21,29 @@ namespace ShogiLibSharp.Core
     /// 17 08       62 53 44 35 26 17 08 九               <br/>
     ///    hi                         lo                  <br/>
     /// </summary>
-    public struct Bitboard : IEnumerable<int>
+    public readonly struct Bitboard : IEnumerable<int>
     {
         #region テーブル
 
-        private static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
-        private static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
-        private static readonly Bitboard[] PAWN_ATTACKS = new Bitboard[81 * 2];
-        private static readonly Bitboard[] KNIGHT_ATTACKS = new Bitboard[81 * 2];
-        private static readonly Bitboard[] SILVER_ATTACKS = new Bitboard[81 * 2];
-        private static readonly Bitboard[] GOLD_ATTACKS = new Bitboard[81 * 2];
-        private static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[] LANCE_PSEUDO_ATTACKS = new Bitboard[81 * 2];
-        private static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
-        private static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
+        static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
+        static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
+        static readonly Bitboard[] PAWN_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] KNIGHT_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] SILVER_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] GOLD_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] KING_ATTACKS = new Bitboard[81];
+        static readonly Bitboard[] LANCE_PSEUDO_ATTACKS = new Bitboard[81 * 2];
+        static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
+        static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
 
-        private static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+        static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
 
-        private static readonly Vector256<ulong>[] BishopMask = new Vector256<ulong>[81 * 2];
-        private static readonly Vector128<ulong>[] RookMask = new Vector128<ulong>[81 * 2];
+        static readonly Vector256<ulong>[] BishopMask = new Vector256<ulong>[81 * 2];
+        static readonly Vector128<ulong>[] RookMask = new Vector128<ulong>[81 * 2];
 
         #endregion
 
-        private readonly Vector128<ulong> x;
+        readonly Vector128<ulong> x;
 
         public Bitboard(ulong lo, ulong hi)
         {
