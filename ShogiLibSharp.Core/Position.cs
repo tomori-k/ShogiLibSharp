@@ -17,7 +17,7 @@ namespace ShogiLibSharp.Core
         private string initPos;
         private Board board = new Board();
         private Bitboard[] colorBB = new Bitboard[2];
-        private Bitboard[,] pieceBB = new Bitboard[2, 16];
+        private Bitboard[] pieceBB = new Bitboard[2 * 16];
         // 指し手＋その指し手で確保した駒のペア
         private Stack<(Move Move, Piece Captured)> moves = new Stack<(Move, Piece)>();
         private Bitboard checkers;
@@ -111,7 +111,7 @@ namespace ShogiLibSharp.Core
             this.initPos = pos.initPos;
             this.board = pos.board.Clone();
             this.colorBB = (Bitboard[])pos.colorBB.Clone();
-            this.pieceBB = (Bitboard[,])pos.pieceBB.Clone();
+            this.pieceBB = (Bitboard[])pos.pieceBB.Clone();
             this.moves = new(pos.moves.Reverse()); // シャローコピーだけどまあいいか...
             this.checkers = pos.checkers;
             this.pinnedBy = (Bitboard[])pos.pinnedBy.Clone();
@@ -173,7 +173,7 @@ namespace ShogiLibSharp.Core
         /// <returns></returns>
         public ref Bitboard PieceBB(Piece p)
         {
-            return ref pieceBB[(int)p.Color(), (int)p.Colorless()];
+            return ref pieceBB[(int)p];
         }
 
         /// <summary>
@@ -776,7 +776,7 @@ namespace ShogiLibSharp.Core
             board.Validate();
 
             colorBB = new Bitboard[2];
-            pieceBB = new Bitboard[2, 16];
+            pieceBB = new Bitboard[2 * 16];
 
             for (int i = 0; i < 81; ++i)
             {
