@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -39,11 +37,6 @@ namespace ShogiLibSharp.Core
         static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
 
         static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
-
-        static readonly ushort[] BETWEEN_BB_INDEX = new ushort[81 * 81];
-        static readonly byte[] LINE_BB_INDEX = new byte[81 * 81];
-        static readonly Bitboard[] BETWEEN_BB = new Bitboard[638];
-        static readonly Bitboard[] LINE_BB = new Bitboard[49];
 
         static readonly Vector256<ulong>[] BishopMask = new Vector256<ulong>[81 * 2];
         static readonly Vector128<ulong>[] RookMask = new Vector128<ulong>[81 * 2];
@@ -358,8 +351,9 @@ namespace ShogiLibSharp.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard Between(int i, int j)
         {
-            return Util.FastAccessValue(BETWEEN_BB, Util.FastAccessValue(BETWEEN_BB_INDEX, i * 81 + j));
-            //return BETWEEN_BB[BETWEEN_BB_INDEX[i * 81 + j]];
+            Direction d = DirectionExtensions.FromTo(i, j);
+            return d != Direction.None
+                ? Ray(i, d) & Ray(j, d.Reverse()) : default;
         }
 
         /// <summary>
@@ -371,8 +365,9 @@ namespace ShogiLibSharp.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard Line(int i, int j)
         {
-            return Util.FastAccessValue(LINE_BB, Util.FastAccessValue(LINE_BB_INDEX, i * 81 + j));
-            // return LINE_BB[LINE_BB_INDEX[i * 81 + j]];
+            Direction d = DirectionExtensions.FromTo(i, j);
+            return d != Direction.None
+                ? Ray(i, d) | Ray(j, d.Reverse()) : default;
         }
 
         /// <summary>
@@ -935,54 +930,6 @@ namespace ShogiLibSharp.Core
                 LANCE_PSEUDO_ATTACKS[i * 2 + 1] = LanceAttacksWhite(i, default);
                 BISHOP_PSEUDO_ATTACKS[i] = BishopAttacks(i, default);
                 ROOK_PSEUDO_ATTACKS[i] = RookAttacks(i, default);
-            }
-
-            Bitboard computeBetweenBB(int i, int j)
-            {
-                var d = DirectionExtensions.FromTo(i, j);
-                return d != Direction.None
-                    ? Ray(i, d) & Ray(j, d.Reverse()) : default;
-            }
-
-            Bitboard computeLineBB(int i, int j)
-            {
-                var d = DirectionExtensions.FromTo(i, j);
-                return d != Direction.None
-                    ? Ray(i, d) | Ray(j, d.Reverse()) : default;
-            }
-
-            var betweenIds = new Dictionary<Bitboard, int>();
-            for (int i = 0; i < 81; ++i)
-            {
-                for (int j = 0; j < 81; ++j)
-                {
-                    var between = computeBetweenBB(i, j);
-                    if (!betweenIds.ContainsKey(between))
-                    {
-                        int idx = betweenIds.Count;
-                        betweenIds[between] = idx;
-                        BETWEEN_BB[idx] = between;
-                    }
-                    BETWEEN_BB_INDEX[i * 81 + j] = (ushort)betweenIds[between];
-                }
-            }
-
-            var lineIds = new Dictionary<Bitboard, int>();
-            //lineIds[default] = 0;
-            //LINE_BB[0] = default;
-            for (int i = 0; i < 81; ++i)
-            {
-                for (int j = 0; j < 81; ++j)
-                {
-                    var line = computeLineBB(i, j);
-                    if (!lineIds.ContainsKey(line))
-                    {
-                        int idx = lineIds.Count;
-                        lineIds[line] = idx;
-                        LINE_BB[idx] = line;
-                    }
-                    LINE_BB_INDEX[i * 81 + j] = (byte)lineIds[line];
-                }
             }
         }
     }
