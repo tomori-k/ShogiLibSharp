@@ -25,7 +25,7 @@ namespace ShogiLibSharp.Core
     {
         #region テーブル
 
-        static readonly Bitboard[,] REACHABLE_MASK = new Bitboard[8, 2];
+        static readonly Bitboard[] REACHABLE_MASK = new Bitboard[8 * 2];
         static readonly Bitboard[] SQUARE_BIT = new Bitboard[81];
         static readonly Bitboard[] PAWN_ATTACKS = new Bitboard[81 * 2];
         static readonly Bitboard[] KNIGHT_ATTACKS = new Bitboard[81 * 2];
@@ -36,7 +36,7 @@ namespace ShogiLibSharp.Core
         static readonly Bitboard[] BISHOP_PSEUDO_ATTACKS = new Bitboard[81];
         static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
 
-        static readonly Bitboard[,] RAY_BB = new Bitboard[81, 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+        static readonly Bitboard[] RAY_BB = new Bitboard[81 * 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
 
         static readonly Vector256<ulong>[] BishopMask = new Vector256<ulong>[81 * 2];
         static readonly Vector128<ulong>[] RookMask = new Vector128<ulong>[81 * 2];
@@ -339,7 +339,7 @@ namespace ShogiLibSharp.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard Ray(int sq, Direction d)
         {
-            return RAY_BB[sq, (int)d];
+            return RAY_BB[sq * 8 + (int)d];
         }
 
         /// <summary>
@@ -396,7 +396,7 @@ namespace ShogiLibSharp.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Bitboard ReachableMask(Color c, Piece p)
         {
-            return REACHABLE_MASK[(int)p, (int)c];
+            return REACHABLE_MASK[(int)p * 2 + (int)c];
         }
 
         /// <summary>
@@ -844,7 +844,7 @@ namespace ShogiLibSharp.Core
                         if (!(0 <= rank && rank < 9 && 0 <= file && file < 9))
                             break;
 
-                        RAY_BB[sq, d] |= Square.Index(rank, file);
+                        RAY_BB[sq * 8 + d] |= Square.Index(rank, file);
                     }
                 }
             }
@@ -895,10 +895,10 @@ namespace ShogiLibSharp.Core
             {
                 foreach (Color c in new[] { Color.Black, Color.White})
                 {
-                    REACHABLE_MASK[(int)p, (int)c] =
+                    REACHABLE_MASK[(int)p * 2 + (int)c] =
                         p == Piece.Pawn || p == Piece.Lance ? Rank(c, 1, 8)
-                      : p == Piece.Knight                  ? Rank(c, 2, 8)
-                      :                                     Rank(c, 0, 8);
+                      : p == Piece.Knight                   ? Rank(c, 2, 8)
+                      :                                       Rank(c, 0, 8);
                 }
             }
 
