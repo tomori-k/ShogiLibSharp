@@ -36,6 +36,7 @@ namespace ShogiLibSharp.Core
         /// 例1: 先手目線でマス 0 の段は 0  <br/>
         /// 例2: 後手目線でマス 0 の段は 8  <br/>
         /// </returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int RankOf(Color c, int sq) => rankTable[RankTableIndex(c, sq)];
 
         /// <summary>
@@ -46,6 +47,7 @@ namespace ShogiLibSharp.Core
         /// <returns>
         /// 段番号（0 スタート）
         /// </returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int RankOf(int sq) => RankOf(Color.Black, sq);
 
         /// <summary>
@@ -53,6 +55,7 @@ namespace ShogiLibSharp.Core
         /// </summary>
         /// <param name="sq"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FileOf(int sq) => sq / 9;
 
         /// <summary>
@@ -61,6 +64,7 @@ namespace ShogiLibSharp.Core
         /// <param name="rank"></param>
         /// <param name="file"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Index(int rank, int file) => rank + file * 9;
         
         /// <summary>
@@ -70,6 +74,7 @@ namespace ShogiLibSharp.Core
         /// <param name="from"></param>
         /// <param name="to"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool CanPromote(Color c, int from, int to)
             => RankOf(c, from) <= 2 || RankOf(c, to) <= 2;
 
