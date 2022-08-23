@@ -77,7 +77,7 @@ namespace ShogiLibSharp.Core
                 foreach (var to in toBB)
                 {
                     var from = to + delta;
-                    var rank = Square.RankOf_Unsafe(pos.Player, to);
+                    var rank = Square.RankOf(pos.Player, to);
                     if (rank == 0)
                     {
                         *buffer++ = MoveExtensions.MakeMove(from, to, true);
@@ -104,7 +104,7 @@ namespace ShogiLibSharp.Core
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        var rank = Square.RankOf_Unsafe(pos.Player, to);
+                        var rank = Square.RankOf(pos.Player, to);
                         if (rank == 0)
                         {
                             *buffer++ = MoveExtensions.MakeMove(from, to, true);
@@ -132,7 +132,7 @@ namespace ShogiLibSharp.Core
                         .AndNot(us);
                     foreach (var to in toBB)
                     {
-                        var rank = Square.RankOf_Unsafe(pos.Player, to);
+                        var rank = Square.RankOf(pos.Player, to);
                         if (rank <= 1)
                         {
                             *buffer++ = MoveExtensions.MakeMove(from, to, true);
@@ -164,7 +164,7 @@ namespace ShogiLibSharp.Core
                     foreach (var to in toBB)
                     {
                         *buffer++ = MoveExtensions.MakeMove(from, to, false);
-                        if (Square.CanPromote_Unsafe(pos.Player, from, to))
+                        if (Square.CanPromote(pos.Player, from, to))
                         {
                             *buffer++ = MoveExtensions.MakeMove(from, to, true);
                         }
@@ -416,8 +416,8 @@ namespace ShogiLibSharp.Core
             var c = p.Color();
             p = p.Colorless();
 
-            if ((Square.RankOf_Unsafe(c, to) <= 1 && p == Piece.Knight)
-                || (Square.RankOf_Unsafe(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
+            if ((Square.RankOf(c, to) <= 1 && p == Piece.Knight)
+                || (Square.RankOf(c, to) == 0 && (p == Piece.Pawn || p == Piece.Lance)))
             {
                 *buffer++ = MoveExtensions.MakeMove(from, to, true);
             }
@@ -425,7 +425,7 @@ namespace ShogiLibSharp.Core
             {
                 *buffer++ = MoveExtensions.MakeMove(from, to, false);
 
-                if (Square.CanPromote_Unsafe(c, from, to)
+                if (Square.CanPromote(c, from, to)
                     && !(p.IsPromoted() || p == Piece.Gold || p == Piece.King))
                     *buffer++ = MoveExtensions.MakeMove(from, to, true);
             }

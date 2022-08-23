@@ -43,21 +43,10 @@ namespace ShogiLibSharp.Core
         /// </summary>
         /// <param name="c"></param>
         /// <param name="sq"></param>
-        /// <returns>段番号（0 スタート）</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int RankOf_Unsafe(Color c, int sq)
-            => Util.FastAccessValue(rankTable, RankTableIndex(c, sq));
-
-        /// <summary>
-        /// 段
-        /// </summary>
-        /// <param name="c"></param>
-        /// <param name="sq"></param>
         /// <returns>
         /// 段番号（0 スタート）
         /// </returns>
-        public static int RankOf(int sq)
-            => RankOf(Color.Black, sq);
+        public static int RankOf(int sq) => RankOf(Color.Black, sq);
 
         /// <summary>
         /// 筋（0 スタート）
@@ -83,11 +72,6 @@ namespace ShogiLibSharp.Core
         /// <returns></returns>
         public static bool CanPromote(Color c, int from, int to)
             => RankOf(c, from) <= 2 || RankOf(c, to) <= 2;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool CanPromote_Unsafe(Color c, int from, int to)
-            => RankOf_Unsafe(c, from) <= 2 || RankOf_Unsafe(c, to) <= 2;
-
 
         static readonly string[] PrettyRankTable = { "一", "二", "三", "四", "五", "六", "七", "八", "九" };
         static readonly string[] PrettyFileTable = { "１", "２", "３", "４", "５", "６", "７", "８", "９" };
