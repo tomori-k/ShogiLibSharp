@@ -12,31 +12,19 @@ namespace ShogiLibSharp.Core
     {
         readonly static int[] rankTable = new[]
         {
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                0, 1, 2, 3, 4, 5, 6, 7, 8,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
-                8, 7, 6, 5, 4, 3, 2, 1, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
+            0, 8, 1, 7, 2, 6, 3, 5, 4, 4, 5, 3, 6, 2, 7, 1, 8, 0,
         };
 
-        static void ThrowIfOutOfBoard(int sq)
-        {
-            if (0 <= sq && sq < 81) return;
-            throw new ArgumentOutOfRangeException($"マス番号が範囲外です。: {sq}");
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static int RankTableIndex(Color c, int sq) => sq * 2 + (int)c;
 
         /// <summary>
         /// 段
@@ -48,11 +36,7 @@ namespace ShogiLibSharp.Core
         /// 例1: 先手目線でマス 0 の段は 0  <br/>
         /// 例2: 後手目線でマス 0 の段は 8  <br/>
         /// </returns>
-        public static int RankOf(Color c, int sq)
-        {
-            ThrowIfOutOfBoard(sq);
-            return RankOf_Unsafe(c, sq);
-        }
+        public static int RankOf(Color c, int sq) => rankTable[RankTableIndex(c, sq)];
 
         /// <summary>
         /// 段
@@ -62,11 +46,7 @@ namespace ShogiLibSharp.Core
         /// <returns>段番号（0 スタート）</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int RankOf_Unsafe(Color c, int sq)
-        {
-            var index = (-(int)c & 81) + sq;
-            ref int tableRef = ref MemoryMarshal.GetArrayDataReference(rankTable);
-            return Unsafe.Add(ref tableRef, (nint)index);
-        }
+            => Util.FastAccessValue(rankTable, RankTableIndex(c, sq));
 
         /// <summary>
         /// 段
