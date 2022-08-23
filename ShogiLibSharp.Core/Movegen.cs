@@ -326,9 +326,9 @@ namespace ShogiLibSharp.Core
                 tmpl[n++] = MoveExtensions.MakeDrop(Piece.Rook, 0);
             }
 
-            var to1 = target & Bitboard.Rank(pos.Player, 0, 0);
-            var to2 = target & Bitboard.Rank(pos.Player, 1, 1);
-            var rem = target & Bitboard.Rank(pos.Player, 2, 8);
+            var to1 = target & Rank1BB[(int)pos.Player];
+            var to2 = target & Rank2BB[(int)pos.Player];
+            var rem = target & Rank39BB[(int)pos.Player];
 
             if (Sse2.IsSupported)
             {
@@ -470,6 +470,20 @@ namespace ShogiLibSharp.Core
             }
 
             return true;
+        }
+
+        static readonly Bitboard[] Rank1BB = new Bitboard[2];
+        static readonly Bitboard[] Rank2BB = new Bitboard[2];
+        static readonly Bitboard[] Rank39BB = new Bitboard[2];
+
+        static Movegen()
+        {
+            Rank1BB[0] = Bitboard.Rank(Color.Black, 0, 0);
+            Rank2BB[0] = Bitboard.Rank(Color.Black, 1, 1);
+            Rank39BB[0] = Bitboard.Rank(Color.Black, 2, 8);
+            Rank1BB[1] = Bitboard.Rank(Color.White, 0, 0);
+            Rank2BB[1] = Bitboard.Rank(Color.White, 1, 1);
+            Rank39BB[1] = Bitboard.Rank(Color.White, 2, 8);
         }
     }
 }
