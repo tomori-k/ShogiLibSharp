@@ -15,7 +15,7 @@ namespace ShogiLibSharp.Csa.Tests
     [TestClass()]
     public class CsaClientTests
     {
-        [TestMethod(), Timeout(20000)]
+        [TestMethod(), Timeout(60000)]
         public async Task ConnectAsyncTest()
         {
             var options1 = new ConnectOptions
