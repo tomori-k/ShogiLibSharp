@@ -35,7 +35,8 @@ namespace ShogiLibSharp.Engine.Tests
             var (p, o) = (engine1, engine2);
 
             while (!pos.IsMated()
-                && pos.CheckRepetition() == Repetition.None)
+                && pos.CheckRepetition() == Repetition.None
+                && pos.GamePly < 256)
             {
                 var result = await p.GoAsync(pos, limits);
                 var bestmove = result.Bestmove;
