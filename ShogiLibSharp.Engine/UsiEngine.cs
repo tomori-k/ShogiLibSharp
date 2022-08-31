@@ -26,15 +26,17 @@ namespace ShogiLibSharp.Engine
         IEngineProcess process;
         object syncObj = new();
 
-        // IEngineProcess の SendLine の呼び出しの内部で StdOutReceived が
-        // Invoke されると lock がネストする可能性があるので、メッセージの受信は
-        // 必ず非同期に処理
-        // 例:
-        // lock (syncObj)
-        //   SendLine("isready")
-        //     StdOutReceived("readyok") // これを Task.Run().Wait() などで囲ったりすると
-        //       lock (syncObj)          // ここでデッドロック（スレッドが変わるため）
-        //         State.ReadyOk();
+        /*
+         * IEngineProcess の SendLine の呼び出しの内部で StdOutReceived が
+         * Invoke されると lock がネストする可能性があるので、メッセージの受信は
+         * 必ず非同期に処理
+         * 例:
+         * lock (syncObj)
+         * SendLine("isready")
+         *  StdOutReceived("readyok") // これを Task.Run().Wait() などで囲ったりすると
+         *    lock (syncObj)          // ここでデッドロック（スレッドが変わるため）
+         *      State.ReadyOk();
+         */
 
         Channel<string> stdoutChannel = Channel
             .CreateUnbounded<string>(new UnboundedChannelOptions
@@ -52,6 +54,8 @@ namespace ShogiLibSharp.Engine
         public TimeSpan ReadyOkTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan BestmoveResponseTimeout { get; set; } = TimeSpan.FromSeconds(10.0);
         public TimeSpan ExitWaitingTime { get; set; } = TimeSpan.FromSeconds(10.0);
+
+        public event Action<UsiInfo>? Info;
 
         public UsiEngine(string fileName, string workingDir, ILogger<UsiEngine> logger, string arguments = "")
         {
@@ -159,6 +163,15 @@ namespace ShogiLibSharp.Engine
                     lock (syncObj)
                     {
                         State.Info(this, message);
+                    }
+
+                    try
+                    {
+                        this.Info?.Invoke(UsiCommand.ParseInfo(message));
+                    }
+                    catch (FormatException e)
+                    {
+                        Logger.LogWarning(e, "info コマンドの解釈に失敗しました");
                     }
                 }
             }
