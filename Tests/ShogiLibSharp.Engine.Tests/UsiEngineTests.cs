@@ -19,8 +19,8 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod(), Timeout(10000)]
         public async Task UsiEngineTest()
         {
-            using var engine1 = new UsiEngine(new RandomPlayer());
-            using var engine2 = new UsiEngine(new RandomPlayer());
+            await using var engine1 = new UsiEngine(new RandomPlayer());
+            await using var engine2 = new UsiEngine(new RandomPlayer());
 
             //engine1.StdIn += s => Trace.WriteLine($"< {s}");
             //engine1.StdOut += s => Trace.WriteLine($"  > {s}");
@@ -71,7 +71,7 @@ namespace ShogiLibSharp.Engine.Tests
         public async Task CancelGoTest()
         {
             var process = new RandomPlayer();
-            using var engine = new UsiEngine(process);
+            await using var engine = new UsiEngine(process);
 
             await engine.BeginAsync();
             await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
@@ -92,7 +92,7 @@ namespace ShogiLibSharp.Engine.Tests
             var process = new RandomPlayer();
             process.StdOutReceived += s => Trace.WriteLine($"> {s}");
 
-            using var engine = new UsiEngine(process);
+            await using var engine = new UsiEngine(process);
             await engine.BeginAsync();
             await engine.IsReadyAsync();
             engine.StartNewGame();
@@ -129,7 +129,7 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod(), Timeout(5000)]
         public async Task UsiOkTimeoutTest()
         {
-            using var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            await using var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
             engine1.UsiOkTimeout = TimeSpan.FromSeconds(0.1);
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
@@ -137,7 +137,7 @@ namespace ShogiLibSharp.Engine.Tests
             });
 
             // 外部の cts のキャンセルは、OperationCanceled になる
-            using var engine2 = new UsiEngine(CreateMock_FailToReturnUsiOk());
+            await using var engine2 = new UsiEngine(CreateMock_FailToReturnUsiOk());
             await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(0.1));
@@ -148,7 +148,7 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod(), Timeout(5000)]
         public async Task ReadyOkTimeoutTest()
         {
-            using var engine1 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
+            await using var engine1 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
             engine1.ReadyOkTimeout = TimeSpan.FromSeconds(0.1);
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
@@ -156,7 +156,7 @@ namespace ShogiLibSharp.Engine.Tests
                 await engine1.IsReadyAsync();
             });
 
-            using var engine2 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
+            await using var engine2 = new UsiEngine(CreateMock_ForgetToReturnReadyOk());
             await Assert.ThrowsExceptionAsync<OperationCanceledException>(async () =>
             {
                 await engine2.BeginAsync();
@@ -182,7 +182,7 @@ namespace ShogiLibSharp.Engine.Tests
             mock.Setup(m => m.Kill())
                 .Raises(x => x.Exited += null, new EventArgs());
 
-            using var engine = new UsiEngine(mock.Object);
+            await using var engine = new UsiEngine(mock.Object);
             engine.ExitWaitingTime = TimeSpan.FromSeconds(0.1);
 
             await engine.BeginAsync();
@@ -209,7 +209,7 @@ namespace ShogiLibSharp.Engine.Tests
                     mock.Raise(x => x.StdOutReceived += null, "readyok");
                 });
 
-            using var engine = new UsiEngine(mock.Object);
+            await using var engine = new UsiEngine(mock.Object);
 
             await engine.BeginAsync();
             await engine.IsReadyAsync();
@@ -242,7 +242,7 @@ namespace ShogiLibSharp.Engine.Tests
                     mock.Raise(x => x.StdOutReceived += null, "readyok");
                 });
 
-            using var engine = new UsiEngine(mock.Object);
+            await using var engine = new UsiEngine(mock.Object);
 
             await engine.BeginAsync();
             await engine.IsReadyAsync();
@@ -260,7 +260,7 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod, Timeout(1000)]
         public async Task StopPonderAsyncTest()
         {
-            using var engine = new UsiEngine(new RandomPlayer());
+            await using var engine = new UsiEngine(new RandomPlayer());
 
             //engine.StdIn += s => Trace.WriteLine($"< {s}");
             //engine.StdOut += s => Trace.WriteLine($"  > {s}");
@@ -280,7 +280,7 @@ namespace ShogiLibSharp.Engine.Tests
         {
             var engine1 = new UsiEngine(CreateMock_FailToReturnUsiOk());
             var task = engine1.BeginAsync();
-            engine1.Dispose(); // 間違えて Begin 中に Dispose
+            await engine1.DisposeAsync(); // 間違えて Begin 中に Dispose
             await Assert.ThrowsExceptionAsync<ObjectDisposedException>(async () =>
             {
                 await task;
@@ -290,7 +290,7 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod]
         public async Task ExitTest()
         {
-            using var engine1 = new UsiEngine(CreateMock_ExitWhileIsReady());
+            await using var engine1 = new UsiEngine(CreateMock_ExitWhileIsReady());
             await engine1.BeginAsync();
             await Assert.ThrowsExceptionAsync<EngineException>(async () =>
             {
@@ -337,15 +337,22 @@ namespace ShogiLibSharp.Engine.Tests
         [TestMethod, Timeout(3000)]
         public void DeadlockTest()
         {
-            using var engine = new UsiEngine(new RandomPlayer());
-            engine.BeginAsync().Wait();
-            engine.IsReadyAsync().Wait();
-            engine.StartNewGame();
-            engine.GoAsync(new Position(Position.Hirate), SearchLimit.Create(TimeSpan.FromMilliseconds(100.0))).Wait();
-            engine.GoPonder(new Position(Position.Hirate), SearchLimit.Create(TimeSpan.FromMilliseconds(100.0)));
-            engine.StopPonderAsync().Wait();
-            engine.Gameover("win");
-            engine.QuitAsync().Wait();
+            var engine = new UsiEngine(new RandomPlayer());
+            try
+            {
+                engine.BeginAsync().Wait();
+                engine.IsReadyAsync().Wait();
+                engine.StartNewGame();
+                engine.GoAsync(new Position(Position.Hirate), SearchLimit.Create(TimeSpan.FromMilliseconds(100.0))).Wait();
+                engine.GoPonder(new Position(Position.Hirate), SearchLimit.Create(TimeSpan.FromMilliseconds(100.0)));
+                engine.StopPonderAsync().Wait();
+                engine.Gameover("win");
+                engine.QuitAsync().Wait();
+            }
+            finally
+            {
+                engine.DisposeAsync().AsTask().Wait();
+            }
         }
 
         [TestMethod]
@@ -380,31 +387,35 @@ namespace ShogiLibSharp.Engine.Tests
                     }
                 });
 
-            using var engine1 = new UsiEngine(mock1.Object);
+            await using var engine1 = new UsiEngine(mock1.Object);
             await engine1.BeginAsync();
             await engine1.IsReadyAsync();
             engine1.StartNewGame();
-
             {
                 var pos = new Position(Position.Hirate);
-                using var cts = new CancellationTokenSource();
-                cts.Cancel();
-
-                var result1 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
-                Assert.AreEqual(2, result1.InfoList.Count);
-
-                var result2 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
-                Assert.AreEqual(2, result2.InfoList.Count);
-
-                engine1.GoPonder(pos, new SearchLimit());
-                var result3 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
-                Assert.AreEqual(3, result3.InfoList.Count);
-
-                using var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100.0));
-                engine1.GoPonder(pos, new SearchLimit());
-                pos.DoMove(Usi.ParseMove("7g7f"));
-                var result4 = await engine1.GoAsync(pos, new SearchLimit(), cts2.Token);
-                Assert.AreEqual(2, result4.InfoList.Count);
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                    var result1 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
+                    Assert.AreEqual(2, result1.InfoList.Count);
+                }
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                    var result2 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
+                    Assert.AreEqual(2, result2.InfoList.Count);
+                }
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.0));
+                    engine1.GoPonder(pos, new SearchLimit());
+                    var result3 = await engine1.GoAsync(pos, new SearchLimit(), cts.Token);
+                    Assert.AreEqual(3, result3.InfoList.Count);
+                }
+                {
+                    using var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100.0));
+                    engine1.GoPonder(pos, new SearchLimit());
+                    pos.DoMove(Usi.ParseMove("7g7f"));
+                    var result4 = await engine1.GoAsync(pos, new SearchLimit(), cts2.Token);
+                    Assert.AreEqual(2, result4.InfoList.Count);
+                }
             }
 
             var mock2 = new Mock<IEngineProcess>();
@@ -432,7 +443,7 @@ namespace ShogiLibSharp.Engine.Tests
                     }
                 });
 
-            using var engine2 = new UsiEngine(mock2.Object);
+            await using var engine2 = new UsiEngine(mock2.Object);
             await engine2.BeginAsync();
             await engine2.IsReadyAsync();
             engine2.StartNewGame();

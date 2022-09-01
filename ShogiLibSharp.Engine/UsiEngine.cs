@@ -11,6 +11,7 @@ using System.Threading.Channels;
 
 // https://www.nuits.jp/entry/net-standard-internals-visible-to
 using System.Runtime.CompilerServices;
+
 [assembly: InternalsVisibleTo("ShogiLibSharp.Engine.Tests")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]   // Moq
 
@@ -19,10 +20,12 @@ namespace ShogiLibSharp.Engine
     /// <summary>
     /// USI プロトコル対応エンジンを扱うクラス
     /// </summary>
-    public class UsiEngine : IDisposable
+    public class UsiEngine : IAsyncDisposable
     {
         static readonly Regex IdCommandRegex = new(@"^id\s+(name|author)\s+(.+)$", RegexOptions.Compiled);
 
+        bool processStarted = false;
+        bool disposed = false;
         IEngineProcess process;
         object syncObj = new();
 
@@ -67,6 +70,7 @@ namespace ShogiLibSharp.Engine
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                CreateNoWindow = true,
                 WorkingDirectory = workingDir,
             };
             this.process = new EngineProcess()
@@ -180,8 +184,12 @@ namespace ShogiLibSharp.Engine
         void Process_StdOutReceived(string? message)
         {
             if (message is null) return;
+            lock (syncObj)
+            {
+                if (disposed) return;
+                stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
+            }
             Logger.LogTrace($"  > {message}");
-            stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
         }
 
         void Process_Exited(object? sender, EventArgs e)
@@ -195,7 +203,7 @@ namespace ShogiLibSharp.Engine
 
         internal void BeginProcess()
         {
-            process.Start();
+            processStarted = process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
         }
@@ -230,6 +238,8 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">起動中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task BeginAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(UsiOkTimeout);
             try
@@ -278,6 +288,8 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">待機中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task IsReadyAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(ReadyOkTimeout);
             try
@@ -370,6 +382,8 @@ namespace ShogiLibSharp.Engine
         /// <exception cref="ObjectDisposedException">探索中に Dispose() が呼ばれたときにスロー。</exception>
         public async Task<SearchResult> GoAsync(Position pos, SearchLimit limits, CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             var tcs = new TaskCompletionSource<SearchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (syncObj)
             {
@@ -454,14 +468,33 @@ namespace ShogiLibSharp.Engine
             }
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
+            if (disposed) return;
+
+            disposed = true;
+
             lock (syncObj)
             {
                 State.Dispose(this);
                 stdoutChannel.Writer.Complete();
-                this.process.Dispose();
             }
+
+            if (processStarted && !process.HasExited)
+            {
+                try
+                {
+                    process.Kill();
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5.0));
+                    await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Logger.LogWarning(e, "プロセスの終了ができませんでした。");
+                }
+            }
+
+            process.Dispose();
         }
     }
 }

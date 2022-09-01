@@ -11,10 +11,12 @@ namespace ShogiLibSharp.Engine.Tests
 {
     internal class RandomPlayer : IEngineProcess
     {
-        private Core.Position? pos = null;
+        private Position? pos = null;
         private Random rnd = new(0);
         private TaskCompletionSource? tcsGo = null;
         private TaskCompletionSource? tcsPonder = null;
+
+        public bool HasExited => true;
 
         public event Action<string?>? StdOutReceived;
         public event Action<string?>? StdErrReceived;
@@ -135,6 +137,11 @@ namespace ShogiLibSharp.Engine.Tests
         public bool Start()
         {
             return true;
+        }
+
+        public Task WaitForExitAsync(CancellationToken ct = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }
