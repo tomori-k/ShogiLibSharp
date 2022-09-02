@@ -43,7 +43,7 @@ namespace ShogiLibSharp.Engine
 
         Channel<string> stdoutChannel = Channel
             .CreateUnbounded<string>(new UnboundedChannelOptions
-            { SingleWriter = true, SingleReader = true, AllowSynchronousContinuations = false });
+            { SingleReader = true, AllowSynchronousContinuations = false });
         Task stdoutTask;
 
         internal StateBase State { get; set; } = new Deactivated();
@@ -184,12 +184,14 @@ namespace ShogiLibSharp.Engine
         void Process_StdOutReceived(string? message)
         {
             if (message is null) return;
-            lock (syncObj)
+            while (stdoutChannel.Writer.WaitToWriteAsync().AsTask().Result)
             {
-                if (disposed) return;
-                stdoutChannel.Writer.WriteAsync(message).AsTask().Wait();
+                if (stdoutChannel.Writer.TryWrite(message))
+                {
+                    Logger.LogTrace($"  > {message}");
+                    break;
+                }
             }
-            Logger.LogTrace($"  > {message}");
         }
 
         void Process_Exited(object? sender, EventArgs e)
@@ -471,14 +473,13 @@ namespace ShogiLibSharp.Engine
         public async ValueTask DisposeAsync()
         {
             if (disposed) return;
-
             disposed = true;
 
             lock (syncObj)
             {
                 State.Dispose(this);
-                stdoutChannel.Writer.Complete();
             }
+            stdoutChannel.Writer.Complete();
 
             if (processStarted && !process.HasExited)
             {
@@ -493,7 +494,6 @@ namespace ShogiLibSharp.Engine
                     Logger.LogWarning(e, "プロセスの終了ができませんでした。");
                 }
             }
-
             process.Dispose();
         }
     }
