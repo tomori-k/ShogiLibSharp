@@ -9,6 +9,8 @@ namespace ShogiLibSharp.Engine.Process
 {
     internal interface IEngineProcess : IDisposable
     {
+        bool HasExited { get; }
+
         event Action<string?>? StdOutReceived;
         event Action<string?>? StdErrReceived;
         event EventHandler Exited;
@@ -17,5 +19,6 @@ namespace ShogiLibSharp.Engine.Process
         void BeginErrorReadLine();
         void SendLine(string message);
         void Kill();
+        Task WaitForExitAsync(CancellationToken ct = default);
     }
 }

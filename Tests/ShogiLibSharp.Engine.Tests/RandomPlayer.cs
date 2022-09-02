@@ -11,10 +11,12 @@ namespace ShogiLibSharp.Engine.Tests
 {
     internal class RandomPlayer : IEngineProcess
     {
-        private Core.Position? pos = null;
+        private Position? pos = null;
         private Random rnd = new(0);
         private TaskCompletionSource? tcsGo = null;
         private TaskCompletionSource? tcsPonder = null;
+
+        public bool HasExited => true;
 
         public event Action<string?>? StdOutReceived;
         public event Action<string?>? StdErrReceived;
@@ -109,7 +111,7 @@ namespace ShogiLibSharp.Engine.Tests
 
         private void IsReady()
         {
-            Task.Run(() =>
+            RunOnOtherThread(() =>
             {
                 StdOutReceived?.Invoke("readyok");
             }).Wait();
@@ -118,7 +120,7 @@ namespace ShogiLibSharp.Engine.Tests
         private void Usi()
         {
             // SendLine 内部で、別スレッドから StdOutReceived を呼び出し（意地悪）
-            Task.Run(() =>
+            RunOnOtherThread(() =>
             {
                 StdOutReceived?.Invoke("id name RandomPlayer");
                 StdOutReceived?.Invoke("id author Author0112");
@@ -135,6 +137,30 @@ namespace ShogiLibSharp.Engine.Tests
         public bool Start()
         {
             return true;
+        }
+
+        public Task WaitForExitAsync(CancellationToken ct = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        static Task RunOnOtherThread(Action func)
+        {
+            var tcs = new TaskCompletionSource();
+            new Thread(new ThreadStart(() =>
+            {
+                try
+                {
+                    func();
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                    return;
+                }
+                tcs.SetResult();
+            })).Start();
+            return tcs.Task;
         }
     }
 }
