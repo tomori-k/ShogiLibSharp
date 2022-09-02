@@ -111,7 +111,7 @@ namespace ShogiLibSharp.Engine.Tests
 
         private void IsReady()
         {
-            Task.Run(() =>
+            RunOnOtherThread(() =>
             {
                 StdOutReceived?.Invoke("readyok");
             }).Wait();
@@ -120,7 +120,7 @@ namespace ShogiLibSharp.Engine.Tests
         private void Usi()
         {
             // SendLine 内部で、別スレッドから StdOutReceived を呼び出し（意地悪）
-            Task.Run(() =>
+            RunOnOtherThread(() =>
             {
                 StdOutReceived?.Invoke("id name RandomPlayer");
                 StdOutReceived?.Invoke("id author Author0112");
@@ -142,6 +142,25 @@ namespace ShogiLibSharp.Engine.Tests
         public Task WaitForExitAsync(CancellationToken ct = default)
         {
             return Task.CompletedTask;
+        }
+
+        static Task RunOnOtherThread(Action func)
+        {
+            var tcs = new TaskCompletionSource();
+            new Thread(new ThreadStart(() =>
+            {
+                try
+                {
+                    func();
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                    return;
+                }
+                tcs.SetResult();
+            })).Start();
+            return tcs.Task;
         }
     }
 }
