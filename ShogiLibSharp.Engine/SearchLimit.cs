@@ -52,7 +52,7 @@ namespace ShogiLibSharp.Engine
 
         public override string ToString()
         {
-            return Btime == TimeSpan.Zero && Wtime == TimeSpan.Zero
+            return Binc == TimeSpan.Zero && Winc == TimeSpan.Zero
                 ? $"btime {(long)Btime.TotalMilliseconds} wtime {(long)Wtime.TotalMilliseconds} byoyomi {(long)Byoyomi.TotalMilliseconds}"
                 : $"btime {(long)Btime.TotalMilliseconds} wtime {(long)Wtime.TotalMilliseconds} binc {(long)Binc.TotalMilliseconds} winc {(long)Winc.TotalMilliseconds}";
         }
