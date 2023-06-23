@@ -359,7 +359,7 @@ namespace ShogiLibSharp.Csa
                                 await thinkTask.ConfigureAwait(false);
 
                                 var (move, time) = Core.Csa.ParseMoveWithTime(message, pos);
-                                if (!pos.IsLegalMove(move))
+                                if (!pos.IsLegal(move))
                                 {
                                     continue;
                                 }
@@ -435,7 +435,7 @@ namespace ShogiLibSharp.Csa
                 var (bestmove, eval, pv)
                     = await player.ThinkAsync(pos.Clone(), remainingTime.Clone(), ct).ConfigureAwait(false);
 
-                if (!(clonedPos.IsLegalMove(bestmove) || bestmove == Move.Resign || bestmove == Move.Win))
+                if (!(clonedPos.IsLegal(bestmove) || bestmove == Move.Resign || bestmove == Move.Win))
                 {
                     throw new PlayerException($"合法手ではありません。指し手={bestmove.Usi()}, 局面={clonedPos.Sfen()}");
                 }
@@ -459,7 +459,7 @@ namespace ShogiLibSharp.Csa
                     {
                         foreach (var m in pv)
                         {
-                            if (!clonedPos.IsLegalMove(m)) break;
+                            if (!clonedPos.IsLegal(m)) break;
                             message.Append(' ');
                             message.Append(m.Csa(clonedPos));
                             clonedPos.DoMove(m);

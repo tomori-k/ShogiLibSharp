@@ -82,7 +82,7 @@ namespace ShogiLibSharp.Core.Tests
             {
                 var pos = new Position(sfen);
                 var move = MoveExtensions.MakeDrop(Piece.Pawn, sq);
-                Assert.AreEqual(expected, !pos.IsLegalMove(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
+                Assert.AreEqual(expected, !pos.IsLegal(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
             }
         }
 
@@ -120,7 +120,7 @@ namespace ShogiLibSharp.Core.Tests
             foreach (var (sfen, move, expected) in testcases)
             {
                 var pos = new Position(sfen);
-                Assert.AreEqual(expected, !pos.IsLegalMove(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
+                Assert.AreEqual(expected, !pos.IsLegal(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
             }
         }
     }

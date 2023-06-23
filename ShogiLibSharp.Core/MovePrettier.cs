@@ -93,7 +93,7 @@ namespace ShogiLibSharp.Core
                 return $"{prettyPlayer}入玉宣言";
             }
             
-            if (!pos.IsLegalMove(m))
+            if (!pos.IsLegal(m))
             {
                 throw new ArgumentException($"合法手ではありません：{m.Usi()}、対象の局面：{pos.Pretty()}");
             }
@@ -119,7 +119,7 @@ namespace ShogiLibSharp.Core
 
                 var from = m.From();
                 // 成れる可能性があるか。
-                var canPromote = pos.IsLegalMove(MoveExtensions.MakeMove(from, to, true));
+                var canPromote = pos.IsLegal(MoveExtensions.MakeMove(from, to, true));
                 // あるなら、不成をつける必要がでてくる
                 var promote = canPromote ? m.IsPromote() ? "成" : "不成" : "";
                 var result = $"{prettyPlayer}{prettySq}{PrettyPiece(p)}";

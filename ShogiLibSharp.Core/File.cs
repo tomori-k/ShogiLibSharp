@@ -3,30 +3,57 @@
 namespace ShogiLibSharp.Core;
 
 /// <summary>
-/// 先後を表す列挙型。
+/// 筋を表す列挙型。
 /// </summary>
-public enum Color
-{
-    Black, White
-}
-
-/// <summary>
-/// `Color` の拡張メソッドを定義するクラス。
-/// </summary>
-public static class ColorExtensions
+public enum File
 {
     /// <summary>
-    /// 先後を反転させます。
+    /// 1筋
     /// </summary>
-    /// <param name="c"></param>
-    /// <returns></returns>
-    public static Color Inv(this Color c)
-    {
-        return (Color)((int)c ^ 1);
-    }
+    F1,
+
+    /// <summary>
+    /// 2筋
+    /// </summary>
+    F2,
+
+    /// <summary>
+    /// 3筋
+    /// </summary>
+    F3,
+
+    /// <summary>
+    /// 4筋
+    /// </summary>
+    F4,
+
+    /// <summary>
+    /// 5筋
+    /// </summary>
+    F5,
+
+    /// <summary>
+    /// 6筋
+    /// </summary>
+    F6,
+
+    /// <summary>
+    /// 7筋
+    /// </summary>
+    F7,
+
+    /// <summary>
+    /// 8筋
+    /// </summary>
+    F8,
+
+    /// <summary>
+    /// 9筋
+    /// </summary>
+    F9
 }
 
-public static class Colors
+public static class Files
 {
     public static readonly Ascending All = new();
     public static readonly Descending Reversed = new();
@@ -35,9 +62,9 @@ public static class Colors
     {
         public Enumerator GetEnumerator() => new Enumerator();
 
-        public struct Enumerator : IEnumerator<Color>
+        public struct Enumerator : IEnumerator<File>
         {
-            int _c = -1;
+            int _file = -1;
 
             public Enumerator()
             {
@@ -45,15 +72,15 @@ public static class Colors
 
             public bool MoveNext()
             {
-                return ++this._c <= (int)Color.White;
+                return ++this._file <= (int)File.F9;
             }
 
             public void Reset()
             {
-                this._c = -1;
+                this._file = -1;
             }
 
-            public Color Current => (Color)this._c;
+            public File Current => (File)this._file;
 
             object IEnumerator.Current => Current;
 
@@ -65,9 +92,9 @@ public static class Colors
     {
         public Enumerator GetEnumerator() => new Enumerator();
 
-        public struct Enumerator : IEnumerator<Color>
+        public struct Enumerator : IEnumerator<File>
         {
-            int _c = 2;
+            int _file = 9;
 
             public Enumerator()
             {
@@ -75,15 +102,15 @@ public static class Colors
 
             public bool MoveNext()
             {
-                return --this._c >= 0;
+                return --this._file >= (int)File.F1;
             }
 
             public void Reset()
             {
-                this._c = 2;
+                this._file = 9;
             }
 
-            public Color Current => (Color)this._c;
+            public File Current => (File)this._file;
 
             object IEnumerator.Current => Current;
 

@@ -43,9 +43,9 @@ namespace ShogiLibSharp.Core.Tests
 
             foreach (Move m in moves)
             {
-                pos.DoMove_PseudoLegal(m);
+                pos.DoMoveUnsafe(m);
                 count += PerftImpl(pos, depth - 1);
-                pos.UndoMove();
+                pos.TryUndoMove();
             }
 
             return count;

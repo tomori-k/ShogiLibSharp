@@ -353,7 +353,7 @@ namespace ShogiLibSharp.Kifu
             // 分岐位置まで巻き戻し
             while (pos.GamePly != startPly)
             {
-                pos.UndoMove();
+                pos.TryUndoMove();
             }
 
             bool prevIllegal = false;
@@ -387,7 +387,7 @@ namespace ShogiLibSharp.Kifu
 
                     moves.Add(new MoveInfo(move, time, comment));
 
-                    if (pos.IsLegalMove(move))
+                    if (pos.IsLegal(move))
                     {
                         pos.DoMove(move);
                     }

@@ -1554,7 +1554,7 @@ END Game_Summary
                                 if (message is null) return;
                                 if (message.Length > 0)
                                 {
-                                    if (pos.IsLegalMove(move))
+                                    if (pos.IsLegal(move))
                                     {
                                         Assert.AreEqual(move.Csa(pos), message);
                                         pos.DoMove(move);

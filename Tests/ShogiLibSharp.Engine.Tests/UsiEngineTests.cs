@@ -42,11 +42,11 @@ namespace ShogiLibSharp.Engine.Tests
                 var bestmove = result.Bestmove;
                 var ponder = result.Ponder;
                 pos.DoMove(bestmove);
-                if (pos.IsLegalMove(ponder))
+                if (pos.IsLegal(ponder))
                 {
                     pos.DoMove(ponder);
                     p.GoPonder(pos, limits);
-                    pos.UndoMove();
+                    pos.TryUndoMove();
                 }
                 (p, o) = (o, p);
             }

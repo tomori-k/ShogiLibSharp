@@ -226,7 +226,7 @@ namespace ShogiLibSharp.Csa.Tests
                                 Assert.AreEqual(expectedMessage, message);
                                 if (message!.Length > 0)
                                 {
-                                    if (pos.IsLegalMove(move))
+                                    if (pos.IsLegal(move))
                                     {
                                         pos.DoMove(move);
                                     }

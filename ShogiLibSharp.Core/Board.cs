@@ -13,7 +13,7 @@ namespace ShogiLibSharp.Core
     {
         public Color Player { get; set; }
         public Piece[] Squares { get; } = new Piece[81];
-        public CaptureList[] CaptureLists { get; } = new CaptureList[2];
+        public Hand[] CaptureLists { get; } = new Hand[2];
 
         public Board() { }
 
@@ -29,7 +29,7 @@ namespace ShogiLibSharp.Core
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
-        public ref CaptureList CaptureListOf(Color c)
+        public ref Hand CaptureListOf(Color c)
         {
             return ref CaptureLists[(int)c];
         }

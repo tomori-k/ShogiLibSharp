@@ -65,7 +65,7 @@ namespace ShogiLibSharp.Core
 
             var occupancy = pos.GetOccupancy();
             var us = pos.ColorBB(pos.Player);
-            var pinned = pos.PinnedBy(pos.Player.Opponent()) & us;
+            var pinned = pos.PinnedBy(pos.Player.Inv()) & us;
 
             // 歩
             {
@@ -179,7 +179,7 @@ namespace ShogiLibSharp.Core
                 foreach (var to in toBB)
                 {
                     if (pos.EnumerateAttackers(
-                        pos.Player.Opponent(), to).None())
+                        pos.Player.Inv(), to).None())
                     {
                         *buffer++ = MoveExtensions.MakeMove(from, to);
                     }
@@ -234,7 +234,7 @@ namespace ShogiLibSharp.Core
             foreach (var to in evasionTo)
             {
                 var canMove = pos.EnumerateAttackers(
-                    pos.Player.Opponent(), to, occ)
+                    pos.Player.Inv(), to, occ)
                     .None();
                 if (canMove)
                 {
@@ -251,7 +251,7 @@ namespace ShogiLibSharp.Core
             buffer = GenerateDrops(buffer, pos, between);
 
             // 駒移動
-            var excluded = pos.PieceBB(pos.Player, Piece.King) | pos.PinnedBy(pos.Player.Opponent());
+            var excluded = pos.PieceBB(pos.Player, Piece.King) | pos.PinnedBy(pos.Player.Inv());
 
             foreach (var to in between | pos.Checkers())
             {
@@ -272,7 +272,7 @@ namespace ShogiLibSharp.Core
         [InlineBitboardEnumerator]
         private static unsafe Move* GenerateDropsImpl(Move* buffer, Position pos, Bitboard target)
         {
-            var captureList = pos.CaptureListOf(pos.Player);
+            var captureList = pos.Hand(pos.Player);
             if (captureList.None()) return buffer;
 
             if (captureList.Count(Piece.Pawn) > 0)
@@ -281,7 +281,7 @@ namespace ShogiLibSharp.Core
                     & Bitboard.ReachableMask(pos.Player, Piece.Pawn)
                     & Bitboard.PawnDropMask(pos.PieceBB(pos.Player, Piece.Pawn));
                 {
-                    var o = pos.Player.Opponent();
+                    var o = pos.Player.Inv();
                     var uchifuzumeCand = Bitboard.PawnAttacks(o, pos.King(o));
                     if (!toBB.TestZ(uchifuzumeCand) && IsUchifuzume(uchifuzumeCand.LsbSquare(), pos))
                     {
@@ -435,9 +435,9 @@ namespace ShogiLibSharp.Core
 
         static bool IsUchifuzume(int to, Position pos)
         {
-            var theirKsq = pos.King(pos.Player.Opponent());
+            var theirKsq = pos.King(pos.Player.Inv());
             var defenders = pos.EnumerateAttackers(
-                pos.Player.Opponent(), to) ^ theirKsq;
+                pos.Player.Inv(), to) ^ theirKsq;
 
             if (defenders.Any())
             {
@@ -457,7 +457,7 @@ namespace ShogiLibSharp.Core
 
             var occ = pos.GetOccupancy() ^ to;
             var evasionTo = Bitboard.KingAttacks(theirKsq)
-                .AndNot(pos.ColorBB(pos.Player.Opponent()));
+                .AndNot(pos.ColorBB(pos.Player.Inv()));
             
             foreach (var kTo in evasionTo)
             {

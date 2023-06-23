@@ -50,9 +50,9 @@ public class Bench
 
         foreach (var m in moves)
         {
-            pos.DoMove_PseudoLegal(m);
+            pos.DoMoveUnsafe(m);
             count += PerftImpl(pos, depth - 1);
-            pos.UndoMove();
+            pos.TryUndoMove();
         }
 
         return count;
@@ -103,9 +103,9 @@ public class BenchUnsafe
 
         while (p != end)
         {
-            pos.DoMove_PseudoLegal(*p++);
+            pos.DoMoveUnsafe(*p++);
             count += PerftImpl(pos, depth - 1);
-            pos.UndoMove();
+            pos.TryUndoMove();
         }
 
         return count;
