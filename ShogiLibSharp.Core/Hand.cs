@@ -9,7 +9,7 @@ public enum Hand : ulong
     ExceptPawnMask = 0xffffffffffff0000UL,
 }
 
-public static class CaptureListExtensions
+public static class HandExtensions
 {
     /// <summary>
     /// 駒台が空かどうか調べる。

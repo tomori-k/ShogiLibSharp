@@ -61,58 +61,14 @@ public static class MoveExtensions
     }
 
     /// <summary>
-    /// USI 形式の指し手文字列に変換
-    /// </summary>
-    /// <returns></returns>
-    public static string Usi(this Move m)
-    {
-        var to = Core.Usi.Square(m.To());
-        if (m.IsDrop())
-        {
-            return $"{m.Dropped().ToUsi()}*{to}";
-        }
-        else
-        {
-            var from = Core.Usi.Square(m.From());
-            var promote = (m.IsPromote() ? "+" : "");
-            return $"{from}{to}{promote}";
-        }
-    }
-
-    /// <summary>
-    /// CSA 形式の指し手文字列に変換
-    /// </summary>
-    /// <param name="m"></param>
-    /// <param name="pos"></param>
-    /// <returns></returns>
-    /// <exception cref="FormatException"></exception>
-    public static string Csa(this Move m, Position pos)
-    {
-        var to = Core.Csa.Square(m.To());
-        if (m.IsDrop())
-        {
-            var after = m.Dropped().Colored(pos.Player);
-            return $"{pos.Player.Csa()}00{to}{after.CsaNoColor()}";
-        }
-        else
-        {
-            var from = Core.Csa.Square(m.From());
-            var after = m.IsPromote()
-                ? pos.PieceAt(m.From()).Promoted()
-                : pos.PieceAt(m.From());
-            return $"{pos.Player.Csa()}{from}{to}{after.CsaNoColor()}";
-        }
-    }
-
-    /// <summary>
     /// from から to に動かす指し手を生成
     /// </summary>
     /// <param name="from"></param>
     /// <param name="to"></param>
     /// <param name="promote">成る指し手かどうか</param>
-    public static Move MakeMove(int from, int to, bool promote = false)
+    public static Move MakeMove(Square from, Square to, bool promote = false)
     {
-        return (Move)(to + (from << 7) + (Convert.ToInt32(promote) << 14));
+        return (Move)(to + ((int)from << 7) + (Convert.ToInt32(promote) << 14));
     }
 
     /// <summary>
@@ -121,7 +77,7 @@ public static class MoveExtensions
     /// <param name="p"></param>
     /// <param name="to"></param>
     /// <returns></returns>
-    public static Move MakeDrop(Piece p, int to)
+    public static Move MakeDrop(Piece p, Square to)
     {
         return (Move)(to + ((int)p << 7) + (1 << 15));
     }

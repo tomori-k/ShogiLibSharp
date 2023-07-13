@@ -64,6 +64,24 @@ public class Position
         }
     }
 
+    // 千日手判定用
+    class Board
+    {
+        readonly Piece[] _pieces = new Piece[81];
+        readonly Hand[] _hands = new Hand[2];
+
+        public Board(Position pos)
+        {
+            this._pieces = pos._pieces.ToArray();
+            this._hands = pos._hands.ToArray();
+        }
+
+        public bool Equals(Board x)
+        {
+            return this._pieces.SequenceEqual(x._pieces) && this._hands.SequenceEqual(x._hands);
+        }
+    }
+
     /// <summary>
     /// 千日手の状態を取得する。
     /// </summary>
@@ -71,7 +89,60 @@ public class Position
     {
         get
         {
+            // 千日手でない状態は 100% 検出できる
+            if (CheckRepetitionWithHash() == Repetition.None)
+            {
+                return Repetition.None;
+            }
 
+            // ハッシュ値の衝突による検出ミスでないことを一応チェックする
+
+            var target = new Board(this);
+            var sameCount = 0;
+            var contCheck = new[] { true, true };
+            var undoneMoves = new Stack<Move>();
+
+            // 3回 current と同じ局面が現れるまで遡る（4回目=今の局面なので）
+            while (this.Moves.Any())
+            {
+                contCheck[(int)Player.Inv()] &= this.InCheck;
+
+                TryUndoMove(out var undoneMove);
+                undoneMoves.Push(undoneMove);
+
+                // 盤面と持ち駒が同じ
+                if (target.Equals(new(this)))
+                    ++sameCount;
+
+                if (sameCount >= 3)
+                    break;
+            }
+
+            // もとに戻す
+            foreach (var m in undoneMoves)
+            {
+                DoMoveUnsafe(m);
+            }
+
+            // ジャッジメント
+            if (sameCount >= 3)
+            {
+                if (contCheck[(int)Player])
+                {
+                    return Repetition.Lose;
+                }
+
+                if (contCheck[(int)Player.Inv()])
+                {
+                    return Repetition.Win; // -> これ、Winいらない（というか、ちゃんと判定できてない
+                                           // ちゃんとやるなら、これ以前の局面すべてについて、千日手判定を行って、一番最初の連続王手の千日手を検出して。。。というふうにしないとおかしい）
+                                           // それはじぶんでやってくれとなるので、手番側だけの連続王手をちぇっくすればいいはず
+                }
+
+                return Repetition.Draw;
+            }
+            else
+                return Repetition.None;
         }
     }
 
@@ -187,7 +258,7 @@ public class Position
                     var rank = (Rank)(cnt / 9);
                     var file = (File)(8 - cnt % 9);
 
-                    Piece p = Usi.FromUsi(board[i]);
+                    Piece p = Usi.ParsePiece(board[i]);
 
                     if (promoted && p.Colorless() == Piece.King)
                         throw new FormatException($"玉は成れません。");
@@ -215,7 +286,7 @@ public class Position
                     }
                     else
                     {
-                        var p = Usi.FromUsi(c);
+                        var p = Usi.ParsePiece(c);
 
                         if (p.Colorless() != Piece.King)
                         {
@@ -243,19 +314,50 @@ public class Position
     {
         get
         {
-            return $"sfen {initPos} moves {string.Join(' ', moves.Reverse().Select(x => x.Move.Usi()))}";
-        }
+            var moves = string.Join(' ', this.Moves.Select(x => x.Move.ToUsi()));
+            var temp = new Stack<Move>();
 
+            while (TryUndoMove(out var m))
+            {
+                temp.Push(m);
+            }
+
+            var init = this.Sfen;
+
+            foreach (var m in temp)
+            {
+                this.DoMoveUnsafe(m);
+            }
+
+            return $"sfen {init} moves {moves}";
+        }
         set
         {
+            const string PrefixSfen = "sfen ";
+            const string PrefixMove = "moves ";
 
+            if (!value.StartsWith(PrefixSfen))
+                throw new ArgumentException("フォーマットが正しくありません。");
+
+            this.Sfen = value[PrefixSfen.Length..];
+            var moveStart = value.IndexOf(PrefixMove);
+
+            if (moveStart == -1)
+                return;
+
+            var moves = value[(moveStart + PrefixMove.Length)..].Split();
+
+            foreach (var m in moves)
+            {
+                this.DoMove(m.ToMove());
+            }
         }
     }
 
     /// <summary>
     /// 指し手リスト。
     /// </summary>
-    public List<(Move, Piece)> Moves { get; } = new();
+    public List<(Move Move, Piece Piece)> Moves { get; } = new();
 
     /// <summary>
     /// 局面のハッシュ値。
@@ -285,7 +387,7 @@ public class Position
     {
         get
         {
-            return this[SquareExtensions.Index(r, f)];
+            return this[Squares.Index(r, f)];
         }
     }
 
@@ -346,7 +448,7 @@ public class Position
             var p = m.Dropped().Colored(Player);
 
             this._pieces[(int)to] = p;
-            this._colorBB((int)Player) ^= to;
+            this._colorBB[(int)Player] ^= to;
             this._pieceBB[(int)p] ^= to;
             this._hands[(int)Player].Add(p.Kind(), -1);
         }
@@ -388,33 +490,31 @@ public class Position
     /// 局面を進める。
     /// </summary>
     /// <param name="m"></param>
-    /// <exception cref="InvalidOperationException"></exception>
+    /// <exception cref="ArgumentException"></exception>
     public void DoMove(Move m)
     {
         if (!IsLegal(m))
         {
-            throw new InvalidOperationException($"{m.Usi()} は合法手ではありません、局面：{this}");
+            throw new ArgumentException($"合法手ではありません。");
         }
 
         DoMoveUnsafe(m);
     }
 
-
-
     /// <summary>
     /// 局面を1手戻す。
     /// </summary>
-    /// <param name="undoneMove"></param>
+    /// <param name="lastMove"></param>
     /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
-    public bool TryUndoMove(out Move undoneMove)
+    public bool TryUndoMove(out Move lastMove)
     {
         if (this.Moves.Count == 0)
         {
-            throw new InvalidOperationException("これ以上局面を遡ることはできません。");
+            lastMove = Move.None;
+            return false;
         }
 
-        var (lastMove, captured) = this.Moves[^1];
+        (lastMove, var captured) = this.Moves[^1];
         var to = lastMove.To();
         this.Moves.RemoveAt(this.Moves.Count - 1);
 
@@ -466,6 +566,8 @@ public class Position
         _checkers = ComputeCheckers();
         _pinnedBy[0] = ComputePinnedBy(Color.Black);
         _pinnedBy[1] = ComputePinnedBy(Color.White);
+
+        return true;
     }
 
     /// <summary>
@@ -579,59 +681,6 @@ public class Position
     }
 
     /// <summary>
-    /// 千日手（同一局面が 4 回以上出現）をチェック
-    /// </summary>
-    /// <returns></returns>
-    public Repetition CheckRepetition()
-    {
-        var current = board.Clone();
-        var sameCount = 0;
-        var contCheck = new[] { true, true };
-        var undoneMoves = new Stack<Move>();
-
-        // 3回 current と同じ局面が現れるまで遡る（4回目=今の局面なので）
-        while (IsUndoable)
-        {
-            if (contCheck[(int)Player.Inv()])
-            {
-                contCheck[(int)Player.Inv()] = InCheck();
-            }
-
-            undoneMoves.Push(moves.Peek().Move);
-            TryUndoMove();
-
-            // 手番と盤面と持ち駒が同じ
-            if (board.Equals(current))
-                ++sameCount;
-
-            if (sameCount >= 3)
-                break;
-        }
-        // もとに戻す
-        foreach (var m in undoneMoves)
-        {
-            DoMoveUnsafe(m);
-        }
-        // ジャッジメント
-        if (sameCount >= 3)
-        {
-            if (contCheck[(int)Player])
-            {
-                return Repetition.Lose;
-            }
-
-            if (contCheck[(int)Player.Inv()])
-            {
-                return Repetition.Win;
-            }
-
-            return Repetition.Draw;
-        }
-        else
-            return Repetition.None;
-    }
-
-    /// <summary>
     /// 宣言勝ちできるか判定する。
     /// </summary>
     /// <param name="c"></param>
@@ -691,24 +740,6 @@ public class Position
             default: break;
         }
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// 現在の盤面
-    /// </summary>
-    /// <returns></returns>
-    public Board ToBoard()
-    {
-        return board.Clone();
-    }
-
-    /// <summary>
-    /// 現在の局面をコピーを作成
-    /// </summary>
-    /// <returns></returns>
-    public Position Clone()
-    {
-        return new Position(this);
     }
 
     public override string ToString()

@@ -60,7 +60,7 @@ public static class Files
 
     public class Ascending
     {
-        public Enumerator GetEnumerator() => new Enumerator();
+        public Enumerator GetEnumerator() => new();
 
         public struct Enumerator : IEnumerator<File>
         {
@@ -90,7 +90,7 @@ public static class Files
 
     public class Descending
     {
-        public Enumerator GetEnumerator() => new Enumerator();
+        public Enumerator GetEnumerator() => new();
 
         public struct Enumerator : IEnumerator<File>
         {

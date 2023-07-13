@@ -22,9 +22,33 @@ public static class UsiExtensions
         { Piece.W_King  , 'k' },
     };
 
+    /// <summary>
+    /// USI 形式の文字列に変換する。
+    /// </summary>
+    /// <param name="c"></param>
+    /// <returns></returns>
     public static string ToUsi(this Color c)
     {
         return c == Color.Black ? "b" : "w";
+    }
+
+    /// <summary>
+    /// USI 形式の文字列に変換する。
+    /// </summary>
+    /// <param name="sq"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public static string ToUsi(this Square sq)
+    {
+        if (!(Square.S11 <= sq && sq <= Square.S99))
+        {
+            throw new ArgumentException($"マス番号が範囲外です。");
+        }
+
+        var rank = sq.Rank();
+        var file = sq.File();
+
+        return $"{file + 1}{(char)('a' + rank)}";
     }
 
     /// <summary>
@@ -32,16 +56,39 @@ public static class UsiExtensions
     /// </summary>
     /// <param name="p"></param>
     /// <returns></returns>
-    /// <exception cref="FormatException"></exception>
+    /// <exception cref="ArgumentException"></exception>
     public static string ToUsi(this Piece p)
     {
         var t = p.Colorless() != Piece.King ? p.Demoted() : p;
+
         if (!PieceToChar.ContainsKey(t))
         {
-            throw new FormatException($"Piece: {p} が有効な値ではありません");
+            throw new ArgumentException($"有効な値ではありません。");
         }
+
         char c = PieceToChar[t];
-        return p.Colorless() != Piece.King && p.IsPromoted()
-            ? $"+{c}" : $"{c}";
+
+        return p.IsPromoted() ? $"+{c}" : $"{c}";
+    }
+
+    /// <summary>
+    /// USI 形式の指し手文字列に変換
+    /// </summary>
+    /// <returns></returns>
+    public static string ToUsi(this Move m)
+    {
+        var to = m.To().ToUsi();
+
+        if (m.IsDrop())
+        {
+            return $"{m.Dropped().ToUsi()}*{to}";
+        }
+        else
+        {
+            var from = m.From().ToUsi();
+            var promote = m.IsPromote() ? "+" : "";
+
+            return $"{from}{to}{promote}";
+        }
     }
 }

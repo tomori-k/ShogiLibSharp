@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ShogiLibSharp.Core
+﻿namespace ShogiLibSharp.Core
 {
     public static class Usi
     {
@@ -29,16 +23,16 @@ namespace ShogiLibSharp.Core
             };
 
         /// <summary>
-        /// USI形式の駒文字 c を Piece に変換
+        /// USI形式の駒文字を `Piece` に変換する。
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
         /// <exception cref="FormatException"></exception>
-        public static Piece FromUsi(char c)
-            => TryParsePiece(c, out var p) ? p : throw new FormatException($"文字を駒に変換できません：{c}");
+        public static Piece ParsePiece(char c)
+            => TryParsePiece(c, out var p) ? p : throw new FormatException($"USI 形式の駒文字ではありません。");
 
         /// <summary>
-        /// USI形式の駒文字 c を Piece に変換
+        /// USI形式の駒文字を `Piece` に変換する。
         /// </summary>
         /// <param name="c"></param>
         public static bool TryParsePiece(char c, out Piece piece)
@@ -56,47 +50,30 @@ namespace ShogiLibSharp.Core
         }
 
         /// <summary>
-        /// マス sq を USI 形式の文字列に変換
-        /// </summary>
-        /// <param name="sq"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        public static string Square(int sq)
-        {
-            if (!(0 <= sq && sq < 81))
-            {
-                throw new ArgumentException($"マス番号が範囲外です：{sq}");
-            }
-            var rank = Core.Square.RankOf(sq);
-            var file = Core.Square.FileOf(sq);
-            return $"{file + 1}{(char)('a' + rank)}";
-        }
-
-        /// <summary>
-        /// USI 形式の指し手文字列を Move に変換
+        /// USI 形式の指し手文字列を `Move` に変換する。
         /// </summary>
         /// <param name="usiMove"></param>
         /// <returns></returns>
         /// <exception cref="FormatException"></exception>
         public static Move ParseMove(string usiMove)
-            => TryParseMove(usiMove, out var m) ? m : throw new FormatException($"USI 形式ではありません：{usiMove}");
+            => TryParseMove(usiMove, out var m) ? m : throw new FormatException($"指し手文字列の形式が間違っています。");
 
         /// <summary>
-        /// USI 形式の指し手文字列を Move に変換
+        /// USI 形式の指し手文字列を `Move` に変換する。
         /// </summary>
         /// <param name="usiMove"></param>
-        public static bool TryParseMove(string usiMove, out Move result)
+        public static bool TryParseMove(string usiMove, out Move m)
         {
             if (usiMove == "resign" || usiMove == "win")
             {
-                result = usiMove.StartsWith('r') ? Move.Resign : Move.Win;
+                m = usiMove.StartsWith('r') ? Move.Resign : Move.Win;
                 return true;
             }
 
             if (usiMove.Length < 4
                 || !TryParseSquare(usiMove[2..4], out var to))
             {
-                result = Move.None;
+                m = Move.None;
                 return false;
             }
 
@@ -106,50 +83,55 @@ namespace ShogiLibSharp.Core
                 if (!TryParsePiece(usiMove[0], out var dropped)
                     || dropped.Color() != Color.Black)
                 {
-                    result = Move.None;
+                    m = Move.None;
                     return false;
                 }
-                result = MoveExtensions.MakeDrop(dropped, to);
+
+                m = MoveExtensions.MakeDrop(dropped, to);
             }
             // 駒移動
             else
             {
                 if (!TryParseSquare(usiMove[0..2], out var from))
                 {
-                    result = Move.None;
+                    m = Move.None;
                     return false;
                 }
+
                 var promote = usiMove.Length >= 5 && usiMove[4] == '+';
-                result = MoveExtensions.MakeMove(from, to, promote);
+
+                m = MoveExtensions.MakeMove(from, to, promote);
             }
 
             return true;
         }
 
         /// <summary>
-        /// USI 形式のの座標指定文字列をマス番号に変換
+        /// USI 形式のの座標文字列をマス番号に変換する。
         /// </summary>
         /// <param name="usiSq"></param>
         /// <exception cref="FormatException"></exception>
-        private static int ParseSquare(string usiSq)
-            => TryParseSquare(usiSq, out var sq) ? sq : throw new FormatException($"USI 形式ではありません：{usiSq}");
+        private static Square ParseSquare(string usiSq)
+            => TryParseSquare(usiSq, out var sq) ? sq : throw new FormatException($"USI 形式ではありません。");
 
         /// <summary>
         /// USI 形式のの座標指定文字列をマス番号に変換
         /// </summary>
         /// <param name="usiSq"></param>
-        private static bool TryParseSquare(string usiSq, out int sq)
+        private static bool TryParseSquare(string usiSq, out Square sq)
         {
             if (usiSq.Length < 2
                 || !('1' <= usiSq[0] && usiSq[0] <= '9')
                 || !('a' <= usiSq[1] && usiSq[1] <= 'i'))
             {
-                sq = 0;
+                sq = Square.S11;
                 return false;
             }
+
             var file = usiSq[0] - '1';
             var rank = usiSq[1] - 'a';
-            sq = Core.Square.Index(rank, file);
+            sq = Squares.Index((Rank)rank, (File)file);
+
             return true;
         }
     }
