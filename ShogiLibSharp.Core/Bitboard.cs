@@ -913,46 +913,37 @@ public readonly struct Bitboard : IEnumerable<Square>
 
     public struct Enumerator : IEnumerator<Square>
     {
-        bool first = true;
         ulong b0, b1;
 
         internal Enumerator(Bitboard x)
         {
-            this.b0 = x.Lower();
+            this.b0 = (x.Lower() << 1) + 1UL;
             this.b1 = x.Upper();
         }
 
         public Square Current
             => b0 != 0UL
-                ? (Square)BitOperations.TrailingZeroCount(b0)
+                ? (Square)(BitOperations.TrailingZeroCount(b0) - 1)
                 : (Square)(BitOperations.TrailingZeroCount(b1) + 63);
 
-        object System.Collections.IEnumerator.Current => Current;
+        object IEnumerator.Current => Current;
 
         public void Dispose() { }
 
         public bool MoveNext()
         {
-            if (first)
+            if (b0 != 0UL)
             {
-                first = false;
+                b0 &= b0 - 1UL;
                 return b0 != 0UL || b1 != 0UL;
             }
-            else
+            else if (b1 != 0UL)
             {
-                if (b0 != 0UL)
-                {
-                    b0 &= b0 - 1UL;
-                    return b0 != 0UL || b1 != 0UL;
-                }
-                else if (b1 != 0UL)
-                {
-                    b1 &= b1 - 1UL;
-                    return b1 != 0UL;
-                }
-                else
-                    return false;
+                b1 &= b1 - 1UL;
+                return b1 != 0UL;
             }
+
+            return false;
         }
 
         public void Reset()

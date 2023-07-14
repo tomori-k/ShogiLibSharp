@@ -1,9 +1,8 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using ShogiLibSharp.Core;
+using System.Runtime.CompilerServices;
 
 BenchmarkRunner.Run<Bench>();
 BenchmarkRunner.Run<BenchUnsafe>();
@@ -24,7 +23,7 @@ public class Bench
     [Benchmark]
     public void PerftMatsuri()
     {
-        var (sfen, depth, expected) =  ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL);
+        var (sfen, depth, expected) = ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL);
         var pos = new Position(sfen);
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
@@ -41,7 +40,7 @@ public class Bench
 
     static ulong PerftImpl(Position pos, int depth)
     {
-        var moves = Movegen.GenerateMoves(pos);
+        var moves = pos.GenerateMoves();
 
         if (depth == 1)
             return (ulong)moves.Count;
@@ -92,8 +91,8 @@ public class BenchUnsafe
     [SkipLocalsInit]
     static unsafe ulong PerftImpl(Position pos, int depth)
     {
-        var buffer = stackalloc Move[Movegen.BufferSize];
-        var end = Movegen.GenerateMoves(buffer, pos);
+        var buffer = stackalloc Move[Position.BufferSize];
+        var end = pos.GenerateMoves(buffer);
 
         if (depth == 1)
             return (ulong)(end - buffer);
