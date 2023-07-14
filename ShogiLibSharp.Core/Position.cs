@@ -2,9 +2,17 @@
 
 namespace ShogiLibSharp.Core;
 
-public class Position
+public partial class Position
 {
     public const string Hirate = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+
+    static readonly string[] DISP_RANK = { "一", "二", "三", "四", "五", "六", "七", "八", "九" };
+    static readonly string[] DISP_COLOR = { "先手", "後手" };
+    static readonly string[] DISP_PIECE = {
+        " ・", " 歩", " 香", " 桂", " 銀", " 金", " 角", " 飛", " 玉", " と", " 杏", " 圭", " 全", " 禁", " 馬", " 竜",
+        "v・", "v歩", "v香", "v桂", "v銀", "v金", "v角", "v飛", "v玉", "vと", "v杏", "v圭", "v全", "v禁", "v馬", "v竜",
+    };
+
 
     #region 内部状態
 
@@ -60,7 +68,7 @@ public class Position
     {
         get
         {
-            return Movegen.GenerateMoves(this).Count == 0;
+            return GenerateMoves().Count == 0;
         }
     }
 
@@ -89,13 +97,13 @@ public class Position
     {
         get
         {
-            // 千日手でない状態は 100% 検出できる
-            if (CheckRepetitionWithHash() == Repetition.None)
-            {
-                return Repetition.None;
-            }
+            //// 千日手でない状態は 100% 検出できる
+            //if (CheckRepetitionWithHash() == Repetition.None)
+            //{
+            //    return Repetition.None;
+            //}
 
-            // ハッシュ値の衝突による検出ミスでないことを一応チェックする
+            //// ハッシュ値の衝突による検出ミスでないことを一応チェックする
 
             var target = new Board(this);
             var sameCount = 0;
@@ -391,18 +399,72 @@ public class Position
         }
     }
 
+    public Bitboard this[Color c]
+    {
+        get
+        {
+            return this._colorBB[(int)c];
+        }
+    }
+
+    public Bitboard this[Piece p]
+    {
+        get
+        {
+            return this._pieceBB[(int)p];
+        }
+    }
+
+    public Bitboard this[Color c, Piece p]
+    {
+        get
+        {
+            return this[p.Colored(c)];
+        }
+    }
+
+    public Bitboard Occupancy
+    {
+        get
+        {
+            return this._colorBB[0] | this._colorBB[1];
+        }
+    }
+
+    public Bitboard Checkers
+    {
+        get
+        {
+            return this._checkers;
+        }
+    }
+
+    public Bitboard Pinned
+    {
+        get
+        {
+            return this._pinnedBy[(int)Player.Inv()];
+        }
+    }
+
     #endregion
 
     #region コンストラクタ
 
+    public Position(string sfen)
+    {
+        this.Sfen = sfen;
+    }
+
     public Position(Position pos)
     {
         this.Player = pos.Player;
+        this.GamePly = pos.GamePly;
+        this.Moves = pos.Moves.ToList();
         this._pieces = pos._pieces.ToArray();
         this._hands = pos._hands.ToArray();
         this._colorBB = pos._colorBB.ToArray();
         this._pieceBB = (Bitboard[])pos._pieceBB.Clone();
-        //this.moves = new(pos.moves.Reverse()); // シャローコピーだけどまあいいか...
         this._checkers = pos._checkers;
         this._pinnedBy = pos._pinnedBy.ToArray();
         this._silverBB = (Bitboard[])pos._silverBB.Clone();
@@ -416,13 +478,33 @@ public class Position
     #region public メソッド
 
     /// <summary>
-    /// c の駒台
+    /// 駒台を取得する
     /// </summary>
     /// <param name="c"></param>
     /// <returns></returns>
     public Hand Hand(Color c)
     {
         return this._hands[(int)c];
+    }
+
+    public Bitboard SilverBB(Color c)
+    {
+        return this._silverBB[(int)c];
+    }
+
+    public Bitboard GoldBB(Color c)
+    {
+        return this._goldBB[(int)c];
+    }
+
+    public Bitboard BishopBB(Color c)
+    {
+        return this._bishopBB[(int)c];
+    }
+
+    public Bitboard RookBB(Color c)
+    {
+        return this._rookBB[(int)c];
     }
 
     /// <summary>
@@ -587,17 +669,193 @@ public class Position
     /// <returns></returns>
     public bool IsPseudoLegal(Move m)
     {
+        if (m == Move.None)
+            return false;
 
+        var to = m.To();
+
+        if (m.IsDrop())
+        {
+            // 置く場所が空きマスでない
+            if (this[to] != Piece.Empty)
+                return false;
+
+            var k = m.Dropped();
+
+            if (this.Hand(Player).Count(k) == 0)
+                return false;
+
+            switch (k)
+            {
+                case Piece.Pawn:
+                    var droppable
+                        = Bitboard.Rank(Player, Rank.R2, Rank.R9)
+                        & Bitboard.PawnDropMask(this[Player, Piece.Pawn]);
+
+                    // １段目以外もしくは二歩
+                    if (!droppable.Test(to))
+                        return false;
+
+                    var ksq = this.King(Player.Inv());
+                    var checkByPawn = Bitboard.PawnAttacks(Player.Inv(), ksq);
+
+                    // 打ち歩詰め
+                    if (checkByPawn.Test(to) && IsUchifuzume(to))
+                        return false;
+                    break;
+
+                case Piece.Lance:
+                    if (!Bitboard.Rank(Player, Rank.R2, Rank.R9).Test(to))
+                        return false;
+                    break;
+
+                case Piece.Knight:
+                    if (!Bitboard.Rank(Player, Rank.R3, Rank.R9).Test(to))
+                        return false;
+                    break;
+            }
+        }
+        else
+        {
+            var from = m.From();
+            var moved = this[from];
+            var captured = this[to];
+
+            if (moved == Piece.Empty)
+                return false;
+
+            if (moved.Color() != Player)
+                return false;
+
+            if (captured != Piece.Empty && captured.Color() == Player)
+                return false;
+
+            if (!Bitboard.Attacks(moved, from, Occupancy).Test(to))
+                return false;
+
+            var p = moved.Colorless();
+
+            if (m.IsPromote())
+            {
+                // fromかtoが敵陣に入っている
+                // そもそも成れる駒か
+                if (!Squares.CanPromote(Player, from, to) || p.IsPromoted() || p == Piece.Gold)
+                    return false;
+
+                p = p.Promoted();
+            }
+
+            switch (p)
+            {
+                case Piece.Pawn:
+                case Piece.Lance:
+                    if (!Bitboard.Rank(Player, Rank.R2, Rank.R9).Test(to))
+                        return false;
+                    break;
+
+                case Piece.Knight:
+                    if (!Bitboard.Rank(Player, Rank.R3, Rank.R9).Test(to))
+                        return false;
+                    break;
+            }
+        }
+        // 以下、回避手になっているかのチェック
+        {
+            var numCheckers = Checkers.Popcount();
+
+            if (numCheckers == 0)
+                return true;
+
+            var ksq = this.King(Player);
+
+            if (numCheckers == 1)
+            {
+                var csq = Checkers.LsbSquare();
+
+                // checker との間に挟む
+                if (m.IsDrop())
+                {
+                    return Bitboard.Between(ksq, csq).Test(to);
+                }
+                // 玉が逃げる
+                else if (this[m.From()].Colorless() == Piece.King)
+                {
+                    return EnumerateAttackers(Player.Inv(), to, Occupancy ^ ksq).None();
+                }
+                // 駒移動で checker を取る or 間に入る
+                else
+                {
+                    if (!(Bitboard.Between(ksq, csq) | Checkers).Test(to))
+                        return false;
+
+                    // ピンされている駒で王手は防げない
+                    return !Pinned.Test(m.From());
+                }
+            }
+            // 2枚以上の駒から王手されているとき
+            else
+            {
+                // 玉自身が逃げるしかない
+                if (m.IsDrop() || this[m.From()].Colorless() != Piece.King)
+                    return false;
+
+                return EnumerateAttackers(Player.Inv(), to, Occupancy ^ ksq).None();
+            }
+        }
     }
 
     /// <summary>
-    /// 千日手のチェックを行う。
+    /// 打ち歩詰めになるかどうか調べる。
     /// </summary>
+    /// <param name="to">歩を打つと王手になるマス</param>
     /// <returns></returns>
-    public Repetition CheckRepetitionWithHash()
+    public bool IsUchifuzume(Square to)
     {
+        var theirKsq = this.King(Player.Inv());
+        var defenders = this.EnumerateAttackers(Player.Inv(), to) ^ theirKsq;
 
+        if (defenders.Any())
+        {
+            var pinned = this.PinnedBy(Player);
+
+            if (defenders.AndNot(pinned).Any())
+            {
+                return false;
+            }
+
+            // 現在ピンされていても、歩を打つことで
+            // ピンが解除される位置なら防御可能
+            defenders &= Bitboard.Line(theirKsq, to);
+
+            if (defenders.Any())
+            {
+                return false;
+            }
+        }
+
+        var occ = Occupancy ^ to;
+        var evasionTo = Bitboard.KingAttacks(theirKsq).AndNot(this[Player.Inv()]);
+
+        foreach (var kTo in evasionTo)
+        {
+            var attackers = EnumerateAttackers(Player, kTo, occ);
+
+            if (attackers.None())
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
+
+    ///// <summary>
+    ///// 千日手のチェックを行う。
+    ///// </summary>
+    ///// <returns></returns>
+    //public Repetition CheckRepetitionWithHash()
+    //{
+    //}
 
     /// <summary>
     /// sq に利きがある c の 種類 p の駒
@@ -606,9 +864,9 @@ public class Position
     /// <param name="p"></param>
     /// <param name="sq"></param>
     /// <returns></returns>
-    public Bitboard EnumerateAttackers(Color c, Piece p, int sq)
+    public Bitboard EnumerateAttackers(Color c, Piece p, Square sq)
     {
-        return PieceBB(c, p) & Bitboard.Attacks(c.Inv(), p, sq, GetOccupancy());
+        return this[c, p] & Bitboard.Attacks(c.Inv(), p, sq, Occupancy);
     }
 
     /// <summary>
@@ -618,7 +876,7 @@ public class Position
     /// <returns></returns>
     public bool IsLegal(Move m)
     {
-        return Movegen.GenerateMoves(this).Contains(m);
+        return GenerateMoves().Contains(m);
     }
 
     /// <summary>
@@ -628,7 +886,7 @@ public class Position
     /// <returns></returns>
     public Square King(Color c)
     {
-        return this._pieceBB[(int)Piece.King.Colored(c)].LsbSquare();
+        return this[c, Piece.King].LsbSquare();
     }
 
     /// <summary>
@@ -638,15 +896,15 @@ public class Position
     /// <param name="sq"></param>
     /// <param name="occ"></param>
     /// <returns></returns>
-    public Bitboard EnumerateAttackers(Color c, int sq, Bitboard occ)
+    public Bitboard EnumerateAttackers(Color c, Square sq, Bitboard occ)
     {
-        return (PieceBB(c, Piece.Pawn) & Bitboard.PawnAttacks(c.Inv(), sq))
-             | (PieceBB(c, Piece.Lance) & Bitboard.LanceAttacks(c.Inv(), sq, occ))
-             | (PieceBB(c, Piece.Knight) & Bitboard.KnightAttacks(c.Inv(), sq))
-             | (Silvers(c) & Bitboard.SilverAttacks(c.Inv(), sq))
-             | (Golds(c) & Bitboard.GoldAttacks(c.Inv(), sq))
-             | (Bishops(c) & Bitboard.BishopAttacks(sq, occ))
-             | (Rooks(c) & Bitboard.RookAttacks(sq, occ));
+        return (this[c, Piece.Pawn] & Bitboard.PawnAttacks(c.Inv(), sq))
+             | (this[c, Piece.Lance] & Bitboard.LanceAttacks(c.Inv(), sq, occ))
+             | (this[c, Piece.Knight] & Bitboard.KnightAttacks(c.Inv(), sq))
+             | (this.SilverBB(c) & Bitboard.SilverAttacks(c.Inv(), sq))
+             | (this.GoldBB(c) & Bitboard.GoldAttacks(c.Inv(), sq))
+             | (this.BishopBB(c) & Bitboard.BishopAttacks(sq, occ))
+             | (this.RookBB(c) & Bitboard.RookAttacks(sq, occ));
     }
 
     /// <summary>
@@ -656,18 +914,9 @@ public class Position
     /// <param name="sq"></param>
     /// <param name="occ"></param>
     /// <returns></returns>
-    public Bitboard EnumerateAttackers(Color c, int sq)
+    public Bitboard EnumerateAttackers(Color c, Square sq)
     {
-        return EnumerateAttackers(c, sq, GetOccupancy());
-    }
-
-    /// <summary>
-    /// Player の玉に王手をかけている駒
-    /// </summary>
-    /// <returns></returns>
-    public Bitboard Checkers()
-    {
-        return _checkers;
+        return EnumerateAttackers(c, sq, Occupancy);
     }
 
     /// <summary>
@@ -699,16 +948,19 @@ public class Position
 
         // (d)
         // 敵陣内の駒（玉含む）
-        var bb = this._colorBB[(int)c] & Bitboard.Rank(c, 0, 2);
+        var bb = this[c] & Bitboard.Rank(c, Rank.R1, Rank.R3);
         if (bb.Popcount() < 10 + 1)
             return false;
 
         // (e)
         // 敵陣内の飛角馬竜
-        var br = (this._bishopBB[(int)c] | this._rookBB[(int)c])
-            & Bitboard.Rank(c, 0, 2);
+        var br = (this.BishopBB(c) | this.RookBB(c))
+            & Bitboard.Rank(c, Rank.R1, Rank.R3);
 
-        var point = br.Popcount() * 4 + bb.Popcount() - 1 + (int)c + Hand(c).DeclarationPoint();
+        var point = br.Popcount() * 4
+            + bb.Popcount() - 1
+            + Hand(c).DeclarationPoint()
+            + (int)c;
 
         return point >= 28;
     }
@@ -722,29 +974,71 @@ public class Position
         return CanDeclareWin(Player);
     }
 
-    /// <summary>
-    /// 盤面を人が読みやすい文字列に変換
-    /// </summary>
-    /// <returns></returns>
-    public string Pretty()
-    {
-
-        var sb = new StringBuilder();
-        sb.AppendLine(board.Pretty());
-        sb.AppendLine($"SFEN: {Sfen()}");
-        switch (CheckRepetition())
-        {
-            case Repetition.Draw: sb.AppendLine("千日手"); break;
-            case Repetition.Win: sb.AppendLine("連続王手の千日手（勝ち）"); break;
-            case Repetition.Lose: sb.AppendLine("連続王手の千日手（負け）"); break;
-            default: break;
-        }
-        return sb.ToString();
-    }
-
     public override string ToString()
     {
-        return Sfen();
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"手番: {DISP_COLOR[(int)Player]}");
+        sb.AppendLine("  ９ ８ ７ ６ ５ ４ ３ ２ １");
+        sb.AppendLine("+---------------------------+");
+
+        foreach (var rank in Ranks.All)
+        {
+            sb.Append('|');
+
+            foreach (var file in Files.Reversed)
+            {
+                sb.Append(DISP_PIECE[(int)this[rank, file]]);
+            }
+
+            sb.Append('|');
+            sb.AppendLine(DISP_RANK[(int)rank]);
+        }
+
+        sb.AppendLine("+---------------------------+");
+
+        // 持ち駒
+        foreach (var c in Colors.All)
+        {
+            sb.Append($"持ち駒（{DISP_COLOR[(int)c]}）:");
+
+            if (Hand(c).None())
+            {
+                sb.AppendLine(" なし");
+            }
+            else
+            {
+                foreach (var p in Pieces.PawnToRook)
+                {
+                    if (Hand(c).Count(p) > 0)
+                    {
+                        sb.Append(DISP_PIECE[(int)p]);
+                        sb.Append(Hand(c).Count(p));
+                    }
+                }
+
+                sb.AppendLine();
+            }
+        }
+
+        switch (Repetition)
+        {
+            case Repetition.None:
+                sb.AppendLine("千日手: なし");
+                break;
+            case Repetition.Draw:
+                sb.AppendLine("千日手: 引き分け");
+                break;
+            case Repetition.Lose:
+            case Repetition.Win:
+                sb.AppendLine("千日手: 連続王手の千日手");
+                break;
+        }
+
+        sb.AppendLine($"ハッシュ値: {Hash}");
+        sb.AppendLine($"SFEN: {Sfen}");
+
+        return sb.ToString();
     }
 
     #endregion
@@ -752,72 +1046,85 @@ public class Position
     #region private メソッド
 
     /// <summary>
-    /// board に合うように他の状態を設定
+    /// `Player,` `_pieces`, `_hands` に合うように他の状態を設定
     /// </summary>
-    private void SetInternalStates()
+    void SetInternalStates()
     {
-        board.Validate();
-
-        _colorBB = new Bitboard[2];
-        _pieceBB = new Bitboard[2 * 16];
-
-        for (int i = 0; i < 81; ++i)
+        for (int i = 0; i < this._colorBB.Length; ++i)
         {
-            if (board.Squares[i] != Piece.Empty)
+            this._colorBB[i] = new();
+        }
+
+        for (int i = 0; i < this._pieceBB.Length; ++i)
+        {
+            this._pieceBB[i] = new();
+        }
+
+        foreach (var sq in Squares.All)
+        {
+            if (this[sq] != Piece.Empty)
             {
-                ColorBB(board.Squares[i].Color()) ^= i;
-                PieceBB(board.Squares[i]) ^= i;
+                this._colorBB[(int)this[sq].Color()] ^= sq;
+                this._pieceBB[(int)this[sq]] ^= sq;
             }
         }
 
-        moves.Clear();
+        GamePly = 1;
+        Moves.Clear();
+
         SumUpBitboards(Color.Black);
         SumUpBitboards(Color.White);
+
         _checkers = ComputeCheckers();
         _pinnedBy[0] = ComputePinnedBy(Color.Black);
         _pinnedBy[1] = ComputePinnedBy(Color.White);
     }
 
-    private Bitboard ComputeCheckers()
+    Bitboard ComputeCheckers()
     {
         return EnumerateAttackers(Player.Inv(), King(Player));
     }
 
-    private Bitboard ComputePinnedBy(Color c)
+    Bitboard ComputePinnedBy(Color c)
     {
         var theirKsq = King(c.Inv());
         var pinned = default(Bitboard);
-        var pinnersCandidate = (PieceBB(c, Piece.Lance)
+        var pinnersCandidate = (this[c, Piece.Lance]
                 & Bitboard.LancePseudoAttacks(c.Inv(), theirKsq))
-            | (Bishops(c) & Bitboard.BishopPseudoAttacks(theirKsq))
-            | (Rooks(c) & Bitboard.RookPseudoAttacks(theirKsq));
-        var occ = GetOccupancy();
+            | (this.BishopBB(c) & Bitboard.BishopPseudoAttacks(theirKsq))
+            | (this.RookBB(c) & Bitboard.RookPseudoAttacks(theirKsq));
+        var occ = Occupancy;
+
         foreach (var sq in pinnersCandidate)
         {
             var between = Bitboard.Between(theirKsq, sq) & occ;
             if (between.Popcount() == 1) pinned |= between;
         }
+
         return pinned;
     }
 
-    private void SumUpBitboards(Color c)
+    void SumUpBitboards(Color c)
     {
-        _silverBB[(int)c] = PieceBB(c, Piece.Silver)
-            | PieceBB(c, Piece.King)
-            | PieceBB(c, Piece.ProBishop)
-            | PieceBB(c, Piece.ProRook);
-        _goldBB[(int)c] = PieceBB(c, Piece.Gold)
-            | PieceBB(c, Piece.King)
-            | PieceBB(c, Piece.ProPawn)
-            | PieceBB(c, Piece.ProLance)
-            | PieceBB(c, Piece.ProKnight)
-            | PieceBB(c, Piece.ProSilver)
-            | PieceBB(c, Piece.ProBishop)
-            | PieceBB(c, Piece.ProRook);
+        _silverBB[(int)c] = this[c, Piece.Silver]
+            | this[c, Piece.King]
+            | this[c, Piece.ProBishop]
+            | this[c, Piece.ProRook];
+
+        _goldBB[(int)c] = this[c, Piece.Gold]
+            | this[c, Piece.King]
+            | this[c, Piece.ProPawn]
+            | this[c, Piece.ProLance]
+            | this[c, Piece.ProKnight]
+            | this[c, Piece.ProSilver]
+            | this[c, Piece.ProBishop]
+            | this[c, Piece.ProRook];
+
         _bishopBB[(int)c] =
-            PieceBB(c, Piece.Bishop) | PieceBB(c, Piece.ProBishop);
+            this[c, Piece.Bishop] | this[c, Piece.ProBishop];
+
         _rookBB[(int)c] =
-            PieceBB(c, Piece.Rook) | PieceBB(c, Piece.ProRook);
+            this[c, Piece.Rook] | this[c, Piece.ProRook];
     }
 
     #endregion

@@ -333,16 +333,16 @@ public readonly struct Bitboard : IEnumerable<Square>
     }
 
     /// <summary>
-    /// c 視点で、段 f から 段 t までを表すビットボード
+    /// 指定した範囲の段を表すビットボードを返す。
     /// </summary>
     /// <param name="c"></param>
     /// <param name="f"></param>
     /// <param name="t"></param>
     /// <returns></returns>
-    public static Bitboard Rank(Color c, int f, int t)
+    public static Bitboard Rank(Color c, Rank f, Rank t)
     {
-        int from = c == Color.Black ? f : 8 - t;
-        int to = c == Color.Black ? t : 8 - f;
+        int from = c == Color.Black ? (int)f : 8 - (int)t;
+        int to = c == Color.Black ? (int)t : 8 - (int)f;
         ulong mul = (1UL << (to - from + 1)) - 1UL;
         ulong low = 0x0040201008040201UL * mul << from;
         ulong high = 0x0000000000000201UL * mul << from;
@@ -876,9 +876,9 @@ public readonly struct Bitboard : IEnumerable<Square>
             foreach (var c in Colors.All)
             {
                 REACHABLE_MASK[(int)p * 2 + (int)c] =
-                    p == Piece.Pawn || p == Piece.Lance ? Rank(c, 1, 8)
-                  : p == Piece.Knight ? Rank(c, 2, 8)
-                  : Rank(c, 0, 8);
+                    p == Piece.Pawn || p == Piece.Lance ? Rank(c, Core.Rank.R2, Core.Rank.R9)
+                  : p == Piece.Knight ? Rank(c, Core.Rank.R3, Core.Rank.R9)
+                  : Rank(c, Core.Rank.R1, Core.Rank.R9);
             }
         }
 

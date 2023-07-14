@@ -48,7 +48,7 @@ public static class UsiExtensions
         var rank = sq.Rank();
         var file = sq.File();
 
-        return $"{file + 1}{(char)('a' + rank)}";
+        return $"{(int)(file + 1)}{(char)('a' + rank)}";
     }
 
     /// <summary>
@@ -90,5 +90,15 @@ public static class UsiExtensions
 
             return $"{from}{to}{promote}";
         }
+    }
+
+    /// <summary>
+    /// USI 形式の指し手文字列を `Move` に変換する。
+    /// </summary>
+    /// <param name="s"></param>
+    /// <returns></returns>
+    public static Move ToMove(this string s)
+    {
+        return Usi.ParseMove(s);
     }
 }

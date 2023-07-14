@@ -1,9 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-using System.Linq;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
 using System.Text;
 
 namespace ShogiLibSharp.MovegenGenerator
@@ -31,7 +29,7 @@ using System.Runtime.Intrinsics.X86;
 
 namespace ShogiLibSharp.Core
 {
-    public static partial class Movegen
+    public partial class Position
     {
 ");
             foreach (var (method, makePublic) in receiver.Targets)
@@ -82,7 +80,7 @@ namespace ShogiLibSharp.Core
 {indent}    var __x{nest} = __bb{nest}.Lower();
 {indent}    while (__x{nest} != 0UL)
 {indent}    {{
-{indent}        var {foreachNode.Identifier} = BitOperations.TrailingZeroCount(__x{nest});
+{indent}        var {foreachNode.Identifier} = (Square)BitOperations.TrailingZeroCount(__x{nest});
 ");
 
                     GenerateCode(context, sb, foreachNode.Statement, indent + "        ");
@@ -93,7 +91,7 @@ namespace ShogiLibSharp.Core
 {indent}    __x{nest} = __bb{nest}.Upper();
 {indent}    while (__x{nest} != 0UL)
 {indent}    {{
-{indent}        var {foreachNode.Identifier} = BitOperations.TrailingZeroCount(__x{nest}) + 63;
+{indent}        var {foreachNode.Identifier} = (Square)BitOperations.TrailingZeroCount(__x{nest}) + 63;
 ");
 
                     GenerateCode(context, sb, foreachNode.Statement, indent + "        ");

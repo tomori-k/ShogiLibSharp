@@ -1,11 +1,5 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ShogiLibSharp.Core;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Core.Tests
 {
@@ -34,7 +28,7 @@ namespace ShogiLibSharp.Core.Tests
 
         private static ulong PerftImpl(Position pos, int depth)
         {
-            var moves = Movegen.GenerateMoves(pos);
+            var moves = pos.GenerateMoves();
 
             if (depth == 1)
                 return (ulong)moves.Count;

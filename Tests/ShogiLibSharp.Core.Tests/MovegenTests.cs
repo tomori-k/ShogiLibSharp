@@ -1,11 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ShogiLibSharp.Core;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Core.Tests
 {
@@ -27,7 +22,7 @@ namespace ShogiLibSharp.Core.Tests
             foreach (var (sfen, expected) in testcases)
             {
                 var pos = new Position(sfen);
-                var moves = Movegen.GenerateMoves(pos).Select(x => x.Usi());
+                var moves = pos.GenerateMoves().Select(x => x.ToUsi());
                 var extra = moves.Except(expected);
                 var lacks = expected.Except(moves);
                 Trace.WriteLine($"Sfen : {sfen}");
@@ -50,39 +45,40 @@ namespace ShogiLibSharp.Core.Tests
             var testcases = new[]
             {
                 // 玉は逃げられないし取ることもできない
-                ("3lkl3/9/9/b8/9/r8/4K4/r8/9 w B2G2S2N2L9P2g2s2n9p 1", Square.Index(5, 4), true),
+                ("3lkl3/9/9/b8/9/r8/4K4/r8/9 w B2G2S2N2L9P2g2s2n9p 1", Square.S56, true),
                 // 桂馬で取れる
-                ("3lkl3/9/9/b8/8b/r8/4K4/r4N3/9 w 2G2SN2L9P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/8b/r8/4K4/r4N3/9 w 2G2SN2L9P2g2s2n9p 1", Square.S56, false),
                 // 銀で取れる
-                ("3lkl3/9/9/b8/8b/r8/4KS3/r8/9 w 2GS2N2L9P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/8b/r8/4KS3/r8/9 w 2GS2N2L9P2g2s2n9p 1", Square.S56, false),
                 // 金で取れる
-                ("3lkl3/9/9/b8/8b/r8/3GK4/r8/9 w G2S2N2L9P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/8b/r8/3GK4/r8/9 w G2S2N2L9P2g2s2n9p 1", Square.S56, false),
                 // 角で取れる
-                ("3lkl3/9/9/b8/9/r8/4K4/r8/1B7 w 2G2S2N2L9P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/9/r8/4K4/r8/1B7 w 2G2S2N2L9P2g2s2n9p 1", Square.S56, false),
                 // 飛車で取れる
-                ("3lkl3/9/9/b8/9/r7R/4K4/3PPP3/9 w B2G2S2N2L6P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/9/r7R/4K4/3PPP3/9 w B2G2S2N2L6P2g2s2n9p 1", Square.S56, false),
                 // 馬で取れる
-                ("3lkl3/9/9/b8/4+B4/r8/4K4/r8/9 w 2G2S2N2L9P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/4+B4/r8/4K4/r8/9 w 2G2S2N2L9P2g2s2n9p 1", Square.S56, false),
                 // 竜で取れる
-                ("3lkl3/9/9/b8/9/r8/4K+R3/3PPP3/9 w B2G2S2N2L6P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/9/r8/4K+R3/3PPP3/9 w B2G2S2N2L6P2g2s2n9p 1", Square.S56, false),
                 // ピンされている駒では取れない(角によるピン)
-                ("3lkl3/9/9/b8/6b2/r4G3/4KP3/r8/9 w G2S2N2L8P2g2s2n9p 1", Square.Index(5, 4), true),
+                ("3lkl3/9/9/b8/6b2/r4G3/4KP3/r8/9 w G2S2N2L8P2g2s2n9p 1", Square.S56, true),
                 // ピンされている駒では取れない(飛車によるピン)
-                ("3lkl3/9/9/b8/9/r8/r2BK4/3PP4/9 w 2G2S2N2L7P2g2s2n9p 1", Square.Index(5, 4), true),
+                ("3lkl3/9/9/b8/9/r8/r2BK4/3PP4/9 w 2G2S2N2L7P2g2s2n9p 1", Square.S56, true),
                 // 現在はピンされているが歩を打つことによってピンが解消されるケース
-                ("3lkl3/4l4/9/b8/4R4/r8/4K4/3PP4/9 w B2G2S2NL7P2g2s2n9p 1", Square.Index(5, 4), false),
+                ("3lkl3/4l4/9/b8/4R4/r8/4K4/3PP4/9 w B2G2S2NL7P2g2s2n9p 1", Square.S56, false),
                 // 歩を打つことによって利きが遮られて逃げられるようになるケース１
-                ("3lkl3/9/9/b8/5N3/r8/4KP3/3PPS3/9 w RB2GSNL6P2g2s2nl9p 1", Square.Index(5, 4), false),
+                ("3lkl3/9/9/b8/5N3/r8/4KP3/3PPS3/9 w RB2GSNL6P2g2s2nl9p 1", Square.S56, false),
                 // 歩を打つことによって利きが遮られて逃げられるようになるケース２
-                ("8k/9/9/9/3r5/1K7/3+r5/2b6/9 w B2G2S2N3L9P2g2s2nl9p 1", Square.Index(4, 7), false),
+                ("8k/9/9/9/3r5/1K7/3+r5/2b6/9 w B2G2S2N3L9P2g2s2nl9p 1", Square.S85, false),
                 // 自駒が邪魔で逃げられないケース
-                ("3lkl3/9/9/b8/4g4/3N1P3/r2SKG2r/3PBS3/9 w NL7P2g2s2nl9p 1", Square.Index(5, 4), true),
+                ("3lkl3/9/9/b8/4g4/3N1P3/r2SKG2r/3PBS3/9 w NL7P2g2s2nl9p 1", Square.S56, true),
             };
+
             foreach (var (sfen, sq, expected) in testcases)
             {
                 var pos = new Position(sfen);
                 var move = MoveExtensions.MakeDrop(Piece.Pawn, sq);
-                Assert.AreEqual(expected, !pos.IsLegal(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
+                Assert.AreEqual(expected, !pos.IsLegal(move), $"{pos}\nmove:{move.ToUsi()}");
             }
         }
 
@@ -91,36 +87,36 @@ namespace ShogiLibSharp.Core.Tests
         {
             var testcases = new[]
             {
-                ("9/9/9/9/4g4/9/1r3GK2/7S1/k7+b b Rb2g3s4n4l18p 1", MoveExtensions.MakeDrop(Piece.Rook, Square.Index(0, 8)), false),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(5, 5)), true),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(6, 1)), true),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 3)), true),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 2)), false),
-                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(6, 6)), false),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 4), Square.Index(7, 4)), true),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 4), Square.Index(6, 3)), false),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(6, 1)), true),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(8, 0)), false),
-                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 4), Square.Index(7, 4)), false),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 3)), true),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(5, 1)), true),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(7, 3)), false),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 2), Square.Index(8, 0)), true),
-                ("9/9/9/9/7g1/9/1r2g1K2/9/k3P1R1+b b BS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 2), Square.Index(8, 0)), false),
-                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(6, 6)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Gold, Square.Index(6, 1)), false),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Gold, Square.Index(6, 3)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(6, 3)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(6, 2), Square.Index(7, 3)), false),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(6, 0)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(7, 1), Square.Index(6, 1)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.Index(3, 3)), true),
-                ("9/9/9/9/7g1/9/6K1r/7S1/k4BR1+b b GP2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.Index(8, 3), Square.Index(6, 1)), false),
+                ("9/9/9/9/4g4/9/1r3GK2/7S1/k7+b b Rb2g3s4n4l18p 1", MoveExtensions.MakeDrop(Piece.Rook, Square.S91), false),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.S66), true),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S27), true),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S46), true),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S36), false),
+                ("9/9/9/9/4g4/9/1r4K2/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.S77), false),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S57, Square.S58), true),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S57, Square.S47), false),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S28, Square.S27), true),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S28, Square.S19), false),
+                ("9/9/9/9/4g4/9/1r2G1K2/7S1/k3P1R1+b b B2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S59, Square.S58), false),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S46), true),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S26), true),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S48), false),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S39, Square.S19), true),
+                ("9/9/9/9/7g1/9/1r2g1K2/9/k3P1R1+b b BS2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S39, Square.S19), false),
+                ("9/9/9/9/7g1/9/1r4K2/9/k3P1R1+b b BGS2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.S77), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Gold, Square.S27), false),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Gold, Square.S47), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S47), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S37, Square.S48), false),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S28, Square.S17), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S28, Square.S27), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k3P1R1+b b BG2g3s4n4l17p 1", MoveExtensions.MakeDrop(Piece.Bishop, Square.S44), true),
+                ("9/9/9/9/7g1/9/6K1r/7S1/k4BR1+b b GP2g3s4n4l17p 1", MoveExtensions.MakeMove(Square.S49, Square.S27), false),
             };
             foreach (var (sfen, move, expected) in testcases)
             {
                 var pos = new Position(sfen);
-                Assert.AreEqual(expected, !pos.IsLegal(move), $"{pos.Pretty()}\nmove:{move.Usi()}");
+                Assert.AreEqual(expected, !pos.IsLegal(move), $"{pos}\nmove:{move.ToUsi()}");
             }
         }
     }

@@ -1,11 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ShogiLibSharp.Core;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ShogiLibSharp.Core.Tests
 {
@@ -26,7 +19,7 @@ namespace ShogiLibSharp.Core.Tests
                 ".o.....o." +
                 "o.......o");
 
-            var a1 = Bitboard.LanceAttacks(Color.Black, Square.Index(8, 0), occ);
+            var a1 = Bitboard.LanceAttacks(Color.Black, Square.S19, occ);
             var e1 = new Bitboard(
                 "........o" +
                 "........o" +
@@ -37,9 +30,9 @@ namespace ShogiLibSharp.Core.Tests
                 "........o" +
                 "........o" +
                 ".........");
-            Assert.AreEqual(e1, a1, $"\nExpected\n{e1.Pretty()}\nActual\n{a1.Pretty()}");
+            Assert.AreEqual(e1, a1, $"\nExpected\n{e1}\nActual\n{a1}");
 
-            var a2 = Bitboard.LanceAttacks(Color.Black, Square.Index(8, 1), occ);
+            var a2 = Bitboard.LanceAttacks(Color.Black, Square.S29, occ);
             var e2 = new Bitboard(
                 "........." +
                 "........." +
@@ -50,9 +43,9 @@ namespace ShogiLibSharp.Core.Tests
                 "........." +
                 ".......o." +
                 ".........");
-            Assert.AreEqual(e2, a2, $"\nExpected\n{e2.Pretty()}\nActual\n{a2.Pretty()}");
+            Assert.AreEqual(e2, a2, $"\nExpected\n{e2}\nActual\n{a2}");
 
-            var a3 = Bitboard.LanceAttacks(Color.Black, Square.Index(6, 7), occ);
+            var a3 = Bitboard.LanceAttacks(Color.Black, Square.S87, occ);
             var e3 = new Bitboard(
                 "........." +
                 ".o......." +
@@ -63,9 +56,9 @@ namespace ShogiLibSharp.Core.Tests
                 "........." +
                 "........." +
                 ".........");
-            Assert.AreEqual(e3, a3, $"\nExpected\n{e3.Pretty()}\nActual\n{a3.Pretty()}");
+            Assert.AreEqual(e3, a3, $"\nExpected\n{e3}\nActual\n{a3}");
 
-            var a4 = Bitboard.LanceAttacks(Color.White, Square.Index(0, 8), occ);
+            var a4 = Bitboard.LanceAttacks(Color.White, Square.S91, occ);
             var e4 = new Bitboard(
                 "........." +
                 "o........" +
@@ -76,9 +69,9 @@ namespace ShogiLibSharp.Core.Tests
                 "o........" +
                 "o........" +
                 "o........");
-            Assert.AreEqual(e4, a4, $"\nExpected\n{e4.Pretty()}\nActual\n{a4.Pretty()}");
+            Assert.AreEqual(e4, a4, $"\nExpected\n{e4}\nActual\n{a4}");
 
-            var a5 = Bitboard.LanceAttacks(Color.White, Square.Index(0, 7), occ);
+            var a5 = Bitboard.LanceAttacks(Color.White, Square.S81, occ);
             var e5 = new Bitboard(
                 "........." +
                 ".o......." +
@@ -89,9 +82,9 @@ namespace ShogiLibSharp.Core.Tests
                 "........." +
                 "........." +
                 ".........");
-            Assert.AreEqual(e5, a5, $"\nExpected\n{e5.Pretty()}\nActual\n{a5.Pretty()}");
+            Assert.AreEqual(e5, a5, $"\nExpected\n{e5}\nActual\n{a5}");
 
-            var a6 = Bitboard.LanceAttacks(Color.White, Square.Index(2, 1), occ);
+            var a6 = Bitboard.LanceAttacks(Color.White, Square.S23, occ);
             var e6 = new Bitboard(
                 "........." +
                 "........." +
@@ -102,7 +95,7 @@ namespace ShogiLibSharp.Core.Tests
                 ".......o." +
                 ".......o." +
                 ".........");
-            Assert.AreEqual(e6, a6, $"\nExpected\n{e6.Pretty()}\nActual\n{a6.Pretty()}");
+            Assert.AreEqual(e6, a6, $"\nExpected\n{e6}\nActual\n{a6}");
         }
 
         [TestMethod()]
@@ -119,7 +112,7 @@ namespace ShogiLibSharp.Core.Tests
                 ".o.o...o." +
                 "o.......o");
 
-            var a1 = Bitboard.BishopAttacks(Square.Index(4, 4), occ);
+            var a1 = Bitboard.BishopAttacks(Square.S55, occ);
             var e1 = new Bitboard(
                 "........." +
                 "........." +
@@ -130,9 +123,9 @@ namespace ShogiLibSharp.Core.Tests
                 "........." +
                 "........." +
                 ".........");
-            Assert.AreEqual(e1, a1, $"\nExpected\n{e1.Pretty()}\nActual\n{a1.Pretty()}");
+            Assert.AreEqual(e1, a1, $"\nExpected\n{e1}\nActual\n{a1}");
 
-            var a2 = Bitboard.BishopAttacks(Square.Index(8, 1), occ);
+            var a2 = Bitboard.BishopAttacks(Square.S29, occ);
             var e2 = new Bitboard(
                 "........." +
                 "........." +
@@ -143,9 +136,9 @@ namespace ShogiLibSharp.Core.Tests
                 ".....o..." +
                 "......o.o" +
                 ".........");
-            Assert.AreEqual(e2, a2, $"\nExpected\n{e2.Pretty()}\nActual\n{a2.Pretty()}");
+            Assert.AreEqual(e2, a2, $"\nExpected\n{e2}\nActual\n{a2}");
 
-            var a3 = Bitboard.BishopAttacks(Square.Index(4, 8), occ);
+            var a3 = Bitboard.BishopAttacks(Square.S95, occ);
             var e3 = new Bitboard(
                 "........." +
                 "........." +
@@ -156,7 +149,7 @@ namespace ShogiLibSharp.Core.Tests
                 "..o......" +
                 "...o....." +
                 ".........");
-            Assert.AreEqual(e3, a3, $"\nExpected\n{e3.Pretty()}\nActual\n{a3.Pretty()}");
+            Assert.AreEqual(e3, a3, $"\nExpected\n{e3}\nActual\n{a3}");
         }
 
         [TestMethod()]
@@ -173,7 +166,7 @@ namespace ShogiLibSharp.Core.Tests
                 ".o.o...o." +
                 "o.......o");
 
-            var a1 = Bitboard.RookAttacks(Square.Index(7, 0), occ);
+            var a1 = Bitboard.RookAttacks(Square.S18, occ);
             var e1 = new Bitboard(
                 "........o" +
                 "........o" +
@@ -184,9 +177,9 @@ namespace ShogiLibSharp.Core.Tests
                 "........o" +
                 ".......o." +
                 "........o");
-            Assert.AreEqual(e1, a1, $"\nExpected\n{e1.Pretty()}\nActual\n{a1.Pretty()}");
+            Assert.AreEqual(e1, a1, $"\nExpected\n{e1}\nActual\n{a1}");
 
-            var a2 = Bitboard.RookAttacks(Square.Index(6, 7), occ);
+            var a2 = Bitboard.RookAttacks(Square.S87, occ);
             var e2 = new Bitboard(
                 "........." +
                 "........." +
@@ -197,9 +190,9 @@ namespace ShogiLibSharp.Core.Tests
                 "o.ooooo.." +
                 ".o......." +
                 ".........");
-            Assert.AreEqual(e2, a2, $"\nExpected\n{e2.Pretty()}\nActual\n{a2.Pretty()}");
+            Assert.AreEqual(e2, a2, $"\nExpected\n{e2}\nActual\n{a2}");
 
-            var a3 = Bitboard.RookAttacks(Square.Index(4, 4), occ);
+            var a3 = Bitboard.RookAttacks(Square.S55, occ);
             var e3 = new Bitboard(
                 "....o...." +
                 "....o...." +
@@ -210,7 +203,7 @@ namespace ShogiLibSharp.Core.Tests
                 "....o...." +
                 "....o...." +
                 "....o....");
-            Assert.AreEqual(e3, a3, $"\nExpected\n{e3.Pretty()}\nActual\n{a3.Pretty()}");
+            Assert.AreEqual(e3, a3, $"\nExpected\n{e3}\nActual\n{a3}");
         }
     }
 }
