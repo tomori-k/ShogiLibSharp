@@ -5,6 +5,8 @@ namespace ShogiLibSharp.Core;
 public partial class Position
 {
     public const string Hirate = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+    public const string Matsuri = "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1";
+    public const string MaxLegalMoves = "R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1";
 
     static readonly string[] DISP_RANK = { "一", "二", "三", "四", "五", "六", "七", "八", "九" };
     static readonly string[] DISP_COLOR = { "先手", "後手" };
