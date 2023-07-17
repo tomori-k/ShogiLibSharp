@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
+using System.Runtime.Intrinsics.Arm;
 
 namespace ShogiLibSharp.Core;
 
@@ -51,7 +52,7 @@ public readonly struct Bitboard : IEnumerable<Square>
         this.x = Vector128.Create(lo, hi);
     }
 
-    public Bitboard(Vector128<UInt64> x)
+    public Bitboard(Vector128<ulong> x)
     {
         this.x = x;
     }
@@ -389,6 +390,7 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <param name="sq"></param>
     /// <param name="occupancy"></param>
     /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard LanceAttacksBlack(Square sq, Bitboard occupancy)
     {
         var mask = Ray(sq, Direction.Right).x;
@@ -408,6 +410,7 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <param name="sq"></param>
     /// <param name="occupancy"></param>
     /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard LanceAttacksWhite(Square sq, Bitboard occupancy)
     {
         var mask = Ray(sq, Direction.Left);
@@ -432,89 +435,68 @@ public readonly struct Bitboard : IEnumerable<Square>
             : LanceAttacksWhite(sq, occupancy);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Bitboard ComputeSliderAttacks(Vector128<ulong> occ0, Vector128<ulong> occ1, Vector128<ulong> mask0, Vector128<ulong> mask1)
+    {
+        var lo = Vector128.BitwiseAnd(occ0, mask0);
+        var hi = Vector128.BitwiseAnd(occ1, mask1);
+        var carry = Vector128.Equals(lo, Vector128<ulong>.Zero);
+
+        hi = Vector128.Xor(hi, Vector128.Add(hi, carry));
+        lo = Vector128.Xor(lo, Vector128.Add(lo, Vector128.Create(0xffffffffffffffffUL)));
+        lo = Vector128.BitwiseAnd(lo, mask0);
+        hi = Vector128.BitwiseAnd(hi, mask1);
+
+        return new(Vector128.BitwiseOr(UnpackLow(lo, hi), ByteSwap(UnpackHigh(lo, hi))));
+    }
+
     /// <summary>
     /// 角の利きを計算
     /// </summary>
     /// <param name="sq"></param>
     /// <param name="occupancy"></param>
     /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard BishopAttacks(Square sq, Bitboard occupancy)
     {
+        var mask0 = BishopMask[(int)sq * 2 + 0];
+        var mask1 = BishopMask[(int)sq * 2 + 1];
+
         if (Avx2.IsSupported)
         {
             var shuffle = Vector256.Create(
                 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
                 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-            var mask_lo = BishopMask[(int)sq * 2 + 0];
-            var mask_hi = BishopMask[(int)sq * 2 + 1];
-            var occ256 = occupancy.x.ToVector256Unsafe();
-            var occ2 = Avx2.Permute2x128(occ256, occ256, 0x20);
+
+            var occ2 = occupancy.x.ToVector256Unsafe();
+            occ2 = Avx2.Permute2x128(occ2, occ2, 0x20); // broadcast
             var rocc2 = Avx2.Shuffle(occ2.AsSByte(), shuffle).AsUInt64();
-            var lo = Avx2.UnpackLow(occ2, rocc2);
-            var hi = Avx2.UnpackHigh(occ2, rocc2);
-            lo = Avx2.And(lo, mask_lo);
-            hi = Avx2.And(hi, mask_hi);
-            var t0 = Avx2.Add(lo, Vector256.Create(0xffffffffffffffffUL));
-            var t1 = Avx2.Add(hi, Avx2.CompareEqual(lo, Vector256<ulong>.Zero));
-            t0 = Avx2.And(Avx2.Xor(t0, lo), mask_lo);
-            t1 = Avx2.And(Avx2.Xor(t1, hi), mask_hi);
-            var a2 = Avx2.Shuffle(Avx2.UnpackHigh(t0, t1).AsSByte(), shuffle);
-            a2 = Avx2.Or(a2, Avx2.UnpackLow(t0, t1).AsSByte());
-            return new(Sse2.Or(a2.GetLower(), a2.GetUpper()).AsUInt64());
-        }
-        else if (Sse2.IsSupported)
-        {
-            var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-            var rocc = Ssse3.IsSupported
-                ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
-                : Bswap128_Sse2(occupancy.x);
-            var occ0 = Sse2.UnpackLow(occupancy.x, rocc);
-            var occ1 = Sse2.UnpackHigh(occupancy.x, rocc);
-            Vector128<ulong> res0, res1;
-            // 前半
-            {
-                var mask_lo = BishopMask[(int)sq * 2 + 0].GetLower();
-                var mask_hi = BishopMask[(int)sq * 2 + 1].GetLower();
-                var lo = Sse2.And(occ0, mask_lo);
-                var hi = Sse2.And(occ1, mask_hi);
-                var carry = Sse41.IsSupported
-                    ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
-                    : AllBitsOneIfZero64x2_Sse2(lo);
-                var t1 = Sse2.Add(hi, carry);
-                var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
-                t0 = Sse2.And(Sse2.Xor(t0, lo), mask_lo);
-                t1 = Sse2.And(Sse2.Xor(t1, hi), mask_hi);
-                var a = Ssse3.IsSupported
-                    ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
-                    : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
-                res0 = Sse2.Or(a, Sse2.UnpackLow(t0, t1));
-            }
-            // 後半
-            {
-                var mask_lo = BishopMask[(int)sq * 2 + 0].GetUpper();
-                var mask_hi = BishopMask[(int)sq * 2 + 1].GetUpper();
-                var lo = Sse2.And(occ0, mask_lo);
-                var hi = Sse2.And(occ1, mask_hi);
-                var carry = Sse41.IsSupported
-                    ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
-                    : AllBitsOneIfZero64x2_Sse2(lo);
-                var t1 = Sse2.Add(hi, carry);
-                var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
-                t0 = Sse2.And(Sse2.Xor(t0, lo), mask_lo);
-                t1 = Sse2.And(Sse2.Xor(t1, hi), mask_hi);
-                var a = Ssse3.IsSupported
-                    ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
-                    : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
-                res1 = Sse2.Or(a, Sse2.UnpackLow(t0, t1));
-            }
-            return new(Sse2.Or(res0, res1));
+            var occ0 = Avx2.UnpackLow(occ2, rocc2);
+            var occ1 = Avx2.UnpackHigh(occ2, rocc2);
+            var lo = Avx2.And(occ0, mask0);
+            var hi = Avx2.And(occ1, mask1);
+            var carry = Avx2.CompareEqual(lo, Vector256<ulong>.Zero);
+
+            hi = Avx2.Xor(hi, Avx2.Add(hi, carry));
+            lo = Avx2.Xor(lo, Avx2.Add(lo, Vector256.Create(0xffffffffffffffffUL)));
+            lo = Avx2.And(lo, mask0);
+            hi = Avx2.And(hi, mask1);
+
+            var a2 = Avx2.Or(
+                Avx2.UnpackLow(lo, hi),
+                Avx2.Shuffle(Avx2.UnpackHigh(lo, hi).AsSByte(), shuffle).AsUInt64()
+            );
+
+            return new(Sse2.Or(a2.GetLower(), a2.GetUpper()));
         }
         else
         {
-            return SliderAttacks_NoSse_LsbToMsb(sq, Direction.LeftUp, occupancy)
-                | SliderAttacks_NoSse_LsbToMsb(sq, Direction.RightUp, occupancy)
-                | SliderAttacks_NoSse_MsbToLsb(sq, Direction.LeftDown, occupancy)
-                | SliderAttacks_NoSse_MsbToLsb(sq, Direction.RightDown, occupancy);
+            var rocc = ByteSwap(occupancy.x);
+            var occ0 = UnpackLow(occupancy.x, rocc);
+            var occ1 = UnpackHigh(occupancy.x, rocc);
+
+            return ComputeSliderAttacks(occ0, occ1, mask0.GetLower(), mask1.GetLower())
+                 | ComputeSliderAttacks(occ0, occ1, mask0.GetUpper(), mask1.GetUpper());
         }
     }
 
@@ -524,42 +506,16 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <param name="sq"></param>
     /// <param name="occupancy"></param>
     /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard RookAttacks(Square sq, Bitboard occupancy)
     {
-        if (Sse2.IsSupported)
-        {
-            var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-            var mask_lo = RookMask[(int)sq * 2 + 0];
-            var mask_hi = RookMask[(int)sq * 2 + 1];
-            var rocc = Ssse3.IsSupported
-                ? Ssse3.Shuffle(occupancy.x.AsSByte(), shuffle).AsUInt64()
-                : Bswap128_Sse2(occupancy.x);
-            var lo = Sse2.UnpackLow(occupancy.x, rocc);
-            var hi = Sse2.UnpackHigh(occupancy.x, rocc);
-            lo = Sse2.And(lo, mask_lo);
-            hi = Sse2.And(hi, mask_hi);
-            var carry = Sse41.IsSupported
-                ? Sse41.CompareEqual(lo, Vector128<ulong>.Zero)
-                : AllBitsOneIfZero64x2_Sse2(lo);
-            var t1 = Sse2.Add(hi, carry);
-            var t0 = Sse2.Add(lo, Vector128.Create(0xffffffffffffffffUL));
-            t0 = Sse2.Xor(t0, lo);
-            t1 = Sse2.Xor(t1, hi);
-            t0 = Sse2.And(t0, mask_lo);
-            t1 = Sse2.And(t1, mask_hi);
-            var updown = Ssse3.IsSupported
-                ? Ssse3.Shuffle(Sse2.UnpackHigh(t0, t1).AsSByte(), shuffle).AsUInt64()
-                : Bswap128_Sse2(Sse2.UnpackHigh(t0, t1));
-            updown = Sse2.Or(updown, Sse2.UnpackLow(t0, t1));
-            return LanceAttacksBlack(sq, occupancy) | LanceAttacksWhite(sq, occupancy) | new Bitboard(updown);
-        }
-        else
-        {
-            return SliderAttacks_NoSse_LsbToMsb(sq, Direction.Up, occupancy)
-                | SliderAttacks_NoSse_MsbToLsb(sq, Direction.Down, occupancy)
-                | LanceAttacksBlack(sq, occupancy)
-                | LanceAttacksWhite(sq, occupancy);
-        }
+        var mask0 = RookMask[(int)sq * 2 + 0];
+        var mask1 = RookMask[(int)sq * 2 + 1];
+        var rocc = ByteSwap(occupancy.x);
+        var occ0 = UnpackLow(occupancy.x, rocc);
+        var occ1 = UnpackHigh(occupancy.x, rocc);
+
+        return ComputeSliderAttacks(occ0, occ1, mask0, mask1) | LanceAttacksBlack(sq, occupancy) | LanceAttacksWhite(sq, occupancy);
     }
 
     /// <summary>
@@ -612,72 +568,39 @@ public readonly struct Bitboard : IEnumerable<Square>
         return Attacks(p.Colored(c), sq, occupancy);
     }
 
-    static Bitboard SquareBit(int rank, int file)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector128<ulong> UnpackHigh(Vector128<ulong> x, Vector128<ulong> y)
     {
-        return 0 <= rank && rank < 9 && 0 <= file && file < 9
-            ? SquareBB(Squares.Index((Rank)rank, (File)file)) : default;
+        return Sse2.IsSupported ? Sse2.UnpackHigh(x, y)
+            : AdvSimd.Arm64.IsSupported ? AdvSimd.Arm64.ZipHigh(x, y)
+            : Vector128.Create(Vector128.GetUpper(x), Vector128.GetUpper(y));
     }
 
-    static ulong Bswap64(ulong x)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector128<ulong> UnpackLow(Vector128<ulong> x, Vector128<ulong> y)
     {
-        ulong t = (x >> 32) | (x << 32);
-        t = (t >> 16 & 0x0000ffff0000ffffUL) | ((t & 0x0000ffff0000ffffUL) << 16);
-        t = (t >> 8 & 0x00ff00ff00ff00ffUL) | ((t & 0x00ff00ff00ff00ffUL) << 8);
-        return t;
+        return Sse2.IsSupported ? Sse2.UnpackLow(x, y)
+            : AdvSimd.Arm64.IsSupported ? AdvSimd.Arm64.ZipLow(x, y)
+            : Vector128.Create(Vector128.GetLower(x), Vector128.GetLower(y));
     }
 
-    static Bitboard SliderAttacks_NoSse_LsbToMsb(Square sq, Direction d, Bitboard occupancy)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector128<T> ByteSwap<T>(Vector128<T> x) where T : struct
     {
-        var mask0 = Ray(sq, d).Lower();
-        var mask1 = Ray(sq, d).Upper();
-        var occ0 = occupancy.Lower();
-        var occ1 = occupancy.Upper();
-        var masked0 = occ0 & mask0;
-        var masked1 = occ1 & mask1;
-        var t0 = masked0 - 1UL;
-        var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
-        t0 ^= masked0;
-        t1 ^= masked1;
-        t0 &= mask0;
-        t1 &= mask1;
-        return new Bitboard(t0, t1);
+        var shuffle = Vector128.Create(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+
+        return Ssse3.IsSupported ? Ssse3.Shuffle(x.AsSByte(), shuffle).As<sbyte, T>()
+            : Sse2.IsSupported ? ByteSwap_Sse2(x)
+            : Vector128.Shuffle(x.AsSByte(), shuffle).As<sbyte, T>(); // これ使うと何故か遅くなる...。
     }
 
-    static Bitboard SliderAttacks_NoSse_MsbToLsb(Square sq, Direction d, Bitboard occupancy)
-    {
-        var mask0 = Ray(sq, d).Lower();
-        var mask1 = Ray(sq, d).Upper();
-        var occ0 = occupancy.Lower();
-        var occ1 = occupancy.Upper();
-        var masked0 = Bswap64(occ1 & mask1);
-        var masked1 = Bswap64(occ0 & mask0);
-        var t0 = masked0 - 1UL;
-        var t1 = masked1 - Convert.ToUInt64(masked0 == 0);
-        (t0, t1) = (Bswap64(t1 ^ masked1), Bswap64(t0 ^ masked0));
-        t0 &= mask0;
-        t1 &= mask1;
-        return new Bitboard(t0, t1);
-    }
-
-    static Vector128<ulong> Bswap128_Sse2(Vector128<ulong> x)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector128<T> ByteSwap_Sse2<T>(Vector128<T> x) where T : struct
     {
         var y = Sse2.ShuffleLow(x.AsUInt16(), 0b00011011);
         y = Sse2.ShuffleHigh(y, 0b00011011);
         y = Sse2.Or(Sse2.ShiftRightLogical(y, 8), Sse2.ShiftLeftLogical(y, 8));
-        return Sse2.Shuffle(y.AsUInt32(), 0b01001110).AsUInt64();
-    }
-
-    static Vector128<ulong> Bswap128_NoSse(Vector128<ulong> x)
-    {
-        return Vector128.Create(
-            Bswap64(x.GetUpper().ToScalar()),
-            Bswap64(x.GetLower().ToScalar()));
-    }
-
-    static Vector128<ulong> AllBitsOneIfZero64x2_Sse2(Vector128<ulong> left)
-    {
-        var x = Sse2.CompareEqual(left.AsUInt32(), Vector128<uint>.Zero).AsUInt64();
-        return Sse2.And(x, Sse2.Or(Sse2.ShiftRightLogical(x, 32), Sse2.ShiftLeftLogical(x, 32)));
+        return Sse2.Shuffle(y.AsUInt32(), 0b01001110).As<uint, T>();
     }
 
     public override string ToString()
@@ -698,6 +621,12 @@ public readonly struct Bitboard : IEnumerable<Square>
 
     static Bitboard()
     {
+        static Bitboard SquareBit(int rank, int file)
+        {
+            return 0 <= rank && rank < 9 && 0 <= file && file < 9
+                ? SquareBB(Squares.Index((Rank)rank, (File)file)) : default;
+        }
+
         foreach (var rank in Ranks.All)
         {
             foreach (var file in Files.All)
@@ -810,9 +739,9 @@ public readonly struct Bitboard : IEnumerable<Square>
             var ld = Ray(sq, Direction.LeftDown).x;
 
             // 予めバイト反転しておく
-            rd = Bswap128_NoSse(rd);
-            ld = Bswap128_NoSse(ld);
-            dn = Bswap128_NoSse(dn);
+            rd = ByteSwap(rd);
+            ld = ByteSwap(ld);
+            dn = ByteSwap(dn);
 
             BishopMask[(int)sq * 2 + 0] = Vector256.Create(ru.GetLower().ToScalar(), ld.GetLower().ToScalar(), lu.GetLower().ToScalar(), rd.GetLower().ToScalar());
             BishopMask[(int)sq * 2 + 1] = Vector256.Create(ru.GetUpper().ToScalar(), ld.GetUpper().ToScalar(), lu.GetUpper().ToScalar(), rd.GetUpper().ToScalar());
