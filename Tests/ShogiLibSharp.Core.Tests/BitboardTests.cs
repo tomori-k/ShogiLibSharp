@@ -280,4 +280,98 @@ public class BitboardTests
 
         Assert.AreEqual(expected, actual);
     }
+
+    [DataTestMethod]
+    [DataRow(Color.Black, Rank.R1, Rank.R1,
+        "ooooooooo" +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........."
+    )]
+    [DataRow(Color.Black, Rank.R2, Rank.R2,
+        "........." +
+        "ooooooooo" +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........."
+    )]
+    [DataRow(Color.Black, Rank.R3, Rank.R9,
+        "........." +
+        "........." +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo"
+    )]
+    [DataRow(Color.Black, Rank.R8, Rank.R3,
+        "........." +
+        "........." +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "........."
+    )]
+    [DataRow(Color.White, Rank.R1, Rank.R1,
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "ooooooooo"
+    )]
+    [DataRow(Color.White, Rank.R2, Rank.R2,
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "ooooooooo" +
+        "........."
+    )]
+    [DataRow(Color.White, Rank.R3, Rank.R9,
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "........." +
+        "........."
+    )]
+    [DataRow(Color.White, Rank.R8, Rank.R3,
+        "........." +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "ooooooooo" +
+        "........." +
+        "........."
+    )]
+    public void RankBBTest(Color c, Rank r1, Rank r2, string expectedPattern)
+    {
+        Assert.AreEqual(Bitboard.Rank(c, r1, r2), new Bitboard(expectedPattern));
+    }
 }

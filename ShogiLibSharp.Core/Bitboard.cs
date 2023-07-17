@@ -39,6 +39,7 @@ public readonly struct Bitboard : IEnumerable<Square>
     static readonly Bitboard[] ROOK_PSEUDO_ATTACKS = new Bitboard[81];
 
     static readonly Bitboard[] RAY_BB = new Bitboard[81 * 8]; // LEFT, LEFTUP, UP, RIGHTUP, RIGHT, RIGHTDOWN, DOWN, LEFTDOWN
+    static readonly Bitboard[] RANK_BB = new Bitboard[2 * 9 * 9];
 
     static readonly Vector256<ulong>[] BishopMask = new Vector256<ulong>[81 * 2];
     static readonly Vector128<ulong>[] RookMask = new Vector128<ulong>[81 * 2];
@@ -291,6 +292,12 @@ public readonly struct Bitboard : IEnumerable<Square>
             : default;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static int RankBBIndex(Color c, Rank r1, Rank r2)
+    {
+        return (int)c * 81 + (int)r1 * 9 + (int)r2;
+    }
+
     /// <summary>
     /// 指定した範囲の段を表すビットボードを返す。
     /// </summary>
@@ -298,14 +305,10 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <param name="f"></param>
     /// <param name="t"></param>
     /// <returns></returns>
-    public static Bitboard Rank(Color c, Rank f, Rank t)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Bitboard Rank(Color c, Rank r1, Rank r2)
     {
-        int from = c == Color.Black ? (int)f : 8 - (int)t;
-        int to = c == Color.Black ? (int)t : 8 - (int)f;
-        ulong mul = (1UL << (to - from + 1)) - 1UL;
-        ulong low = 0x0040201008040201UL * mul << from;
-        ulong high = 0x0000000000000201UL * mul << from;
-        return new(low, high);
+        return RANK_BB[RankBBIndex(c, r1, r2)];
     }
 
     /// <summary>
@@ -718,17 +721,6 @@ public readonly struct Bitboard : IEnumerable<Square>
             KING_ATTACKS[i] = SILVER_ATTACKS[i * 2] | GOLD_ATTACKS[i * 2];
         }
 
-        foreach (var p in Pieces.PawnToRook)
-        {
-            foreach (var c in Colors.All)
-            {
-                REACHABLE_MASK[(int)p * 2 + (int)c] =
-                    p == Piece.Pawn || p == Piece.Lance ? Rank(c, Core.Rank.R2, Core.Rank.R9)
-                  : p == Piece.Knight ? Rank(c, Core.Rank.R3, Core.Rank.R9)
-                  : Rank(c, Core.Rank.R1, Core.Rank.R9);
-            }
-        }
-
         foreach (var sq in Squares.All)
         {
             var up = Ray(sq, Direction.Up).x;
@@ -755,6 +747,39 @@ public readonly struct Bitboard : IEnumerable<Square>
             LANCE_PSEUDO_ATTACKS[(int)sq * 2 + 1] = LanceAttacksWhite(sq, default);
             BISHOP_PSEUDO_ATTACKS[(int)sq] = BishopAttacks(sq, default);
             ROOK_PSEUDO_ATTACKS[(int)sq] = RookAttacks(sq, default);
+        }
+
+        foreach (var c in Colors.All)
+        {
+            foreach (var rank1 in Ranks.All)
+            {
+                foreach (var rank2 in Ranks.All)
+                {
+                    if (rank1 > rank2)
+                    {
+                        RANK_BB[RankBBIndex(c, rank1, rank2)] = RANK_BB[RankBBIndex(c, rank2, rank1)];
+                    }
+                    else
+                    {
+                        for (var r = rank1; r <= rank2; ++r)
+                        {
+                            var s = c == Color.Black ? r : 8 - r;
+                            RANK_BB[RankBBIndex(c, rank1, rank2)] |= Line(Squares.Index(s, File.F1), Squares.Index(s, File.F9));
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach (var p in Pieces.PawnToRook)
+        {
+            foreach (var c in Colors.All)
+            {
+                REACHABLE_MASK[(int)p * 2 + (int)c] =
+                    p == Piece.Pawn || p == Piece.Lance ? Rank(c, Core.Rank.R2, Core.Rank.R9)
+                  : p == Piece.Knight ? Rank(c, Core.Rank.R3, Core.Rank.R9)
+                  : Rank(c, Core.Rank.R1, Core.Rank.R9);
+            }
         }
     }
 
