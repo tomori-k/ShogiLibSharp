@@ -85,66 +85,31 @@ public readonly struct Bitboard : IEnumerable<Square>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard operator &(Bitboard lhs, Bitboard rhs)
     {
-        if (Sse2.IsSupported)
-        {
-            return new(Sse2.And(lhs.x, rhs.x));
-        }
-        else
-        {
-            return new(lhs.Lower() & rhs.Lower(), lhs.Upper() & rhs.Upper());
-        }
+        return new(Vector128.BitwiseAnd(lhs.x, rhs.x));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard operator |(Bitboard lhs, Bitboard rhs)
     {
-        if (Sse2.IsSupported)
-        {
-            return new(Sse2.Or(lhs.x, rhs.x));
-        }
-        else
-        {
-            return new(lhs.Lower() | rhs.Lower(), lhs.Upper() | rhs.Upper());
-        }
+        return new(Vector128.BitwiseOr(lhs.x, rhs.x));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard operator ^(Bitboard lhs, Bitboard rhs)
     {
-        if (Sse2.IsSupported)
-        {
-            return new(Sse2.Xor(lhs.x, rhs.x));
-        }
-        else
-        {
-            return new(lhs.Lower() ^ rhs.Lower(), lhs.Upper() ^ rhs.Upper());
-        }
+        return new(Vector128.Xor(lhs.x, rhs.x));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard operator <<(Bitboard x, int shift)
     {
-        if (Sse2.IsSupported)
-        {
-            return new(Sse2.ShiftLeftLogical(x.x, (byte)shift));
-        }
-        else
-        {
-            return new(x.Lower() << shift, x.Upper() << shift);
-        }
+        return new(Vector128.ShiftLeft(x.x, shift));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard operator >>(Bitboard x, int shift)
     {
-        if (Sse2.IsSupported)
-        {
-            return new(Sse2.ShiftRightLogical(x.x, (byte)shift));
-        }
-        else
-        {
-            return new(x.Lower() >> shift, x.Upper() >> shift);
-        }
+        return new(Vector128.ShiftRightLogical(x.x, shift));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -179,14 +144,7 @@ public readonly struct Bitboard : IEnumerable<Square>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard AndNot(Bitboard rhs)
     {
-        if (Sse2.IsSupported)
-        {
-            return new(Sse2.AndNot(rhs.x, this.x));
-        }
-        else
-        {
-            return this & ~rhs;
-        }
+        return new(Vector128.AndNot(this.x, rhs.x));
     }
 
     /// <summary>
@@ -368,23 +326,10 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <returns></returns>
     public static Bitboard PawnDropMask(Bitboard pawns)
     {
-        if (Sse2.IsSupported)
-        {
-            var left = Vector128.Create(0x4020100804020100UL, 0x0000000000020100UL);
-            var t = Sse2.Subtract(left, pawns.x);
-            t = Sse2.ShiftRightLogical(Sse2.And(t, left), 8);
-            return new(Sse2.Xor(left, Sse2.Subtract(left, t)));
-        }
-        else
-        {
-            const ulong left0 = 0x4020100804020100UL;
-            const ulong left1 = 0x0000000000020100UL;
-            var t0 = left0 - pawns.Lower();
-            var t1 = left1 - pawns.Upper();
-            t0 = left0 - ((t0 & left0) >> 8);
-            t1 = left1 - ((t1 & left1) >> 8);
-            return new(left0 ^ t0, left1 ^ t1);
-        }
+        var left = Vector128.Create(0x4020100804020100UL, 0x0000000000020100UL);
+        var t = Vector128.Subtract(left, pawns.x);
+        t = Vector128.ShiftRightLogical(Vector128.BitwiseAnd(t, left), 8);
+        return new(Vector128.Xor(left, Vector128.Subtract(left, t)));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -446,32 +391,15 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <returns></returns>
     public static Bitboard LanceAttacksBlack(Square sq, Bitboard occupancy)
     {
-        if (Sse2.IsSupported)
-        {
-            var mask = Ray(sq, Direction.Right).x;
-            var masked = Sse2.And(occupancy.x, mask);
-            masked = Sse2.Or(masked, Sse2.ShiftRightLogical(masked, 1));
-            masked = Sse2.Or(masked, Sse2.ShiftRightLogical(masked, 2));
-            masked = Sse2.Or(masked, Sse2.ShiftRightLogical(masked, 4));
-            masked = Sse2.ShiftRightLogical(masked, 1);
-            return new(Sse2.AndNot(masked, mask));
-        }
-        else
-        {
-            var mask = (int)sq < 63
-                ? Ray(sq, Direction.Right).Lower()
-                : Ray(sq, Direction.Right).Upper();
-            var occ = (int)sq < 63
-                ? occupancy.Lower() : occupancy.Upper();
-            var masked = occ & mask;
-            masked |= masked >> 1;
-            masked |= masked >> 2;
-            masked |= masked >> 4;
-            masked >>= 1;
-            return (int)sq < 63
-                ? new(~masked & mask, 0UL)
-                : new(0UL, ~masked & mask);
-        }
+        var mask = Ray(sq, Direction.Right).x;
+        var masked = Vector128.BitwiseAnd(occupancy.x, mask);
+
+        masked = Vector128.BitwiseOr(masked, Vector128.ShiftRightLogical(masked, 1));
+        masked = Vector128.BitwiseOr(masked, Vector128.ShiftRightLogical(masked, 2));
+        masked = Vector128.BitwiseOr(masked, Vector128.ShiftRightLogical(masked, 4));
+        masked = Vector128.ShiftRightLogical(masked, 1);
+
+        return new(Vector128.AndNot(mask, masked));
     }
 
     /// <summary>
@@ -482,22 +410,12 @@ public readonly struct Bitboard : IEnumerable<Square>
     /// <returns></returns>
     public static Bitboard LanceAttacksWhite(Square sq, Bitboard occupancy)
     {
-        if (Sse2.IsSupported)
-        {
-            var mask = Ray(sq, Direction.Left);
-            var minusOne = Vector128.Create(0xffffffffffffffffUL);
-            var masked = Sse2.And(occupancy.x, mask.x);
-            var t = Sse2.Add(masked, minusOne);
-            return new(Sse2.And(Sse2.Xor(t, masked), mask.x));
-        }
-        else
-        {
-            var mask = (int)sq < 63 ? Ray(sq, Direction.Left).Lower() : Ray(sq, Direction.Left).Upper();
-            var occ = (int)sq < 63 ? occupancy.Lower() : occupancy.Upper();
-            var masked = occ & mask;
-            var a = (masked ^ (masked - 1)) & mask;
-            return (int)sq < 63 ? new(a, 0UL) : new(0UL, a);
-        }
+        var mask = Ray(sq, Direction.Left);
+        var minusOne = Vector128.Create(0xffffffffffffffffUL);
+        var masked = Vector128.BitwiseAnd(occupancy.x, mask.x);
+        var t = Vector128.Add(masked, minusOne);
+
+        return new(Vector128.BitwiseAnd(Vector128.Xor(t, masked), mask.x));
     }
 
     /// <summary>
