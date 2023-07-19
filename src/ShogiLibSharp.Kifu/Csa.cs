@@ -2,184 +2,355 @@
 
 namespace ShogiLibSharp.Kifu
 {
-    public static class Csa
+    // CSA 棋譜ファイル形式：http://www2.computer-shogi.org/protocol/record_v22.html
+
+    public record Csa
     {
-        // CSA 棋譜ファイル形式：http://www2.computer-shogi.org/protocol/record_v22.html
+        public string? NameBlack { get; set; }
+        public string? NameWhite { get; set; }
+        public string? Event { get; set; }
+        public string? Site { get; set; }
+        public string? Opening { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public TimeSpan TimeLimit { get; set; }
+        public TimeSpan Byoyomi { get; set; }
+        public Position StartPos { get; set; } = new();
+        public List<CsaMove> Moves { get; set; } = new();
 
-        /// <summary>
-        /// CSA 形式の棋譜をパース
-        /// </summary>
-        /// <exception cref="FormatException"></exception>
-        public static Kifu Parse(string path)
+        public static Csa Parse(TextReader textReader)
         {
-            using var reader = new StreamReader(path);
-            return Parse(reader);
+            var csa = new Csa();
+
+            csa.ParseNames(textReader);
         }
 
-        /// <summary>
-        /// CSA 形式の棋譜をパース
-        /// </summary>
-        /// <exception cref="FormatException"></exception>
-        public static Kifu Parse(TextReader textReader)
+        void ParseNames(TextReader textReader)
         {
-            using var reader = new PeekableReader(textReader, '\'');
-            ParseVersion(reader);
-            var (nameBlack, nameWhite) = ParseNames(reader);
-            var info = ParseGameInfo(reader);
-            var startpos = ParseStartPos(reader);
-            var moves = ParseMoves(reader, startpos);
-            // ParseResult(lines);
-            return new Kifu(info, startpos, new() { new MoveSequence(1, moves) });
-        }
+            const string PrefixBlack = "N+";
+            const string PrefixWhite = "N-";
 
-        static void ParseVersion(PeekableReader reader)
-        {
-            var version = reader.ReadLine();
-            if (version != "V2.2")
+            while (textReader.Peek() == 'N')
             {
-                throw new FormatException("V2.2以外のバージョンのフォーマットはサポートしていません");
+                var line = textReader.ReadLine();
+
+                if (line.StartsWith(PrefixBlack))
+                {
+                    this.NameBlack = line[PrefixBlack.Length..];
+                }
+                else if (line.StartsWith(PrefixWhite))
+                {
+                    this.NameWhite = line[PrefixWhite.Length..];
+                }
+                else
+                {
+                    ThrowFormatException(line);
+                }
             }
         }
 
-        const string PrefixBlack = "N+";
-        const string PrefixWhite = "N-";
-
-        /// <summary>
-        /// CSA 形式の棋譜の対局者情報をパース
-        /// </summary>
-        static (string?, string?) ParseNames(PeekableReader reader)
+        void ParseInfo(TextReader textReader)
         {
-            string? nameBlack = null;
-            string? nameWhite = null;
-            if (reader.PeekLine() is { } b && b.StartsWith(PrefixBlack))
-            {
-                nameBlack = b[PrefixBlack.Length..];
-                reader.ReadLine();
-            }
-            if (reader.PeekLine() is { } w && w.StartsWith(PrefixWhite))
-            {
-                nameWhite = w[PrefixWhite.Length..];
-                reader.ReadLine();
-            }
-            return (nameBlack, nameWhite);
-        }
+            const string PrefixEvent = "$EVENT:";
+            const string PrefixSite = "$SITE:";
+            const string PrefixStartTime = "$START_TIME:";
+            const string PrefixEndTime = "$END_TIME:";
+            const string PrefixTimeLimit = "$TIME_LIMIT:";
+            const string PrefixOpening = "$OPENING:";
+            const string TimeFormat = "yyyy/MM/dd hh:mm:ss";
+            const string TimeLimitFormat = "hh:mm+ss";
 
-        const string PrefixEvent = "$EVENT:";
-        const string PrefixSite = "$SITE:";
-        const string PrefixStartTime = "$START_TIME:";
-        const string PrefixEndTime = "$END_TIME:";
-        const string PrefixTimeLimit = "$TIME_LIMIT:";
-        const string PrefixOpening = "$OPENING:";
-
-        /// <summary>
-        /// CSA 形式の棋譜の棋譜情報をパース
-        /// </summary>
-        static GameInfo ParseGameInfo(PeekableReader reader)
-        {
-            var info = new GameInfo();
-            while (true)
+            while (textReader.Peek() == '$')
             {
-                var line = reader.PeekLine();
-                if (line is null || !line.StartsWith("$")) break;
-
-                reader.ReadLine();
+                var line = reader.ReadLine();
 
                 if (line.StartsWith(PrefixEvent))
                 {
-                    info.Event = line[PrefixEvent.Length..];
+                    this.Event = line[PrefixEvent.Length..];
                 }
                 else if (line.StartsWith(PrefixSite))
                 {
-                    info.Site = line[PrefixSite.Length..];
+                    this.Site = line[PrefixSite.Length..];
                 }
-                else if (line.StartsWith(PrefixStartTime)
-                    && DateTime.TryParse(line[PrefixStartTime.Length..], out var startTime))
+                else if (line.StartsWith(PrefixStartTime))
                 {
-                    info.StartTime = startTime;
+                    var time = line[PrefixStartTime.Length..];
+
+                    if (DateTime.TryParseExact(time, TimeFormat, new CultureInfo("ja-JP"), DateTimeStyles.None, out var startTime))
+                    {
+                        this.StartTime = time;
+                    }
                 }
-                else if (line.StartsWith(PrefixEndTime)
-                    && DateTime.TryParse(line[PrefixEndTime.Length..], out var endTime))
+                else if (line.StartsWith(PrefixEndTime))
                 {
-                    info.EndTime = endTime;
+                    var time = line[PrefixEndTime.Length..];
+
+                    if (DateTime.TryParseExact(time, TimeFormat, new CultureInfo("ja-JP"), DateTimeStyles.None, out var endTime))
+                    {
+                        this.EndTime = endTime;
+                    }
                 }
                 else if (line.StartsWith(PrefixTimeLimit))
                 {
-                    // todo
+                    var timeLimitStr = line[PrefixTimeLimit.Length..];
+
+                    if (TimeSpan.TryParseExact(timeLimitStr, TimeLimitFormat, new CultureInfo("ja-JP"), TimeSpanStyles.None, out var timeLimit))
+                    {
+                        this.Byoyomi = TimeSpan.FromSeconds(timeLimit.Seconds);
+                        this.TimeLimit = timeLimit - this.Byoyomi;
+                    }
                 }
                 else if (line.StartsWith(PrefixOpening))
                 {
-                    info.Opening = line[PrefixOpening.Length..];
+                    this.Opening = line[PrefixOpening.Length..];
                 }
             }
-            return info;
         }
 
-        static Board ParseStartPos(PeekableReader reader)
+        static Piece ParsePiece2(ReadOnlySpan<char> slice)
         {
-            var lines = new Queue<string>();
-            while (true)
+            return slice switch
             {
-                if (reader.PeekLine() is not { } line
-                    || !line.StartsWith('P')) break;
-                reader.ReadLine();
-                lines.Enqueue(line);
-            }
-            if (lines.Count == 0)
-            {
-                throw new FormatException("開始局面の情報がありません。");
-            }
-            var colorStr = reader.ReadLine();
-            if (colorStr is null
-                || !(colorStr == "+" || colorStr == "-"))
-            {
-                throw new FormatException("開始局面の手番情報がありません。");
-            }
-            lines.Enqueue(colorStr);
-            return Core.Csa.ParseBoard(lines);
+                "FU" => Piece.Pawn,
+                "KY" => Piece.Lance,
+                "KE" => Piece.Knight,
+                "GI" => Piece.Silver,
+                "KI" => Piece.Gold,
+                "KA" => Piece.Bishop,
+                "HI" => Piece.Rook,
+                "OU" => Piece.King,
+                "TO" => Piece.ProPawn,
+                "NY" => Piece.ProLance,
+                "NK" => Piece.ProKnight,
+                "NG" => Piece.ProSilver,
+                "UM" => Piece.ProBishop,
+                "RY" => Piece.ProRook,
+                _ => throw new FormatException(), // todo
+            };
         }
 
-        /// <summary>
-        /// CSA 形式の棋譜の指し手・消費時間をパース
-        /// </summary>
-        /// <param name="lines"></param>
-        /// <param name="startpos"></param>
-        /// <returns></returns>
-        static List<MoveInfo> ParseMoves(PeekableReader reader, Board startpos)
+        static Piece ParsePiece3(ReadOnlySpan<char> slice)
         {
-            var pos = new Position(startpos);
-            var moves = new List<MoveInfo>();
-
-            while (true)
+            return slice switch
             {
-                var moveStr = reader.ReadLine();
-                if (moveStr is null
-                    || !(moveStr.StartsWith("+") || moveStr.StartsWith("-"))) break;
+                " * " => Piece.Empty,
+                "+FU" => Piece.B_Pawn,
+                "+KY" => Piece.B_Lance,
+                "+KE" => Piece.B_Knight,
+                "+GI" => Piece.B_Silver,
+                "+KI" => Piece.B_Gold,
+                "+KA" => Piece.B_Bishop,
+                "+HI" => Piece.B_Rook,
+                "+OU" => Piece.B_King,
+                "+TO" => Piece.B_ProPawn,
+                "+NY" => Piece.B_ProLance,
+                "+NK" => Piece.B_ProKnight,
+                "+NG" => Piece.B_ProSilver,
+                "+UM" => Piece.B_ProBishop,
+                "+RY" => Piece.B_ProRook,
+                "-FU" => Piece.W_Pawn,
+                "-KY" => Piece.W_Lance,
+                "-KE" => Piece.W_Knight,
+                "-GI" => Piece.W_Silver,
+                "-KI" => Piece.W_Gold,
+                "-KA" => Piece.W_Bishop,
+                "-HI" => Piece.W_Rook,
+                "-OU" => Piece.W_King,
+                "-TO" => Piece.W_ProPawn,
+                "-NY" => Piece.W_ProLance,
+                "-NK" => Piece.W_ProKnight,
+                "-NG" => Piece.W_ProSilver,
+                "-UM" => Piece.W_ProBishop,
+                "-RY" => Piece.W_ProRook,
+                _ => throw new FormatException(), // todo
+            };
+        }
 
-                var move = Core.Csa.ParseMove(moveStr, pos);
-                pos.DoMove(move);
+        static Square ParseSquare(ReadOnlySpan<char> slice)
+        {
+            var rank = FromOneToNine(slice[1]) ? (Rank)(slice[1] - '1') : throw new FormatException();
+            var file = FromOneToNine(slice[0]) ? (File)(slice[1] - '1') : throw new FormatException();
 
-                // 消費時間はオプションなので、ないこともある
+            return Squares.Index(rank, file);
+        }
 
-                if (reader.PeekLine() is { } timeStr && timeStr.StartsWith("T"))
+        static Move ParseMove(ReadOnlySpan<char> slice, Position pos)
+        {
+            // 駒打ち
+            if (buffer[..2] is "00")
+            {
+                var to = ParseSquare(buffer[2..4]);
+                var drop = ParsePiece2(buffer[4..6]);
+                return MoveExtensions.MakeDrop(to, drop);
+            }
+            else
+            {
+                var from = ParseSquare(slice);
+                var to = ParseSquare(slice[2..4]);
+                var after = ParsePiece2(slice[4..6]);
+                var promote = !pos[from].IsPromoted() && after.IsPromoted();
+
+                return MoveExtensions.MakeMove(from, to, promote);
+            }
+        }
+
+        static bool FromOneToNine(int c)
+        {
+            return '1' <= c && c <= '9';
+        }
+
+        static void ReadUntilNextLine(TextReader textReader)
+        {
+            while (textReader.Peek() != '\n' /* LF or CRLF のどちらにせよ、LF=\n が来るまで読み飛ばせばよい*/)
+            {
+                textReader.Read();
+            }
+
+            // 最後に \n を読み飛ばす
+            textReader.Read();
+        }
+
+        void ParsePosition(TextReader textReader)
+        {
+            while (textReader.Peek() == 'P')
+            {
+                textReader.Read(); // 'P' 読み捨て
+
+                var next = textReader.Read();
+
+                if (FromOneToNine(next))
                 {
-                    reader.ReadLine();
-                    moves.Add(new(move, Core.Csa.ParseTime(timeStr)));
+                    var rank = (Rank)(next - '1');
+                    var file = File.F9;
+                    Span<char> buffer = stackalloc char[3];
+
+                    while (textReader.Peek() is '+' or '-' or ' ')
+                    {
+                        if (textReader.ReadBlock(buffer) < 3)
+                        {
+                            throw new FormatException(); // todo: 行番号
+                        }
+
+                        if (file < File.F1)
+                        {
+                            throw new FormatException();
+                        }
+
+                        this.StartPos._pieces[Squares.Index(rank, file)] = ParsePiece3(buffer);
+                        --file;
+                    }
                 }
-                else 
-                    moves.Add(new(move, null));
+                else if (next is '+' or '-')
+                {
+                    var c = next == '+' ? Color.Black : Color.White;
+                    Span<char> buffer = stackalloc char[4];
+
+                    while ('1' <= textReader.Peek() && textReader.Peek() <= '9')
+                    {
+                        if (textReader.ReadBlock(buffer) < 4)
+                        {
+                            throw new FormatException();
+                        }
+
+                        var piece = ParsePiece2(buffer[2..]);
+
+                        // 持ち駒
+                        if (buffer[..2] is "00")
+                        {
+                            this.StartPos._hands[(int)c].Add(piece, 1);
+                        }
+                        // 盤上の駒
+                        else
+                        {
+                            this.StartPos._pieces[ParseSquare(buffer)] = piece.Colored(c);
+                        }
+                    }
+                }
+                else
+                {
+                    throw new FormatException();
+                }
+
+                ReadUntilNextLine();
             }
 
-            return moves;
+            // 手番
+
+            var next = textReader.Read();
+            var c = next == '+' ? Color.Black
+                : next == '-' ? Color.White
+                : throw new FormatException();
+
+            this.StartPos.Player = c;
+
+            // set internal state
         }
 
-        /// <summary>
-        /// CSA 形式の棋譜の終局状況をパース
-        /// </summary>
-        /// <param name="lines"></param>
-        /// <exception cref="NotImplementedException"></exception>
-        public static void ParseResult(Queue<string> lines)
+        void ParseMoves(TextReader textReader)
         {
-            throw new NotImplementedException();
+            var pos = new Position(this.StartPos);
+
+            while (textReader.Peek() is '+' or '-' or '%' or 'T')
+            {
+                var next = textReader.Read();
+
+                if (next == 'T') 
+                {
+                    if (this.Moves.Count == 0)
+                    {
+                        throw new FormatException();
+                    }
+
+                    var sec = 0;
+
+                    while (textReader.Peek() is >= '0' and <= '9')
+                    {
+                        sec *= 10;
+                        sec += textReader.Read() - '0';
+                    }
+
+                    this.Moves.Last().Elapsed = TimeSpan.FromSeconds(sec);
+                }
+                else
+                {
+                    var moveStr = textReader.ReadLine();
+
+                    this.Moves.Add(new(moveStr));
+                    // var c = next == '+' ? Color.Black : Color.White;
+
+                    // if (pos.Player != c)
+                    // {
+                    //     throw new Exception(); // 寄付の手番がおかしい！
+                    // }
+
+                    // Span<char> buffer = stackalloc char[6];
+
+                    // if (textReader.ReadBlock(buffer) < 6)
+                    // {
+                    //     throw new FormatException();
+                    // }
+
+                    // var move = ParseMove(buffer, pos);
+
+                    // pos.DoMove(move);
+                }
+            }
         }
+
+        void ParseResult(TextReader textReader)
+        {
+            
+        }
+
+        static void ThrowFormatException(string line)
+        {
+            throw new FormatException($"予期しない形式の行です: {line}");
+        }
+    }
+
+    public record CsaMove(string MoveStr)
+    {
+        public string? Comment { get; set; }
+        public TimeSpan Elapsed { get; set; }
     }
 }
