@@ -16,6 +16,6 @@
     <PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\ShogiLibSharp.Core\ShogiLibSharp.Core.csproj" />
+    <ProjectReference Include="..\..\src\ShogiLibSharp.Core\ShogiLibSharp.Core.csproj" />
   </ItemGroup>
 </Project>
