@@ -40,7 +40,7 @@ public partial class Position
     public Color Player
     {
         get;
-        private set;
+        set;
     }
 
     /// <summary>
@@ -49,7 +49,7 @@ public partial class Position
     public int GamePly
     {
         get;
-        private set;
+        set;
     }
 
     /// <summary>
@@ -452,6 +452,10 @@ public partial class Position
     #endregion
 
     #region コンストラクタ
+
+    public Position()
+    {
+    }
 
     public Position(string sfen)
     {
@@ -1050,7 +1054,7 @@ public partial class Position
     /// <summary>
     /// `Player,` `_pieces`, `_hands` に合うように他の状態を設定
     /// </summary>
-    void SetInternalStates()
+    public void SetInternalStates()
     {
         for (int i = 0; i < this._colorBB.Length; ++i)
         {
