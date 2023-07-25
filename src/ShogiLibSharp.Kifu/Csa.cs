@@ -347,12 +347,6 @@ public record Csa
         {
             var next = textReader.Read();
 
-            if (next == '\'')
-            {
-                SkipUntilNextLine(textReader);
-                continue;
-            }
-
             if (next == 'T')
             {
                 if (this.Moves.Count == 0)
@@ -368,14 +362,32 @@ public record Csa
                     sec += textReader.Read() - '0';
                 }
 
-                this.Moves.Last().Elapsed = TimeSpan.FromSeconds(sec);
+                this.Moves[^1].Elapsed = TimeSpan.FromSeconds(sec);
 
                 SkipUntilNextLine(textReader);
             }
             else if (next == '%')
             {
-                var moveStr = ((char)next) + textReader.ReadLine();
+                var moveStr = (char)next + textReader.ReadLine();
+
                 this.Moves.Add(new(moveStr, Move.None));
+            }
+            else if (next == '\'')
+            {
+                if (textReader.Peek() == '*')
+                {
+                    // 対応する指し手がない！
+                    if (this.Moves.Count == 0)
+                    {
+                        throw new FormatException();
+                    }
+
+                    this.Moves[^1].Comment = (char)next + textReader.ReadLine();
+                }
+                else
+                {
+                    SkipUntilNextLine(textReader);
+                }
             }
             else
             {
