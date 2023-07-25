@@ -19,6 +19,12 @@ public record Csa
     public Position StartPos { get; set; } = new();
     public List<CsaMove> Moves { get; set; } = new();
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="textReader"></param>
+    /// <returns></returns>
+    /// <exception cref="FormatException"></exception>
     public static Csa Parse(TextReader textReader)
     {
         var csa = new Csa();
@@ -34,6 +40,13 @@ public record Csa
 
     void ParseVersion(TextReader textReader)
     {
+        // コメントを読み飛ばす
+
+        while (textReader.Peek() is '\'')
+        {
+            SkipUntilNextLine(textReader);
+        }
+
         var line = textReader.ReadLine();
 
         if (line != "V2.2")
@@ -47,7 +60,7 @@ public record Csa
         const string PrefixBlack = "N+";
         const string PrefixWhite = "N-";
 
-        while (textReader.Peek() == 'N')
+        while (textReader.Peek() is 'N' or '\'')
         {
             var line = textReader.ReadLine()!;
 
@@ -59,7 +72,7 @@ public record Csa
             {
                 this.NameWhite = line[PrefixWhite.Length..];
             }
-            else
+            else if (!line.StartsWith('\''))
             {
                 ThrowFormatException(line);
             }
@@ -77,7 +90,7 @@ public record Csa
         const string TimeFormat = "yyyy/MM/dd hh:mm:ss";
         const string TimeLimitFormat = "hh:mm+ss";
 
-        while (textReader.Peek() == '$')
+        while (textReader.Peek() is '$' or '\'')
         {
             var line = textReader.ReadLine()!;
 
@@ -120,6 +133,10 @@ public record Csa
             else if (line.StartsWith(PrefixOpening))
             {
                 this.Opening = line[PrefixOpening.Length..];
+            }
+            else if (!line.StartsWith('\''))
+            {
+                throw new FormatException();
             }
         }
     }
@@ -229,82 +246,89 @@ public record Csa
 
     void ParsePosition(TextReader textReader)
     {
-        while (textReader.Peek() == 'P')
+        while (textReader.Peek() is 'P' or '\'')
         {
-            textReader.Read(); // 'P' 読み捨て
-
-            var next = textReader.Read();
-
-            if (FromOneToNine(next))
+            if (textReader.Read() == 'P') // 'P' 読み捨て
             {
-                var rank = (Rank)(next - '1');
-                var file = Core.File.F9;
-                Span<char> buffer = stackalloc char[3];
+                var next = textReader.Read();
 
-                while (textReader.Peek() is '+' or '-' or ' ')
+                if (FromOneToNine(next))
                 {
-                    if (textReader.ReadBlock(buffer) < 3)
+                    var rank = (Rank)(next - '1');
+                    var file = Core.File.F9;
+                    Span<char> buffer = stackalloc char[3];
+
+                    while (textReader.Peek() is '+' or '-' or ' ')
                     {
-                        throw new FormatException(); // todo: 行番号
-                    }
+                        if (textReader.ReadBlock(buffer) < 3)
+                        {
+                            throw new FormatException(); // todo: 行番号
+                        }
 
-                    if (file < Core.File.F1)
-                    {
-                        throw new FormatException();
-                    }
+                        if (file < Core.File.F1)
+                        {
+                            throw new FormatException();
+                        }
 
-                    var sq = Squares.Index(rank, file);
+                        var sq = Squares.Index(rank, file);
 
-                    this.StartPos._pieces[(int)sq] = ParsePiece3(buffer);
-                    --file;
-                }
-            }
-            else if (next is '+' or '-')
-            {
-                var c = next == '+' ? Color.Black : Color.White;
-                Span<char> buffer = stackalloc char[4];
-
-                while ('1' <= textReader.Peek() && textReader.Peek() <= '9')
-                {
-                    if (textReader.ReadBlock(buffer) < 4)
-                    {
-                        throw new FormatException();
-                    }
-
-                    var piece = ParsePiece2(buffer[2..]);
-
-                    // 持ち駒
-                    if (buffer[..2] is "00")
-                    {
-                        this.StartPos._hands[(int)c].Add(piece, 1);
-                    }
-                    // 盤上の駒
-                    else
-                    {
-                        var sq = ParseSquare(buffer);
-                        this.StartPos._pieces[(int)sq] = piece.Colored(c);
+                        this.StartPos._pieces[(int)sq] = ParsePiece3(buffer);
+                        --file;
                     }
                 }
-            }
-            else
-            {
-                throw new FormatException();
+                else if (next is '+' or '-')
+                {
+                    var c = next == '+' ? Color.Black : Color.White;
+                    Span<char> buffer = stackalloc char[4];
+
+                    while ('1' <= textReader.Peek() && textReader.Peek() <= '9')
+                    {
+                        if (textReader.ReadBlock(buffer) < 4)
+                        {
+                            throw new FormatException();
+                        }
+
+                        var piece = ParsePiece2(buffer[2..]);
+
+                        // 持ち駒
+                        if (buffer[..2] is "00")
+                        {
+                            this.StartPos._hands[(int)c].Add(piece, 1);
+                        }
+                        // 盤上の駒
+                        else
+                        {
+                            var sq = ParseSquare(buffer);
+                            this.StartPos._pieces[(int)sq] = piece.Colored(c);
+                        }
+                    }
+                }
+                else
+                {
+                    throw new FormatException();
+                }
             }
 
             SkipUntilNextLine(textReader);
         }
 
         // 手番
+
+        // コメントを読み飛ばす
+
+        while (textReader.Peek() is '\'')
         {
-            var next = textReader.Read();
-            var c = next == '+' ? Color.Black
-                : next == '-' ? Color.White
-                : throw new FormatException();
-
-            this.StartPos.Player = c;
-
             SkipUntilNextLine(textReader);
         }
+
+        this.StartPos.Player = textReader.Read() switch
+        {
+            '+' => Color.Black,
+            '-' => Color.White,
+            _ => throw new FormatException(),
+        };
+
+        SkipUntilNextLine(textReader);
 
         // GamePly
 
@@ -319,9 +343,15 @@ public record Csa
     {
         var pos = new Position(this.StartPos);
 
-        while (textReader.Peek() is '+' or '-' or '%' or 'T')
+        while (textReader.Peek() is '+' or '-' or '%' or 'T' or '\'')
         {
             var next = textReader.Read();
+
+            if (next == '\'')
+            {
+                SkipUntilNextLine(textReader);
+                continue;
+            }
 
             if (next == 'T')
             {
