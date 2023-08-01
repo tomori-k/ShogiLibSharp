@@ -192,7 +192,6 @@ public class CsaTests
             '*投了
             T7
             '-------------------------------------
-
             """;
 
         var moveStrs = new[]
@@ -369,5 +368,34 @@ public class CsaTests
             Comment = "'*投了",
             Elapsed = TimeSpan.FromSeconds(7),
         });
+    }
+
+    [TestMethod]
+    public void ParsePositionTest()
+    {
+        var kifu = """
+            V2.2
+            P1-KY-KE-GI-KI-OU-KI-GI-KE * 
+            P2 * -HI *  *  *  *  *  *  * 
+            P3-FU-FU-FU-FU-FU-FU-FU-FU-FU
+            P4 *  *  *  *  *  *  *  *  * 
+            P5 *  *  *  *  *  *  *  *  * 
+            P6 *  *  *  *  *  *  *  *  * 
+            P7 * +FU+FU+FU+FU+FU+FU+FU+FU
+            P8 *  *  *  *  *  *  *  *  * 
+            P9 *  * +GI+KI+OU *  *  *  * 
+            P+18KY89KE
+            P+00KY00KE00GI00KI00FU00KA00HI
+            P-00KA11KY
+            P+
+            -
+
+            """;
+
+        using var sr = new StringReader(kifu);
+
+        var parsed = Csa.Parse(sr);
+
+        parsed.StartPos.Sfen.Should().Be("lnsgkgsnl/1r7/ppppppppp/9/9/9/1PPPPPPPP/8L/1NSGK4 w RBGSNLPb 1");
     }
 }

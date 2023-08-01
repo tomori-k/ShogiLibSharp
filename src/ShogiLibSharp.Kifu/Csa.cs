@@ -227,7 +227,10 @@ public record Csa
     {
         while (textReader.Peek() != '\n' /* LF or CRLF のどちらにせよ、LF=\n が来るまで読み飛ばせばよい*/)
         {
-            textReader.Read();
+            if (textReader.Read() == -1)
+            {
+                return;
+            }
         }
 
         // 最後に \n を読み飛ばす
@@ -271,7 +274,7 @@ public record Csa
                     var c = next == '+' ? Color.Black : Color.White;
                     Span<char> buffer = stackalloc char[4];
 
-                    while ('1' <= textReader.Peek() && textReader.Peek() <= '9')
+                    while (textReader.Peek() is >= '0' and <= '9')
                     {
                         if (textReader.ReadBlock(buffer) < 4)
                         {
