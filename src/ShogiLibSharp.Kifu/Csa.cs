@@ -239,6 +239,8 @@ public record Csa
 
     void ParsePosition(TextReader textReader)
     {
+        Span<char> buffer = stackalloc char[4];
+
         while (textReader.Peek() is 'P' or '\'')
         {
             if (textReader.Read() == 'P') // 'P' 読み捨て
@@ -249,11 +251,10 @@ public record Csa
                 {
                     var rank = (Rank)(next - '1');
                     var file = Core.File.F9;
-                    Span<char> buffer = stackalloc char[3];
 
                     while (textReader.Peek() is '+' or '-' or ' ')
                     {
-                        if (textReader.ReadBlock(buffer) < 3)
+                        if (textReader.ReadBlock(buffer[1..]) < 3)
                         {
                             throw new FormatException(); // todo: 行番号
                         }
@@ -265,14 +266,13 @@ public record Csa
 
                         var sq = Squares.Index(rank, file);
 
-                        this.StartPos._pieces[(int)sq] = ParsePiece3(buffer);
+                        this.StartPos._pieces[(int)sq] = ParsePiece3(buffer[1..]);
                         --file;
                     }
                 }
                 else if (next is '+' or '-')
                 {
                     var c = next == '+' ? Color.Black : Color.White;
-                    Span<char> buffer = stackalloc char[4];
 
                     while (textReader.Peek() is >= '0' and <= '9')
                     {
@@ -335,6 +335,7 @@ public record Csa
     void ParseMoves(TextReader textReader)
     {
         var pos = new Position(this.StartPos);
+        Span<char> buffer = stackalloc char[6];
 
         while (textReader.Peek() is '+' or '-' or '%' or 'T' or '\'')
         {
@@ -390,8 +391,6 @@ public record Csa
                 {
                     throw new Exception(); // 手番がおかしい！
                 }
-
-                Span<char> buffer = stackalloc char[6];
 
                 if (textReader.ReadBlock(buffer) < 6)
                 {
