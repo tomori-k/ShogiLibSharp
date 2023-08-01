@@ -88,7 +88,7 @@ public record Csa
         const string PrefixTimeLimit = "$TIME_LIMIT:";
         const string PrefixOpening = "$OPENING:";
         const string TimeFormat = "yyyy/MM/dd HH:mm:ss";
-        const string TimeLimitFormat = "hh:mm+ss";
+        const string TimeLimitFormat = "hh\\:mm\\+ss";
 
         while (textReader.Peek() is '$' or '\'')
         {
@@ -115,12 +115,10 @@ public record Csa
             else if (line.StartsWith(PrefixTimeLimit))
             {
                 var timeLimitStr = line[PrefixTimeLimit.Length..];
+                var timeLimit = TimeSpan.ParseExact(timeLimitStr, TimeLimitFormat, new CultureInfo("ja-JP"), TimeSpanStyles.None);
 
-                if (TimeSpan.TryParseExact(timeLimitStr, TimeLimitFormat, new CultureInfo("ja-JP"), TimeSpanStyles.None, out var timeLimit))
-                {
-                    this.Byoyomi = TimeSpan.FromSeconds(timeLimit.Seconds);
-                    this.TimeLimit = timeLimit - this.Byoyomi;
-                }
+                this.Byoyomi = TimeSpan.FromSeconds(timeLimit.Seconds);
+                this.TimeLimit = timeLimit - this.Byoyomi;
             }
             else if (line.StartsWith(PrefixOpening))
             {
