@@ -12,8 +12,8 @@ public record Csa
     public string? Event { get; set; }
     public string? Site { get; set; }
     public string? Opening { get; set; }
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public TimeSpan TimeLimit { get; set; }
     public TimeSpan Byoyomi { get; set; }
     public Position StartPos { get; set; } = new();
@@ -87,7 +87,7 @@ public record Csa
         const string PrefixEndTime = "$END_TIME:";
         const string PrefixTimeLimit = "$TIME_LIMIT:";
         const string PrefixOpening = "$OPENING:";
-        const string TimeFormat = "yyyy/MM/dd hh:mm:ss";
+        const string TimeFormat = "yyyy/MM/dd HH:mm:ss";
         const string TimeLimitFormat = "hh:mm+ss";
 
         while (textReader.Peek() is '$' or '\'')
@@ -105,20 +105,12 @@ public record Csa
             else if (line.StartsWith(PrefixStartTime))
             {
                 var time = line[PrefixStartTime.Length..];
-
-                if (DateTime.TryParseExact(time, TimeFormat, new CultureInfo("ja-JP"), DateTimeStyles.None, out var startTime))
-                {
-                    this.StartTime = startTime;
-                }
+                this.StartTime = DateTimeOffset.ParseExact(time, TimeFormat, new CultureInfo("ja-JP"));
             }
             else if (line.StartsWith(PrefixEndTime))
             {
                 var time = line[PrefixEndTime.Length..];
-
-                if (DateTime.TryParseExact(time, TimeFormat, new CultureInfo("ja-JP"), DateTimeStyles.None, out var endTime))
-                {
-                    this.EndTime = endTime;
-                }
+                this.EndTime = DateTimeOffset.ParseExact(time, TimeFormat, new CultureInfo("ja-JP"));
             }
             else if (line.StartsWith(PrefixTimeLimit))
             {
