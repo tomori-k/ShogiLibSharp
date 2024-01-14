@@ -21,19 +21,4 @@
     <!--<ProjectReference Include="..\..\src\ShogiLibSharp.Kifu\ShogiLibSharp.Kifu.csproj" />-->
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="kifu\not_sennichite\1.csa">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="kifu\not_sennichite\2.csa">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="kifu\sennichite\1.csa">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="kifu\sennichite\2.csa">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
