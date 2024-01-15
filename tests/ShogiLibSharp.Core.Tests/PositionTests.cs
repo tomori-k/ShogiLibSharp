@@ -11,7 +11,7 @@ public class PositionTests
     [TestMethod]
     public void Player()
     {
-        var position = new Position(Position.Hirate);
+        var position = new Position { Sfen = Position.Hirate };
 
         Assert.AreEqual(Color.Black, position.Player);
 
@@ -27,7 +27,7 @@ public class PositionTests
     [TestMethod]
     public void GamePly()
     {
-        var position = new Position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 100");
+        var position = new Position { Sfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 100" };
 
         Assert.AreEqual(100, position.GamePly);
 
@@ -43,14 +43,14 @@ public class PositionTests
     [TestMethod]
     public void InCheck()
     {
-        var position = new Position("3+N5/5G+PB1/+PR+PPKP2+P/9/9/9/9/4r4/4k4 b G2SN2L4Pb2g2s2n2l8p 1");
+        var position = new Position { Sfen = "3+N5/5G+PB1/+PR+PPKP2+P/9/9/9/9/4r4/4k4 b G2SN2L4Pb2g2s2n2l8p 1" };
         Assert.IsTrue(position.InCheck);
     }
 
     [TestMethod]
     public void IsMated()
     {
-        var position = new Position("+L2+B5/3S5/k2s3pp/1pppp4/p8/1P3P1N1/Pg1PP3P/2+rKS1r+p1/LN2L4 b B2GS2NLPg3p 1");
+        var position = new Position { Sfen = "+L2+B5/3S5/k2s3pp/1pppp4/p8/1P3P1N1/Pg1PP3P/2+rKS1r+p1/LN2L4 b B2GS2NLPg3p 1" };
         Assert.IsTrue(position.IsMated);
     }
 
@@ -71,7 +71,7 @@ public class PositionTests
     [DynamicData(nameof(RepetitionTestcases), DynamicDataSourceType.Method)]
     public void RepetitionTest(string sfen, string[] cycle, Repetition expected)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
 
         for (var i = 0; i < 3; ++i)
         {
@@ -89,7 +89,7 @@ public class PositionTests
     [TestMethod]
     public void Sfen_Getter()
     {
-        var position = new Position(Position.Hirate);
+        var position = new Position { Sfen = Position.Hirate };
         var moves = "7g7f 8c8d 7i6h 3c3d 6h7g 7a6b 2g2f 3a4b 2f2e 4b3c 3i4h 4a3b 4i5h 7c7d 6i7h 5a4a 5i6i 6a5b 5g5f 5c5d 3g3f 8a7c 6g6f 6c6d 5h6g 1c1d 4g4f 4c4d 8h7i 2b3a 7i6h 3b4c 6i7i 4a3b 4h4g 6b6c 2i3g 8d8e 9g9f 9c9d 1g1f 8b8a 2h2i 3a4b 4g5h 4b3a 2i4i 3c2b 4f4e 4d4e 4i4e 3a5c 4e4i 2a3c P*4e 5c2f 6h5i 2f5c 5h4g 1d1e 1f1e P*1f 5i6h 1f1g+ 4i2i 1a1e P*1c P*1a 3f3e 1g1h 2i2f 1h1i 4g4f 3d3e 2e2d 4c3d 5f5e 2c2d 5e5d 6c5d P*3f 3e3f 2f3f P*3e 4f3e 3d3e 6h3e 5c3e 3f3e B*4f B*6h 4f3e 6h3e R*3i 7i8h 8e8f 7g8f 3i3g+ B*7b 3g3e 7b5d+ 3b2c 1c1b+ 1a1b P*3d 3e3d G*4d 3d3h S*3d 2c1d P*3i 3h2h 4d3c 1e1g+ 3c2b S*6i 7h6h 1d1e N*3h P*3g 6h6i 3g3h+ 5d8a 3h3g P*5h L*5c 4e4d N*6c 4d4c+ 5c5h+ 6i7h N*5e 6g7g 5h6h S*6i 6h6i 4c5b S*6g S*3h 3g3h 8a6c 3h3i R*3e S*2e N*3h 6g7h+ 7g7h 5e6g+ 3d2e 6g7h 8h9h 7h8h 9h9g 2d2e S*2d 1e2d 2b2c 2d2c 6c4e 2c1d 3e3d G*2d 3d2d 1d2d G*3e 2d1d 3h2f 2h2f G*2d 1d1e 2d2e 2f2e 3e2e 1e2e R*3e 2e1f S*2e 1f1e"
             .Split()
             .Select(x => x.ToMove());
@@ -148,7 +148,7 @@ public class PositionTests
     [TestMethod]
     public void SfenMoves_Getter()
     {
-        var pos = new Position(Position.Hirate);
+        var pos = new Position { Sfen = Position.Hirate };
 
         pos.DoMove("7g7f".ToMove());
         pos.DoMove("8c8d".ToMove());
@@ -179,7 +179,7 @@ public class PositionTests
     [TestMethod]
     public void Moves()
     {
-        var pos = new Position(Position.Hirate);
+        var pos = new Position { Sfen = Position.Hirate };
 
         pos.DoMove("7g7f".ToMove());
         pos.DoMove("3c3d".ToMove());
@@ -344,7 +344,7 @@ public class PositionTests
         ".........")]
     public void Pinned(string sfen, string pattern)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
 
         Assert.AreEqual(new(pattern), pos.Pinned);
     }
@@ -369,7 +369,7 @@ public class PositionTests
     [DataRow("4K4/9/9/9/9/9/nn+r1l1l2/1+s2b1r2/1b1k3s1 w 4G2S2N2L18P 1", false)]
     public void CanDeclareWinTest(string sfen, bool expected)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var actual = pos.CanDeclareWin();
 
         Assert.AreEqual(expected, actual, pos.ToString());
@@ -479,7 +479,7 @@ public class PositionTests
         ".........")]
     public void PinnedByTest(string sfen, string byBlackPattern, string byWhitePattern)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var pinnedByBlack = pos.PinnedBy(Color.Black);
         var pinnedByWhite = pos.PinnedBy(Color.White);
 

@@ -457,11 +457,6 @@ public partial class Position
     {
     }
 
-    public Position(string sfen)
-    {
-        this.Sfen = sfen;
-    }
-
     public Position(Position pos)
     {
         this.Player = pos.Player;

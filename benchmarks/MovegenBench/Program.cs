@@ -15,7 +15,7 @@ public class Bench
     public void PerftHirate()
     {
         var (sfen, depth, expected) = (Position.Hirate, 5, 19861490UL);
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
@@ -24,7 +24,7 @@ public class Bench
     public void PerftMatsuri()
     {
         var (sfen, depth, expected) = ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL);
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
@@ -33,7 +33,7 @@ public class Bench
     public void PerftMax()
     {
         var (sfen, depth, expected) = ("R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1", 3, 53393368UL);
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
@@ -65,7 +65,7 @@ public class BenchUnsafe
     public void PerftHirate()
     {
         var (sfen, depth, expected) = (Position.Hirate, 5, 19861490UL);
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
@@ -74,7 +74,7 @@ public class BenchUnsafe
     public void PerftMatsuri()
     {
         var (sfen, depth, expected) = ("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1", 4, 516925165UL);
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }
@@ -83,7 +83,7 @@ public class BenchUnsafe
     public void PerftMax()
     {
         var (sfen, depth, expected) = ("R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b RBGSNLP3g3n17p 1", 3, 53393368UL);
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var nodes = PerftImpl(pos, depth);
         if (nodes != expected) throw new Exception($"sfen={sfen},nodes={nodes},expcted={expected}");
     }

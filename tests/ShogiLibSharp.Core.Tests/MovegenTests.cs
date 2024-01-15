@@ -17,7 +17,7 @@ public class MovegenTests
     [DynamicData(nameof(GenerateMovesTestcases), DynamicDataSourceType.Method)]
     public void GenerateMovesTest(string sfen, string[] expected)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
 
         pos.GenerateMoves()
             .Select(x => x.ToUsi())
@@ -56,7 +56,7 @@ public class MovegenTests
     [DataRow("3lkl3/9/9/b8/4g4/3N1P3/r2SKG2r/3PBS3/9 w NL7P2g2s2nl9p 1", Square.S56, true)]
     public void IsUchifuzumeTest(string sfen, Square to, bool expected)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var actual = pos.IsUchifuzume(to);
 
         Assert.AreEqual(expected, actual, pos.ToString());
@@ -145,7 +145,7 @@ public class MovegenTests
     [DynamicData(nameof(IsSuicideMoveTestcases), DynamicDataSourceType.Method)]
     public void IsSuicideMoveTest(string sfen, Move move, bool expected)
     {
-        var pos = new Position(sfen);
+        var pos = new Position { Sfen = sfen };
         var actual = !pos.IsLegal(move);
 
         Assert.AreEqual(expected, actual, $"{pos}\nmove:{move.ToUsi()}");
