@@ -218,7 +218,6 @@ public partial class Position
     public BitboardArray2 _goldBB = new();       // 金の動きができる駒　：金、玉、成駒
     public BitboardArray2 _bishopBB = new();     // 角の動きができる駒　：角、馬
     public BitboardArray2 _rookBB = new();       // 飛車の動きができる駒：飛、龍
-
     Bitboard _checkers;
     BitboardArray2 _pinnedBy = new();
 
