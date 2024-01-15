@@ -70,6 +70,16 @@ public static class HandExtensions
     }
 
     /// <summary>
+    /// 指定した駒を追加した後の駒台を返す。
+    /// </summary>
+    /// <param name="p">Piece.Pawn, Piece.Lance, Piece.Knight, Piece.Silver, Piece.Gold, Piece.Bishop, Piece.Rook のいずれか。</param>
+    /// <param name="cnt">負の数も指定可能。ただし、結果が負になる場合は動作を保証しない。</param>
+    public static Hand Added(this Hand h, Piece p, int cnt)
+    {
+        return h + (1UL << ((int)p * 8)) * (ulong)cnt;
+    }
+
+    /// <summary>
     /// 比較対象の駒台より、どの種類の駒も多いか等しいかどうかを判定する。
     /// </summary>
     /// <param name="comp"></param>

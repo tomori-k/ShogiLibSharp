@@ -192,6 +192,11 @@ public record struct HandArray
     {
         this.AsSpan().Clear();
     }
+
+    public Hand[] ToArray()
+    {
+        return this.AsSpan().ToArray();
+    }
 }
 
 public partial class Position
@@ -211,7 +216,7 @@ public partial class Position
     #region 内部状態
 
     public PieceArray _pieces = new();
-    public readonly Hand[] _hands = new Hand[2];
+    public HandArray _hands = new();
     public BitboardArray2 _colorBB = new();
     public BitboardArray16 _pieceBB = new();
     public BitboardArray2 _silverBB = new();     // 銀の動きができる駒　：銀、玉、馬、龍
@@ -434,7 +439,7 @@ public partial class Position
             }
 
             this._pieces.Fill(Piece.Empty);
-            this._hands.AsSpan().Fill(Core.Hand.Zero);
+            this._hands.Clear();
 
             // 盤面
             for (int i = 0, cnt = 0; i < board.Length; ++i)
@@ -491,7 +496,8 @@ public partial class Position
 
                         if (p.Colorless() != Piece.King)
                         {
-                            this._hands[(int)p.Color()].Add(p.Colorless(), Math.Max(1, n));
+                            var ci = (int)p.Color();
+                            this._hands[ci] = this._hands[ci].Added(p.Colorless(), Math.Max(1, n));
                             n = 0;
                         }
                         else
@@ -654,7 +660,7 @@ public partial class Position
         this.GamePly = pos.GamePly;
         this.Moves = pos.Moves.ToList();
         this._pieces = pos._pieces;
-        this._hands = pos._hands.ToArray();
+        this._hands = pos._hands;
         this._colorBB = pos._colorBB;
         this._pieceBB = pos._pieceBB;
         this._checkers = pos._checkers;
@@ -714,7 +720,7 @@ public partial class Position
             this._pieces[(int)to] = Piece.Empty;
             this._colorBB[(int)Player.Inv()] ^= to;
             this._pieceBB[(int)captured] ^= to;
-            this._hands[(int)Player].Add(captured.Kind(), 1);
+            this._hands[(int)Player] = this._hands[(int)Player].Added(captured.Kind(), 1);
         }
 
         if (m.IsDrop())
@@ -724,7 +730,7 @@ public partial class Position
             this._pieces[(int)to] = p;
             this._colorBB[(int)Player] ^= to;
             this._pieceBB[(int)p] ^= to;
-            this._hands[(int)Player].Add(p.Kind(), -1);
+            this._hands[(int)Player] = this._hands[(int)Player].Added(p.Kind(), -1);
         }
         else
         {
@@ -802,7 +808,7 @@ public partial class Position
             this._pieces[(int)to] = Piece.Empty;
             this._colorBB[(int)Player] ^= to;
             this._pieceBB[(int)dropped] ^= to;
-            this._hands[(int)Player].Add(dropped.Kind(), 1);
+            this._hands[(int)Player] = this._hands[(int)Player].Added(dropped.Kind(), 1);
         }
         else
         {
@@ -823,7 +829,7 @@ public partial class Position
             {
                 this._colorBB[(int)Player.Inv()] ^= to;
                 this._pieceBB[(int)captured] ^= to;
-                this._hands[(int)Player].Add(captured.Kind(), -1);
+                this._hands[(int)Player] = this._hands[(int)Player].Added(captured.Kind(), -1);
             }
         }
 

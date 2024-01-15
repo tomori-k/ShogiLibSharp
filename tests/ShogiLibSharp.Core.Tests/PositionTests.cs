@@ -111,11 +111,10 @@ public class PositionTests
         };
 
         var pieces = new PieceArray();
-        var hands = new Hand[2] {
-            (Hand)0x00_00_00_00_00_00_01_00UL,
-            (Hand)0x01_01_04_02_01_00_06_00UL,
-        };
+        var hands = new HandArray();
 
+        hands[0] = (Hand)0x00_00_00_00_00_00_01_00UL;
+        hands[1] = (Hand)0x01_01_04_02_01_00_06_00UL;
         pieces[1] = Piece.W_Pawn;
         pieces[4] = Piece.W_King;
         pieces[6] = Piece.W_ProLance;
@@ -142,7 +141,7 @@ public class PositionTests
         pieces[80] = Piece.B_Lance;
 
         position._pieces.Should().Be(pieces);
-        position._hands.Should().BeEquivalentTo(hands);
+        position._hands.Should().Be(hands);
     }
 
     [TestMethod]
