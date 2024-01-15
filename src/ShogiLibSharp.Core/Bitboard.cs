@@ -2,9 +2,9 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
-using System.Runtime.Intrinsics.Arm;
 
 namespace ShogiLibSharp.Core;
 
@@ -23,7 +23,7 @@ namespace ShogiLibSharp.Core;
 /// 17 08       62 53 44 35 26 17 08 九               <br/>
 ///    hi                         lo                  <br/>
 /// </summary>
-public readonly struct Bitboard : IEnumerable<Square>
+public readonly record struct Bitboard : IEnumerable<Square>
 {
     #region テーブル
 
