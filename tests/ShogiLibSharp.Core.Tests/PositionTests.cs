@@ -179,19 +179,176 @@ public class PositionTests
     [TestMethod]
     public void Moves()
     {
-        // todo
-        Assert.Fail();
+        var pos = new Position(Position.Hirate);
+
+        pos.DoMove("7g7f".ToMove());
+        pos.DoMove("3c3d".ToMove());
+        pos.DoMove("8h2b+".ToMove());
+        pos.DoMove("3a2b".ToMove());
+        pos.DoMove("5i5h".ToMove());
+        pos.TryUndoMove();
+
+        pos.Moves.Should().BeEquivalentTo(new[] {
+            ("7g7f".ToMove(), Piece.Empty),
+            ("3c3d".ToMove(), Piece.Empty),
+            ("8h2b+".ToMove(), Piece.W_Bishop),
+            ("3a2b".ToMove(), Piece.B_ProBishop)
+        });
     }
 
     [TestMethod]
-    public void Hash()
+    public void ZobristHash()
     {
         // todo
         Assert.Fail();
     }
 
     // インデクサ
-    // todo
+
+    [TestMethod]
+    public void SquareTest()
+    {
+        var position = new Position() { Sfen = Position.Hirate };
+
+        position[Square.S59].Should().Be(Piece.B_King);
+    }
+
+    [TestMethod]
+    public void SquareRankFileTest()
+    {
+        var position = new Position() { Sfen = Position.Hirate };
+
+        position[Rank.R9, File.F5].Should().Be(Piece.B_King);
+    }
+
+    [TestMethod]
+    public void ColorBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(new Bitboard(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "ooooooooo" +
+            ".o.....o." +
+            "ooooooooo"
+            ),
+            position[Color.Black]
+       );
+    }
+
+    [TestMethod]
+    public void PieceBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(new Bitboard(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "ooooooooo" +
+            "........." +
+            "........."
+            ),
+            position[Piece.B_Pawn]
+       );
+    }
+
+    [TestMethod]
+    public void ColorPieceBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(new Bitboard(
+
+            "........." +
+            "........." +
+            "ooooooooo" +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........."
+            ),
+            position[Color.White, Piece.B_Pawn]
+       );
+    }
+
+    [TestMethod]
+    public void OcuppancyBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(new Bitboard(
+            "ooooooooo" +
+            ".o.....o." +
+            "ooooooooo" +
+            "........." +
+            "........." +
+            "........." +
+            "ooooooooo" +
+            ".o.....o." +
+            "ooooooooo"
+            ),
+            position.Occupancy
+       );
+    }
+
+    [TestMethod]
+    public void Checkers()
+    {
+        var position = new Position { Sfen = "3+N5/5G+PB1/+PR+PPKP2+P/9/9/9/9/4r4/4k4 b G2SN2L4Pb2g2s2n2l8p 1" };
+
+        Assert.AreEqual(new(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "....o...." +
+            "........."
+            ),
+            position.Checkers);
+    }
+
+    [DataTestMethod]
+    [DataRow("knsglgsnl/9/9/4G4/rL2K1N1R/9/9/1S2S2G1/BN2L3b b 9P9p 1",
+        "........." +
+        "........." +
+        "........." +
+        "....o...." +
+        ".o......." +
+        "........." +
+        "........." +
+        ".......o." +
+        ".........")]
+    [DataRow("knlg1gsnl/9/9/9/rNKP5/2P6/b8/6b2/2r6 w 2GSNL7P2sl9p 1",
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        "........." +
+        ".........")]
+    public void Pinned(string sfen, string pattern)
+    {
+        var pos = new Position(sfen);
+
+        Assert.AreEqual(new(pattern), pos.Pinned);
+    }
+
 
     [DataTestMethod]
     // 1点足りない
