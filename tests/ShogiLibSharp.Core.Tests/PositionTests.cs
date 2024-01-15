@@ -110,7 +110,7 @@ public class PositionTests
             Sfen = "l8/4+P3p/2n6/p1pp5/5+BRSk/PSPP5/KP6+l/1+n7/LN1+l2+p1+p b Prb4g2sn6p 179"
         };
 
-        var pieces = new Piece[81];
+        var pieces = new PieceArray();
         var hands = new Hand[2] {
             (Hand)0x00_00_00_00_00_00_01_00UL,
             (Hand)0x01_01_04_02_01_00_06_00UL,
@@ -141,7 +141,7 @@ public class PositionTests
         pieces[78] = Piece.B_King;
         pieces[80] = Piece.B_Lance;
 
-        position._pieces.Should().BeEquivalentTo(pieces);
+        position._pieces.Should().Be(pieces);
         position._hands.Should().BeEquivalentTo(hands);
     }
 
@@ -349,6 +349,106 @@ public class PositionTests
         Assert.AreEqual(new(pattern), pos.Pinned);
     }
 
+    // メソッド
+
+    [TestMethod]
+    public void Hand()
+    {
+        var position = new Position { Sfen = Position.Matsuri };
+
+        Assert.AreEqual((Hand)0x00_00_01_01_01_00_05_00UL, position.Hand(Color.White));
+    }
+
+    [TestMethod]
+    public void SilverBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(
+            new(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "..o.o.o.."
+            ),
+            position.SilverBB(Color.Black)
+        );
+    }
+
+    [TestMethod]
+    public void GoldBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(
+            new(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "...ooo..."
+            ),
+            position.GoldBB(Color.Black)
+        );
+    }
+
+
+    [TestMethod]
+    public void BishopBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(
+            new(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            ".o......." +
+            "........."
+            ),
+            position.BishopBB(Color.Black)
+        );
+    }
+
+    [TestMethod]
+    public void RookBB()
+    {
+        var position = new Position { Sfen = Position.Hirate };
+
+        Assert.AreEqual(
+            new(
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            "........." +
+            ".......o." +
+            "........."
+            ),
+            position.RookBB(Color.Black)
+        );
+    }
+
+    [TestMethod]
+    public void DoMove()
+    {
+        Assert.Fail();
+    }
 
     [DataTestMethod]
     // 1点足りない

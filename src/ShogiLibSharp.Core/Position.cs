@@ -1,6 +1,111 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace ShogiLibSharp.Core;
+
+public record struct PieceArray
+{
+    private Piece _piece00;
+    private Piece _piece01;
+    private Piece _piece02;
+    private Piece _piece03;
+    private Piece _piece04;
+    private Piece _piece05;
+    private Piece _piece06;
+    private Piece _piece07;
+    private Piece _piece08;
+    private Piece _piece09;
+    private Piece _piece10;
+    private Piece _piece11;
+    private Piece _piece12;
+    private Piece _piece13;
+    private Piece _piece14;
+    private Piece _piece15;
+    private Piece _piece16;
+    private Piece _piece17;
+    private Piece _piece18;
+    private Piece _piece19;
+    private Piece _piece20;
+    private Piece _piece21;
+    private Piece _piece22;
+    private Piece _piece23;
+    private Piece _piece24;
+    private Piece _piece25;
+    private Piece _piece26;
+    private Piece _piece27;
+    private Piece _piece28;
+    private Piece _piece29;
+    private Piece _piece30;
+    private Piece _piece31;
+    private Piece _piece32;
+    private Piece _piece33;
+    private Piece _piece34;
+    private Piece _piece35;
+    private Piece _piece36;
+    private Piece _piece37;
+    private Piece _piece38;
+    private Piece _piece39;
+    private Piece _piece40;
+    private Piece _piece41;
+    private Piece _piece42;
+    private Piece _piece43;
+    private Piece _piece44;
+    private Piece _piece45;
+    private Piece _piece46;
+    private Piece _piece47;
+    private Piece _piece48;
+    private Piece _piece49;
+    private Piece _piece50;
+    private Piece _piece51;
+    private Piece _piece52;
+    private Piece _piece53;
+    private Piece _piece54;
+    private Piece _piece55;
+    private Piece _piece56;
+    private Piece _piece57;
+    private Piece _piece58;
+    private Piece _piece59;
+    private Piece _piece60;
+    private Piece _piece61;
+    private Piece _piece62;
+    private Piece _piece63;
+    private Piece _piece64;
+    private Piece _piece65;
+    private Piece _piece66;
+    private Piece _piece67;
+    private Piece _piece68;
+    private Piece _piece69;
+    private Piece _piece70;
+    private Piece _piece71;
+    private Piece _piece72;
+    private Piece _piece73;
+    private Piece _piece74;
+    private Piece _piece75;
+    private Piece _piece76;
+    private Piece _piece77;
+    private Piece _piece78;
+    private Piece _piece79;
+    private Piece _piece80;
+
+    private Span<Piece> AsSpan() => MemoryMarshal.CreateSpan(ref this._piece00, 81);
+
+    public Piece this[int index]
+    {
+        get => this.AsSpan()[index];
+        set => this.AsSpan()[index] = value;
+    }
+
+    public Piece[] ToArray()
+    {
+        return this.AsSpan().ToArray();
+    }
+
+    public void Fill(Piece p)
+    {
+        this.AsSpan().Fill(p);
+    }
+}
 
 public partial class Position
 {
@@ -18,7 +123,7 @@ public partial class Position
 
     #region 内部状態
 
-    public readonly Piece[] _pieces = new Piece[81];
+    public PieceArray _pieces = new();
     public readonly Hand[] _hands = new Hand[2];
     public readonly Bitboard[] _colorBB = new Bitboard[2];
     public readonly Bitboard[] _pieceBB = new Bitboard[2 * 16];
@@ -242,7 +347,7 @@ public partial class Position
                 throw new FormatException("不正な SFEN です。");
             }
 
-            this._pieces.AsSpan().Fill(Piece.Empty);
+            this._pieces.Fill(Piece.Empty);
             this._hands.AsSpan().Fill(Core.Hand.Zero);
 
             // 盤面
@@ -462,7 +567,7 @@ public partial class Position
         this.Player = pos.Player;
         this.GamePly = pos.GamePly;
         this.Moves = pos.Moves.ToList();
-        this._pieces = pos._pieces.ToArray();
+        this._pieces = pos._pieces;
         this._hands = pos._hands.ToArray();
         this._colorBB = pos._colorBB.ToArray();
         this._pieceBB = (Bitboard[])pos._pieceBB.Clone();
@@ -899,6 +1004,10 @@ public partial class Position
     /// <returns></returns>
     public Bitboard EnumerateAttackers(Color c, Square sq, Bitboard occ)
     {
+        Debug.WriteLine(c);
+        Debug.WriteLine(sq);
+        Debug.WriteLine(occ);
+
         return (this[c, Piece.Pawn] & Bitboard.PawnAttacks(c.Inv(), sq))
              | (this[c, Piece.Lance] & Bitboard.LanceAttacks(c.Inv(), sq, occ))
              | (this[c, Piece.Knight] & Bitboard.KnightAttacks(c.Inv(), sq))
