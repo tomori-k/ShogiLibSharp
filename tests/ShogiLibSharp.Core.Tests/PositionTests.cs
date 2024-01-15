@@ -349,6 +349,13 @@ public class PositionTests
         Assert.AreEqual(new(pattern), pos.Pinned);
     }
 
+    // コンストラクタ
+
+    public void CopyConstructor()
+    {
+        Assert.Fail();
+    }
+
     // メソッド
 
     [TestMethod]

@@ -107,6 +107,93 @@ public record struct PieceArray
     }
 }
 
+public record struct BitboardArray2
+{
+    private Bitboard _bb0;
+    private Bitboard _bb1;
+
+    private Span<Bitboard> AsSpan() => MemoryMarshal.CreateSpan(ref this._bb0, 2);
+
+    public Bitboard this[int index]
+    {
+        get => this.AsSpan()[index];
+        set => this.AsSpan()[index] = value;
+    }
+
+    public void Clear()
+    {
+        this.AsSpan().Clear();
+    }
+}
+
+public record struct BitboardArray16
+{
+    private Bitboard _bb00;
+    private Bitboard _bb01;
+    private Bitboard _bb02;
+    private Bitboard _bb03;
+    private Bitboard _bb04;
+    private Bitboard _bb05;
+    private Bitboard _bb06;
+    private Bitboard _bb07;
+    private Bitboard _bb08;
+    private Bitboard _bb09;
+    private Bitboard _bb10;
+    private Bitboard _bb11;
+    private Bitboard _bb12;
+    private Bitboard _bb13;
+    private Bitboard _bb14;
+    private Bitboard _bb15;
+    private Bitboard _bb16;
+    private Bitboard _bb17;
+    private Bitboard _bb18;
+    private Bitboard _bb19;
+    private Bitboard _bb20;
+    private Bitboard _bb21;
+    private Bitboard _bb22;
+    private Bitboard _bb23;
+    private Bitboard _bb24;
+    private Bitboard _bb25;
+    private Bitboard _bb26;
+    private Bitboard _bb27;
+    private Bitboard _bb28;
+    private Bitboard _bb29;
+    private Bitboard _bb30;
+    private Bitboard _bb31;
+
+    private Span<Bitboard> AsSpan() => MemoryMarshal.CreateSpan(ref this._bb00, 32);
+
+    public Bitboard this[int index]
+    {
+        get => this.AsSpan()[index];
+        set => this.AsSpan()[index] = value;
+    }
+
+    public void Clear()
+    {
+        this.AsSpan().Clear();
+    }
+}
+
+public record struct HandArray
+{
+    private Hand _hand0;
+    private Hand _hand1;
+
+    private Span<Hand> AsSpan() => MemoryMarshal.CreateSpan(ref this._hand0, 2);
+
+    public Hand this[int index]
+    {
+        get => this.AsSpan()[index];
+        set => this.AsSpan()[index] = value;
+    }
+
+    public void Clear()
+    {
+        this.AsSpan().Clear();
+    }
+}
+
 public partial class Position
 {
     public const string Hirate = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
@@ -125,15 +212,15 @@ public partial class Position
 
     public PieceArray _pieces = new();
     public readonly Hand[] _hands = new Hand[2];
-    public readonly Bitboard[] _colorBB = new Bitboard[2];
-    public readonly Bitboard[] _pieceBB = new Bitboard[2 * 16];
-    public readonly Bitboard[] _silverBB = new Bitboard[2];     // 銀の動きができる駒　：銀、玉、馬、龍
-    public readonly Bitboard[] _goldBB = new Bitboard[2];       // 金の動きができる駒　：金、玉、成駒
-    public readonly Bitboard[] _bishopBB = new Bitboard[2];     // 角の動きができる駒　：角、馬
-    public readonly Bitboard[] _rookBB = new Bitboard[2];       // 飛車の動きができる駒：飛、龍
+    public BitboardArray2 _colorBB = new();
+    public BitboardArray16 _pieceBB = new();
+    public BitboardArray2 _silverBB = new();     // 銀の動きができる駒　：銀、玉、馬、龍
+    public BitboardArray2 _goldBB = new();       // 金の動きができる駒　：金、玉、成駒
+    public BitboardArray2 _bishopBB = new();     // 角の動きができる駒　：角、馬
+    public BitboardArray2 _rookBB = new();       // 飛車の動きができる駒：飛、龍
 
     Bitboard _checkers;
-    readonly Bitboard[] _pinnedBy = new Bitboard[2];
+    BitboardArray2 _pinnedBy = new();
 
     #endregion
 
@@ -569,14 +656,14 @@ public partial class Position
         this.Moves = pos.Moves.ToList();
         this._pieces = pos._pieces;
         this._hands = pos._hands.ToArray();
-        this._colorBB = pos._colorBB.ToArray();
-        this._pieceBB = (Bitboard[])pos._pieceBB.Clone();
+        this._colorBB = pos._colorBB;
+        this._pieceBB = pos._pieceBB;
         this._checkers = pos._checkers;
-        this._pinnedBy = pos._pinnedBy.ToArray();
-        this._silverBB = (Bitboard[])pos._silverBB.Clone();
-        this._goldBB = pos._goldBB.ToArray();
-        this._bishopBB = (Bitboard[])pos._bishopBB.Clone();
-        this._rookBB = pos._rookBB.ToArray();
+        this._pinnedBy = pos._pinnedBy;
+        this._silverBB = pos._silverBB;
+        this._goldBB = pos._goldBB;
+        this._bishopBB = pos._bishopBB;
+        this._rookBB = pos._rookBB;
     }
 
     #endregion
@@ -1160,15 +1247,8 @@ public partial class Position
     /// </summary>
     public void SetInternalStates()
     {
-        for (int i = 0; i < this._colorBB.Length; ++i)
-        {
-            this._colorBB[i] = new();
-        }
-
-        for (int i = 0; i < this._pieceBB.Length; ++i)
-        {
-            this._pieceBB[i] = new();
-        }
+        this._colorBB.Clear();
+        this._pieceBB.Clear();
 
         foreach (var sq in Squares.All)
         {
