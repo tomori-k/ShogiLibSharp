@@ -372,7 +372,7 @@ public partial class Position
     /// <summary>
     /// 局面のハッシュ値。
     /// </summary>
-    public ulong Hash { get; private set; }
+    public ulong ZobristHash { get; private set; }
 
     /// <summary>
     /// 指定したマスにある駒を取得する。
@@ -1041,7 +1041,7 @@ public partial class Position
                 break;
         }
 
-        sb.AppendLine($"ハッシュ値: {Hash}");
+        sb.AppendLine($"ハッシュ値: {ZobristHash}");
         sb.AppendLine($"SFEN: {Sfen}");
 
         return sb.ToString();
